@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { BarChart3, RefreshCw, AlertCircle, Zap, Activity, TrendingUp, Book } from 'lucide-react';
+import { RefreshCw, AlertCircle, Zap, TrendingUp, Book } from 'lucide-react';
 import OverviewCards from './components/OverviewCards';
 import PerformanceTable from './components/PerformanceTable';
 import CatalogModal from './components/CatalogModal';
@@ -99,24 +99,71 @@ function App() {
   const processedOperations = data ? processOperationData(data) : [];
   const dailyComparison = data ? compareDailyData(data.daily) : null;
 
+  const SkeletonBar = ({ className = '' }) => (
+    <div className={`skeleton-shimmer rounded ${className}`} aria-hidden="true" />
+  );
+
   const LoadingState = () => (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center">
-      <div className="text-center">
-        <div className="relative">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-600 mx-auto mb-6"></div>
-          <div className="absolute inset-0 rounded-full h-16 w-16 border-t-4 border-indigo-400 animate-ping mx-auto"></div>
-        </div>
-        <div className="glass-card max-w-md">
-          <h3 className="text-xl font-bold text-gray-900 mb-3 flex items-center justify-center">
-            <Activity className="h-6 w-6 mr-2 text-blue-600" />
-            Loading Performance Data
-          </h3>
-          <p className="text-gray-600">Fetching the latest TTNN operation results...</p>
-          <div className="mt-4 bg-gray-200 rounded-full h-2 overflow-hidden">
-            <div className="bg-gradient-to-r from-blue-500 to-indigo-500 h-full rounded-full animate-pulse"></div>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
+      <header className="header-gradient shadow-xl border-b border-white/20 sticky top-0 z-50">
+        <div className="max-w-[1536px] mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-wrap items-center justify-between gap-y-3 py-3 sm:py-0 sm:h-20">
+            <div className="flex items-center">
+              <SkeletonBar className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl" />
+              <div className="ml-3 sm:ml-4 space-y-2">
+                <SkeletonBar className="h-5 w-40 sm:w-52" />
+                <SkeletonBar className="h-3 w-28 sm:w-40" />
+              </div>
+            </div>
+            <div className="flex items-center gap-2 sm:gap-4">
+              <SkeletonBar className="h-10 w-10 sm:w-40 rounded-lg" />
+              <SkeletonBar className="h-10 w-10 sm:w-32 rounded-lg" />
+            </div>
           </div>
         </div>
-      </div>
+      </header>
+
+      <main className="max-w-[1536px] mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6 sm:space-y-8">
+        <div className="glass-card">
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-4">
+            <SkeletonBar className="h-9 w-9 rounded-lg shrink-0" />
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="space-y-2">
+                <SkeletonBar className="h-3 w-20" />
+                <SkeletonBar className="h-4 w-28" />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <SkeletonBar className="h-7 w-64 sm:w-80" />
+          <SkeletonBar className="h-4 w-72 sm:w-96" />
+        </div>
+
+        <div className="glass-card space-y-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <SkeletonBar className="h-10 flex-1 min-w-[160px] rounded-lg" />
+            <SkeletonBar className="h-10 w-32 rounded-lg" />
+            <SkeletonBar className="h-10 w-32 rounded-lg" />
+          </div>
+          <div className="space-y-2">
+            {Array.from({ length: 10 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-3">
+                <SkeletonBar className="h-8 w-32 sm:w-40 shrink-0" />
+                <SkeletonBar className="h-8 w-24 sm:w-32 shrink-0" />
+                {Array.from({ length: 6 }).map((_, j) => (
+                  <SkeletonBar key={j} className="h-8 flex-1 min-w-[60px]" />
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+      </main>
+
+      <span className="sr-only" role="status" aria-live="polite">
+        Loading TTNN performance data…
+      </span>
     </div>
   );
 
@@ -184,7 +231,7 @@ function App() {
               </button>
               <button
                 onClick={loadData}
-                className="btn-secondary inline-flex items-center pulse-glow"
+                className="btn-secondary inline-flex items-center"
                 disabled={loading}
                 aria-label="Refresh Data"
               >
