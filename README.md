@@ -102,7 +102,7 @@ The dashboard tracks **288 TTNN eltwise operations** across 6 main categories:
 - **Backward Operations**: 80 operations
 - **Complex Operations**: 8 operations
 
-**Test Coverage**: 264/288 operations (**91.7%**)
+**Test Coverage**: 262/288 operations (**91.0%**)
 
 ---
 

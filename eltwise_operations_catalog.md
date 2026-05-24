@@ -10,7 +10,7 @@
 - **Backward Operations**: 80 operations
 - **Complex Operations**: 8 operations
 
-**Test Coverage**: 264/288 operations (**91.7%**)
+**Test Coverage**: 262/288 operations (**91.0%**)
 
 ---
 
@@ -243,9 +243,9 @@ complex_tensor, real, imag, angle, conj, polar
 - Backward operations included for training workflows
 - Complex number operations separated for specialized use cases
 - Hardware-specific operations optimized for performance
-- **Test coverage: 264/288 operations (91.7%)**
+- **Test coverage: 262/288 operations (91.0%)**
 
 ---
 
 **Total Operations: 288** ✅  
-**Test Coverage: 91.7%** 🎯 
+**Test Coverage: 91.0%** 🎯 
