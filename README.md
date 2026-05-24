@@ -172,7 +172,6 @@ npx wrangler deploy
 ### **Alternative Platforms**
 - **Vercel**: `npm run build && vercel --prod`
 - **Netlify**: `npm run build && netlify deploy --prod --dir=dist`
-- **GitHub Pages**: Configure GitHub Actions with build workflow
 
 ---
 
