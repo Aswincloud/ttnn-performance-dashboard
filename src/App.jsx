@@ -3,11 +3,10 @@ import { BarChart3, RefreshCw, AlertCircle, Zap, Activity, TrendingUp, Book } fr
 import OverviewCards from './components/OverviewCards';
 import PerformanceTable from './components/PerformanceTable';
 import CatalogModal from './components/CatalogModal';
-import { 
-  loadPerformanceData, 
-  processOperationData, 
-  calculateSummaryStats, 
-  compareDailyData
+import {
+  loadPerformanceData,
+  processOperationData,
+  calculateSummaryStats,
 } from './utils/dataLoader';
 
 function App() {
@@ -97,7 +96,6 @@ function App() {
 
   const summaryStats = data ? calculateSummaryStats(data) : null;
   const processedOperations = data ? processOperationData(data) : [];
-  const dailyComparison = data ? compareDailyData(data.daily) : null;
 
   const LoadingState = () => (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center">
@@ -204,7 +202,7 @@ function App() {
             <h2 className="text-2xl font-bold text-gray-900 mb-2">Performance Overview</h2>
             <p className="text-gray-600">Key metrics and trends for TTNN eltwise operations</p>
           </div>
-          <OverviewCards summaryStats={summaryStats} dailyComparison={dailyComparison} />
+          <OverviewCards summaryStats={summaryStats} />
         </section>
 
         {/* Performance Table Section */}

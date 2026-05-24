@@ -80,7 +80,7 @@ const TestConfigBanner = ({ summaryStats }) => {
   );
 };
 
-const OverviewCards = ({ summaryStats, dailyComparison }) => {
+const OverviewCards = ({ summaryStats }) => {
   return <TestConfigBanner summaryStats={summaryStats} />;
 };
 

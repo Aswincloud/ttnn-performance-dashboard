@@ -347,7 +347,7 @@ class PerformanceChangeDetector:
             print(f"   From: {from_email}")
             print(f"   Subject: {subject}")
             
-            response = requests.post(url, json=payload, headers=headers)
+            response = requests.post(url, json=payload, headers=headers, timeout=15)
             
             if response.status_code == 200:
                 print(f"✅ Email sent successfully!")
