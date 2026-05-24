@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { X, Search, Book, Zap, Code, Filter } from 'lucide-react';
 import { operationsCatalog } from '../utils/operationsCatalog';
 
@@ -50,6 +50,15 @@ const catalogData = buildCatalogData();
 const CatalogModal = ({ isOpen, onClose }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
 
   const filteredCategories = Object.entries(catalogData.categories).filter(([key, category]) => {
     if (selectedCategory !== 'all' && key !== selectedCategory) return false;
