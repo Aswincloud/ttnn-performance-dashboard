@@ -340,6 +340,16 @@ class TestEltwiseOperations:
     def test_silu(self, device):
         run_unary_op_test(ttnn.silu, torch.nn.functional.silu, device)
 
+    def test_xielu(self, device):
+        def xielu_golden(x, alpha_p=0.8, alpha_n=0.8):
+            beta = 0.5
+            eps = -1e-6
+            pos_part = alpha_p * x * x + beta * x
+            x_clipped = torch.minimum(x, torch.full_like(x, eps))
+            neg_part = alpha_n * torch.expm1(x_clipped) - alpha_n * x + beta * x
+            return torch.where(x > 0, pos_part, neg_part)
+        run_unary_op_test(ttnn.xielu, xielu_golden, device)
+
     def test_sin(self, device):
         run_unary_op_test(ttnn.sin, torch.sin, device)
 
@@ -1670,7 +1680,7 @@ def get_all_unary_operations() -> List[str]:
         "exp", "erf", "erfc", "gelu", "rsqrt", "sigmoid", "tanh", "i1", "isneginf", 
         "isposinf", "nez", "bitwise_not", "floor", "ceil", "trunc", "eqz", "mish", 
         "hardmish", "cosh", "sinh", "cbrt", "softplus", "log_sigmoid", "swish", "hardswish", 
-        "hardsigmoid", "hardtanh", "celu", "selu", "tanhshrink", "deg2rad", "rad2deg", 
+        "hardsigmoid", "hardtanh", "celu", "selu", "tanhshrink", "deg2rad", "rad2deg", "xielu",
         "identity", "softsign", "frac", "round", "logit", "clip", "clamp", 
         "sigmoid_accurate", "elu", "leaky_relu", "threshold", "tril", "triu", 
         "digamma", "lgamma", "multigammaln", "polygamma", "heaviside", "logical_not_",

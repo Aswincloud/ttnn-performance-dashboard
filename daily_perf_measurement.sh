@@ -3,13 +3,15 @@
 # Daily Performance Measurement Script for TT-Metal
 # This script runs the complete workflow: update code, build, measure performance, upload results
 
-set -e  # Exit on any error
+set -eo pipefail
 
 # Configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LOG_FILE="$SCRIPT_DIR/perf_log.txt"
 ERROR_LOG="$SCRIPT_DIR/perf_error.txt"
 PYTHON_ENV="$SCRIPT_DIR/python_env"
+NOTIFICATION_EMAIL="aswin@aswincloud.com"
+RESEND_API_KEY="${RESEND_API_KEY:-re_DUMMY_replace_with_real_key}"
 
 # Parse command line arguments
 UPLOAD_TO_GITHUB=false
@@ -50,14 +52,37 @@ if [ "$UPLOAD_TO_GITHUB" = true ]; then
     log "🔗 Using repository: $GITHUB_REPO_URL"
 fi
 
-# Function to check if command succeeded
+# Function to check if command succeeded — pass exit code explicitly
 check_success() {
-    if [ $? -eq 0 ]; then
-        log "✅ $1 - SUCCESS"
+    local rc=$1
+    local msg="$2"
+    if [ "$rc" -eq 0 ]; then
+        log "✅ $msg - SUCCESS"
     else
-        log_error "$1 - FAILED"
+        log_error "$msg - FAILED (exit code: $rc)"
+        send_email "TT-Metal Perf: $msg FAILED" "Step '$msg' failed with exit code $rc.\n\nLog tail:\n$(tail -30 "$LOG_FILE" 2>/dev/null)"
         exit 1
     fi
+}
+
+send_email() {
+    local subject="$1"
+    local body="$2"
+    if [ -z "$RESEND_API_KEY" ]; then
+        log "⚠️  RESEND_API_KEY not set, skipping email notification"
+        return 0
+    fi
+    log "📧 Sending email notification: $subject"
+    curl -s -X POST "https://api.resend.com/emails" \
+        -H "Authorization: Bearer $RESEND_API_KEY" \
+        -H "Content-Type: application/json" \
+        -d "$(jq -n \
+            --arg from "TT-Metal Perf <onboarding@resend.dev>" \
+            --arg to "$NOTIFICATION_EMAIL" \
+            --arg subject "$subject" \
+            --arg text "$(echo -e "$body")" \
+            '{from: $from, to: [$to], subject: $subject, text: $text}'
+        )" > /dev/null 2>&1 || log "⚠️  Failed to send email"
 }
 
 # Start the performance measurement workflow
@@ -76,25 +101,52 @@ cd "$SCRIPT_DIR"
 # Step 1: Git operations
 log "📥 Step 1: Updating repository..."
 git pull origin main 2>&1 | tee -a "$LOG_FILE"
-check_success "Git pull"
+rc=${PIPESTATUS[0]}
+git pull origin main 2>&1 | tee -a "$LOG_FILE"
+rc=${PIPESTATUS[0]}
+check_success "$rc" "Git pull"
 
 git submodule update --init --recursive 2>&1 | tee -a "$LOG_FILE"
-check_success "Git submodule update"
+check_success "${PIPESTATUS[0]}" "Git submodule update"
 
-# Get current commit for reference
-CURRENT_COMMIT=$(git rev-parse HEAD)
+# Verify branch is up to date with remote
+log "🔍 Verifying branch is in sync with remote..."
+git fetch origin main 2>/dev/null
+LOCAL_HEAD=$(git rev-parse HEAD)
+REMOTE_HEAD=$(git rev-parse origin/main)
+if [ "$LOCAL_HEAD" != "$REMOTE_HEAD" ]; then
+    BEHIND_COUNT=$(git rev-list --count HEAD..origin/main 2>/dev/null || echo "unknown")
+    AHEAD_COUNT=$(git rev-list --count origin/main..HEAD 2>/dev/null || echo "unknown")
+    log_error "Branch out of sync after pull! Local: ${LOCAL_HEAD:0:12}, Remote: ${REMOTE_HEAD:0:12} (behind: $BEHIND_COUNT, ahead: $AHEAD_COUNT)"
+    send_email "TT-Metal Perf: Git Sync Issue" \
+        "Branch is out of sync with origin/main after two git pull attempts.\n\nLocal HEAD:  $LOCAL_HEAD\nRemote HEAD: $REMOTE_HEAD\nCommits behind: $BEHIND_COUNT\nCommits ahead:  $AHEAD_COUNT\n\nThis may indicate merge conflicts, a detached HEAD, or network issues.\nManual intervention required."
+    exit 1
+fi
+log "✅ Branch is in sync with origin/main"
+
+CURRENT_COMMIT="$LOCAL_HEAD"
 log "🔧 Current commit: $CURRENT_COMMIT"
 
-# Step 2: Activate Python environment
+# Step 2: Activate Python environment and AI config
 log "🐍 Step 2: Activating Python environment..."
+
+# Set required environment variables for TT-Metal
+export ARCH_NAME="wormhole_b0"
+log "🔧 Setting ARCH_NAME: $ARCH_NAME"
+
+# Load LiteLLM configuration for AI analysis (if available)
+if [ -f "$SCRIPT_DIR/setup_litellm_env.sh" ]; then
+    source "$SCRIPT_DIR/setup_litellm_env.sh" > /dev/null 2>&1
+    log "🤖 LiteLLM configuration loaded"
+fi
 
 # Use the smart activation script
 if [ -f "$SCRIPT_DIR/activate_env.sh" ]; then
     log "🔄 Sourcing activation script..."
-    
+
     # Source directly, then capture and display the key info
     source "$SCRIPT_DIR/activate_env.sh"
-    
+
     if [ $? -eq 0 ] && [ -n "$VIRTUAL_ENV" ]; then
         log "✅ Smart environment activation - SUCCESS"
         log "🔍 Environment check: VIRTUAL_ENV=$VIRTUAL_ENV"
@@ -107,19 +159,23 @@ else
     # Fallback to manual activation if activate_env.sh not found
     log "⚠️  activate_env.sh not found, using fallback activation..."
     if [ -f "$PYTHON_ENV/bin/activate" ]; then
-        source "$PYTHON_ENV/bin/activate" 2>&1 | tee -a "$LOG_FILE"
-        check_success "Fallback Python environment activation"
-        
-        if [ -n "$VIRTUAL_ENV" ]; then
+        # Activate the virtual environment
+        source "$PYTHON_ENV/bin/activate"
+
+        # Check if activation was successful by verifying VIRTUAL_ENV is set
+        if [ -n "$VIRTUAL_ENV" ] && [ "$VIRTUAL_ENV" = "$PYTHON_ENV" ]; then
             log "✅ Fallback activation successful: $VIRTUAL_ENV"
-            
-            # Set TT-Metal environment variables for fallback
+
+            # Set TT-Metal environment variables
             export TT_METAL_HOME="$SCRIPT_DIR"
-            export PYTHONPATH="$TT_METAL_HOME"
+            export PYTHONPATH="$TT_METAL_HOME:$PYTHONPATH"
             log "🔧 TT_METAL_HOME: $TT_METAL_HOME"
             log "🐍 PYTHONPATH: $PYTHONPATH"
+            log "🔍 Python executable: $(which python)"
         else
-            log_error "Fallback activation failed - VIRTUAL_ENV not set"
+            log_error "Fallback activation failed - VIRTUAL_ENV not properly set"
+            log_error "Expected: $PYTHON_ENV"
+            log_error "Actual: $VIRTUAL_ENV"
             exit 1
         fi
     else
@@ -128,10 +184,37 @@ else
     fi
 fi
 
-# Step 3: Build the project
-log "🔨 Step 3: Building TT-Metal..."
+# Step 3: Install dependencies and build
+log "📦 Installing dependencies..."
+sudo ./install_dependencies.sh 2>&1 | tee -a "$LOG_FILE"
+check_success "${PIPESTATUS[0]}" "Install dependencies"
+
+log "🧹 Clearing TT-Metal cache..."
+rm -rf /home/aswin/.cache/tt-metal-cache
+log "🔨 Building TT-Metal..."
+set +e
 ./build_metal.sh
-check_success "TT-Metal build"
+BUILD_RC=$?
+set -e
+
+if [ "$BUILD_RC" -ne 0 ]; then
+    log "⚠️  Initial build failed (exit code: $BUILD_RC), attempting clean build..."
+    log "🧹 Cleaning build artifacts..."
+    set +e
+    ./build_metal.sh --clean
+    log "🔨 Retrying build after clean..."
+    ./build_metal.sh
+    BUILD_RC=$?
+    set -e
+    check_success "$BUILD_RC" "TT-Metal clean rebuild"
+else
+    log "✅ Build successful"
+fi
+
+# Install ttperf
+log "📦 Installing ttperf..."
+uv pip install ttperf 2>&1 | tee -a "$LOG_FILE"
+check_success "${PIPESTATUS[0]}" "ttperf installation"
 
 # Step 4: Run performance measurements
 log "📊 Step 4: Running performance measurements..."
@@ -149,13 +232,13 @@ else
 fi
 
 if [ "$UPLOAD_TO_GITHUB" = true ]; then
-    log "🎯 Running: $PYTHON_CMD perf_measurement_script.py --upload"
-    $PYTHON_CMD -u perf_measurement_script.py --upload 2>&1 | tee -a "$LOG_FILE"
-    check_success "Performance measurement and GitHub upload"
+    log "🎯 Running: $PYTHON_CMD perf_measurement_script.py --upload --analyze"
+    $PYTHON_CMD -u perf_measurement_script.py --upload --analyze 2>&1 | tee -a "$LOG_FILE"
+    check_success "${PIPESTATUS[0]}" "Performance measurement with AI analysis and GitHub upload"
 else
     log "🎯 Running: $PYTHON_CMD perf_measurement_script.py"
     $PYTHON_CMD -u perf_measurement_script.py 2>&1 | tee -a "$LOG_FILE"
-    check_success "Performance measurement (local only)"
+    check_success "${PIPESTATUS[0]}" "Performance measurement (local only)"
 fi
 
 # Step 5: Generate summary
@@ -199,12 +282,12 @@ else
 fi
 find "$SCRIPT_DIR" -name "eltwise_perf_results_*.json" -mtime +$RETENTION_DAYS -delete 2>/dev/null || true
 find "$SCRIPT_DIR" -name "eltwise_perf_results_*.csv" -mtime +$RETENTION_DAYS -delete 2>/dev/null || true
-rm -rf /home/aswin/tt-metal/generated/*
+rm -rf "$SCRIPT_DIR/generated/"*
 
 log "✅ Daily performance measurement completed successfully!"
-log "=" | tr '=' '='
+log "$(printf '=%.0s' {1..60})"
 
-# Send notification (optional - uncomment if you want email notifications)
-# echo "Performance measurement completed. Check $LOG_FILE for details." | mail -s "TT-Metal Performance Report" your-email@example.com
+send_email "TT-Metal Perf: Daily Run Completed" \
+    "Daily performance measurement completed successfully.\n\nCommit: $CURRENT_COMMIT\nResults: ${RESULTS_FILE:-none}\nTotal tests: ${TOTAL_TESTS:-unknown}\nSuccessful: ${SUCCESSFUL_TESTS:-unknown}\nFailed: ${FAILED_TESTS:-unknown}"
 
-exit 0 
+exit 0

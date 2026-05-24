@@ -21,7 +21,7 @@ class GitHubPerformanceUploader:
         self.temp_dir = f"/tmp/{self.repo_name}_upload_{int(datetime.now().timestamp())}"
         self.dashboard_dir = Path(self.temp_dir) / self.repo_name
 
-    def upload_results(self, json_file_path):
+    def upload_results(self, json_file_path, analysis_file_path=None):
         """Upload performance results to GitHub repository."""
         try:
             # Validate input file
@@ -42,6 +42,10 @@ class GitHubPerformanceUploader:
             # Copy the results file to the daily directory
             if not self._copy_results_to_dashboard(json_file_path, results_data):
                 return False
+
+            # Copy analysis file if provided
+            if analysis_file_path and os.path.exists(analysis_file_path):
+                self._copy_analysis_to_dashboard(analysis_file_path, results_data)
 
             # Update latest results if this is a complete run
             if self._is_complete_run(results_data):
@@ -113,6 +117,34 @@ class GitHubPerformanceUploader:
 
         except Exception as e:
             print(f"❌ Error copying results to dashboard: {e}")
+            return False
+
+    def _copy_analysis_to_dashboard(self, analysis_file_path, results_data):
+        """Copy analysis file to the dashboard's analysis directory."""
+        try:
+            analysis_dir = self.dashboard_dir / "data" / "analysis"
+
+            # Create analysis directory if it doesn't exist
+            analysis_dir.mkdir(parents=True, exist_ok=True)
+
+            # Generate filename for dashboard (YYYY-MM-DD_analysis format)
+            measurement_date = results_data.get('metadata', {}).get('measurement_date', '')
+            if measurement_date:
+                date_part = measurement_date.split('T')[0]  # Get YYYY-MM-DD part
+                filename = f"{date_part}_{os.path.basename(analysis_file_path)}"
+            else:
+                filename = os.path.basename(analysis_file_path)
+
+            destination_path = analysis_dir / filename
+
+            # Copy the file
+            shutil.copy2(analysis_file_path, destination_path)
+            print(f"🤖 Copied AI analysis to: {filename}")
+
+            return True
+
+        except Exception as e:
+            print(f"⚠️ Warning: Could not copy analysis file: {e}")
             return False
 
     def _is_complete_run(self, results_data):
@@ -272,8 +304,9 @@ class GitHubPerformanceUploader:
 
 def main():
     """Main function for command line usage."""
-    if len(sys.argv) != 2:
+    if len(sys.argv) < 2:
         print("Usage: python push_to_github.py <path_to_results_json>")
+        print("\nNote: AI analysis should be embedded in the JSON before uploading.")
         sys.exit(1)
 
     json_file_path = sys.argv[1]
@@ -283,7 +316,18 @@ def main():
         print(f"Error: File not found: {json_file_path}")
         sys.exit(1)
 
-    # Upload results
+    # Check if AI analysis is embedded
+    try:
+        with open(json_file_path, 'r') as f:
+            data = json.load(f)
+            if 'metadata' in data and 'ai_analysis' in data['metadata']:
+                print("✅ AI analysis detected in performance results")
+            else:
+                print("ℹ️  No AI analysis found in results (this is OK)")
+    except:
+        pass
+
+    # Upload results (analysis is now embedded in the JSON)
     uploader = GitHubPerformanceUploader()
     success = uploader.upload_results(json_file_path)
 

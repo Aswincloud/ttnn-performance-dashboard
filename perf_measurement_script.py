@@ -489,6 +489,8 @@ def main():
                        help='Skip tests that already passed today and run only missing/failed tests')
     parser.add_argument('--upload', action='store_true', 
                        help='Automatically upload results to the database after completion')
+    parser.add_argument('--analyze', action='store_true',
+                       help='Run AI analysis on performance changes (requires ANTHROPIC_API_KEY)')
     
     args = parser.parse_args()
     
@@ -506,8 +508,35 @@ def main():
         else:
             print("⚠️ Auto-upload: Disabled (push_to_github.py not found)")
     
+    if args.analyze:
+        print("🤖 AI Analysis: Enabled")
+    
     perf = PerfMeasurement(rerun_mode=args.rerun, auto_upload=args.upload)
     perf.run_all_measurements()
+    
+    # Run AI analysis if requested and results were generated
+    if args.analyze and perf.final_json_file:
+        print("\n" + "=" * 80)
+        print("🤖 Running AI Performance Analysis...")
+        print("=" * 80)
+        
+        try:
+            import subprocess
+            # Run analysis with longer timeout for large diffs
+            result = subprocess.run(
+                ['python3', 'ai_perf_analyzer.py', perf.final_json_file],
+                timeout=3600  # 1 hour timeout for thorough analysis
+            )
+            
+            if result.returncode == 0:
+                print("✅ AI analysis embedded into performance results")
+            else:
+                print("⚠️ AI analysis completed with warnings")
+                
+        except subprocess.TimeoutExpired:
+            print("⚠️ AI analysis timed out (>1 hour) - continuing without analysis")
+        except Exception as e:
+            print(f"❌ Error running AI analysis: {e}")
 
 if __name__ == "__main__":
     main() 
