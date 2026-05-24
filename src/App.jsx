@@ -232,7 +232,7 @@ function App() {
         <div className="max-w-[1536px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-center sm:text-left">
             <div className="text-sm text-gray-500">
-              © 2025 Aswin. Thanks to the TT-Metal community for their amazing work.
+              © {new Date().getFullYear()} Aswin. Thanks to the TT-Metal community for their amazing work.
             </div>
             <div className="flex items-center justify-center sm:justify-end flex-wrap gap-x-3 gap-y-1 text-sm text-gray-500">
               <span>Powered by TT-Metal</span>
