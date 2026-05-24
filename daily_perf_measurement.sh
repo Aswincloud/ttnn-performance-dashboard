@@ -127,18 +127,12 @@ log "✅ Branch is in sync with origin/main"
 CURRENT_COMMIT="$LOCAL_HEAD"
 log "🔧 Current commit: $CURRENT_COMMIT"
 
-# Step 2: Activate Python environment and AI config
+# Step 2: Activate Python environment
 log "🐍 Step 2: Activating Python environment..."
 
 # Set required environment variables for TT-Metal
 export ARCH_NAME="wormhole_b0"
 log "🔧 Setting ARCH_NAME: $ARCH_NAME"
-
-# Load LiteLLM configuration for AI analysis (if available)
-if [ -f "$SCRIPT_DIR/setup_litellm_env.sh" ]; then
-    source "$SCRIPT_DIR/setup_litellm_env.sh" > /dev/null 2>&1
-    log "🤖 LiteLLM configuration loaded"
-fi
 
 # Use the smart activation script
 if [ -f "$SCRIPT_DIR/activate_env.sh" ]; then
@@ -232,9 +226,9 @@ else
 fi
 
 if [ "$UPLOAD_TO_GITHUB" = true ]; then
-    log "🎯 Running: $PYTHON_CMD perf_measurement_script.py --upload --analyze"
-    $PYTHON_CMD -u perf_measurement_script.py --upload --analyze 2>&1 | tee -a "$LOG_FILE"
-    check_success "${PIPESTATUS[0]}" "Performance measurement with AI analysis and GitHub upload"
+    log "🎯 Running: $PYTHON_CMD perf_measurement_script.py --upload"
+    $PYTHON_CMD -u perf_measurement_script.py --upload 2>&1 | tee -a "$LOG_FILE"
+    check_success "${PIPESTATUS[0]}" "Performance measurement with GitHub upload"
 else
     log "🎯 Running: $PYTHON_CMD perf_measurement_script.py"
     $PYTHON_CMD -u perf_measurement_script.py 2>&1 | tee -a "$LOG_FILE"

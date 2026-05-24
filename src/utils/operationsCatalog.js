@@ -3,9 +3,9 @@ export const operationsCatalog = {
     "title": "Tenstorrent TT-Metal Eltwise Operations Catalog",
     "description": "Comprehensive list of all TT-Metal element-wise operations for performance tracking",
     "total_categories": 6,
-    "total_operations": 288,
+    "total_operations": 262,
     "inplace_operations_included": 24,
-    "test_coverage": "264/288 operations (91.7%)"
+    "test_coverage": "262/262 operations (100%)"
   },
   "priority_classification": {
     "high_priority": {
@@ -19,10 +19,10 @@ export const operationsCatalog = {
     },
     "medium_priority": {
       "description": "Advanced math, specialized functions, and inplace operations",
-      "count": 186
+      "count": 159
     },
     "low_priority": {
-      "description": "Backward operations and utilities", 
+      "description": "Backward operations and utilities",
       "count": 80
     }
   },
@@ -51,18 +51,19 @@ export const operationsCatalog = {
         "with_params": {
           "description": "Operations with parameters",
           "operations": [
-            "elu", "heaviside", "leaky_relu", "relu_max", "relu_min", 
-            "fill", "glu", "reglu", "geglu", "swiglu", "clip", "clamp", "threshold"
+            "elu", "heaviside", "leaky_relu", "relu_max", "relu_min",
+            "fill", "glu", "reglu", "geglu", "swiglu", "clip", "clamp", "threshold",
+            "xielu"
           ],
-          "count": 13
+          "count": 14
         },
         "composite_special": {
           "description": "Composite and special functions",
           "operations": [
-            "softplus", "tanh", "log_sigmoid", "unary_chain", "cbrt", "cosh", 
-            "digamma", "lgamma", "multigammaln", "polygamma", "sinh", "softsign", "swish", 
+            "softplus", "tanh", "log_sigmoid", "cbrt", "cosh",
+            "digamma", "lgamma", "multigammaln", "polygamma", "sinh", "softsign", "swish",
             "frac", "hardswish", "hardsigmoid", "hardtanh", "selu", "tril", "triu",
-            "round", "logit", "prelu", "softshrink", "hardshrink"
+            "round", "logit", "prelu", "softshrink", "hardshrink", "hardmish"
           ],
           "count": 25
         },
@@ -77,7 +78,7 @@ export const operationsCatalog = {
           "count": 1
         }
       },
-      "total_count": 98
+      "total_count": 99
     },
     "binary": {
       "description": "Two input tensor operations",
@@ -120,10 +121,10 @@ export const operationsCatalog = {
         "mathematical": {
           "description": "Advanced mathematical operations",
           "operations": [
-            "atan2", "hypot", "logaddexp", "logaddexp2", "maximum", "minimum", 
-            "pow", "fmod", "remainder", "nextafter", "bias_gelu", "polyval"
+            "atan2", "hypot", "logaddexp", "logaddexp2", "maximum", "minimum",
+            "pow", "fmod", "remainder", "nextafter", "bias_gelu"
           ],
-          "count": 12
+          "count": 11
         },
         "mathematical_inplace": {
           "description": "Mathematical inplace operations",
@@ -133,13 +134,13 @@ export const operationsCatalog = {
         "advanced": {
           "description": "Advanced mathematical operations",
           "operations": [
-            "addalpha", "subalpha", "squared_difference", 
-            "absolute_difference", "isclose", "round_binary", "clip_binary"
+            "addalpha", "subalpha", "squared_difference",
+            "isclose", "round_binary", "clip_binary"
           ],
-          "count": 7
+          "count": 6
         }
       },
-      "total_count": 64
+      "total_count": 62
     },
     "ternary": {
       "description": "Three input tensor operations",
@@ -168,7 +169,7 @@ export const operationsCatalog = {
             "softsign_bw", "sqrt_bw", "square_bw", "tan_bw", "tanh_bw", 
             "tanhshrink_bw", "trunc_bw", "fill_bw", "fill_zero_bw", "hardshrink_bw", "softshrink_bw"
           ],
-          "count": 51
+          "count": 56
         },
         "binary_backward": {
           "description": "Backward operations for binary functions",
@@ -187,8 +188,8 @@ export const operationsCatalog = {
         },
         "reduction_backward": {
           "description": "Backward operations for reduction functions",
-          "operations": ["sum_bw", "mean_bw", "var_bw", "std_bw", "prod_bw"],
-          "count": 5
+          "operations": [],
+          "count": 0
         }
       },
       "total_count": 80
@@ -198,8 +199,8 @@ export const operationsCatalog = {
       "subcategories": {
         "complex_unary": {
           "description": "Complex unary operations",
-          "operations": ["complex_abs", "complex_recip"],
-          "count": 2
+          "operations": ["complex_recip"],
+          "count": 1
         },
         "complex_tensor_creation": {
           "description": "Complex tensor creation operations",
@@ -207,7 +208,7 @@ export const operationsCatalog = {
           "count": 6
         }
       },
-      "total_count": 8
+      "total_count": 7
     }
   },
   "inplace_operations": {
@@ -233,6 +234,6 @@ export const operationsCatalog = {
   "validation": {
     "method": "Direct TT-Metal TTNN attribute checking and test validation",
     "environment": "ttcd activated tt-metal environment",
-    "test_coverage": "264/288 operations (91.7%)"
+    "test_coverage": "262/262 operations (100%)"
   }
 }; 

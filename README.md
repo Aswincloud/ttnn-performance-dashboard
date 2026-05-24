@@ -85,7 +85,7 @@ npm run lint
 
 ## 📊 **Operations Catalog**
 
-The dashboard tracks **288 TTNN eltwise operations** across 6 main categories:
+The dashboard tracks **262 TTNN eltwise operations** across 6 main categories:
 
 ### 🔥 **High Priority Operations** (23 operations)
 - **Arithmetic**: `add`, `subtract`, `multiply`, `divide`
@@ -95,14 +95,14 @@ The dashboard tracks **288 TTNN eltwise operations** across 6 main categories:
 - **Logical**: `logical_and`, `logical_or`, `logical_not`
 
 ### 📋 **Complete Categories**
-- **Unary Operations**: 98 operations
-- **Binary Operations**: 64 operations  
+- **Unary Operations**: 99 operations
+- **Binary Operations**: 62 operations
 - **Ternary Operations**: 5 operations
 - **Reduction Operations**: 9 operations
 - **Backward Operations**: 80 operations
-- **Complex Operations**: 8 operations
+- **Complex Operations**: 7 operations
 
-**Test Coverage**: 264/288 operations (**91.7%**)
+**Test Coverage**: 262/262 operations (**100%**)
 
 ---
 
@@ -172,7 +172,6 @@ npx wrangler deploy
 ### **Alternative Platforms**
 - **Vercel**: `npm run build && vercel --prod`
 - **Netlify**: `npm run build && netlify deploy --prod --dir=dist`
-- **GitHub Pages**: Configure GitHub Actions with build workflow
 
 ---
 
