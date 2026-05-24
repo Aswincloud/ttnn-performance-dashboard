@@ -4,14 +4,35 @@
   * {
     @apply border-gray-200;
   }
-  
-  body {
-    @apply bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 text-gray-900 font-sans;
-    background-attachment: fixed;
-  }
 
   html {
     @apply scroll-smooth;
+    font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  }
+
+  body {
+    @apply bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 text-gray-900;
+    background-attachment: fixed;
+    /* Smoother glyph rendering at small UI sizes. */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Lock numeric columns to fixed-width digits so values line up
+     vertically across rows regardless of which glyphs appear. */
+  .performance-cell,
+  .table-cell,
+  .table-cell-sticky,
+  code,
+  kbd,
+  pre,
+  samp,
+  .font-mono {
+    font-variant-numeric: tabular-nums;
+  }
+
+  code, kbd, pre, samp, .font-mono {
+    font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   }
 }
 
@@ -69,66 +90,23 @@
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
   }
 
-  /* Enhanced color gradients for performance indicators */
-  .bg-green-25 {
-    background: linear-gradient(135deg, #f0fdf4, #dcfce7);
-    border: 1px solid rgba(34, 197, 94, 0.2);
-  }
-  
-  .bg-green-50 {
-    background: linear-gradient(135deg, #dcfce7, #bbf7d0);
-    border: 1px solid rgba(34, 197, 94, 0.3);
-  }
-  
-  .bg-green-100 {
-    background: linear-gradient(135deg, #bbf7d0, #86efac);
-    border: 1px solid rgba(34, 197, 94, 0.4);
-  }
-  
-  .bg-green-150 {
-    background: linear-gradient(135deg, #86efac, #4ade80);
-    border: 1px solid rgba(34, 197, 94, 0.5);
-  }
-  
-  .bg-green-200 {
-    background: linear-gradient(135deg, #4ade80, #22c55e);
-    border: 1px solid rgba(34, 197, 94, 0.6);
-  }
-  
-  .bg-green-300 {
-    background: linear-gradient(135deg, #22c55e, #16a34a);
-    border: 1px solid rgba(34, 197, 94, 0.7);
-  }
+  /* Performance indicator tints. Flat (no gradient) and capped at a mid
+     tone so the dark text colors set in PerformanceTable.jsx
+     (text-green-900 / text-red-900) keep WCAG contrast even on the
+     strongest "+25% degradation" / "-25% improvement" cells. */
+  .bg-green-25  { background-color: #f0fdf4; border: 1px solid rgba(34, 197, 94, 0.20); }
+  .bg-green-50  { background-color: #dcfce7; border: 1px solid rgba(34, 197, 94, 0.28); }
+  .bg-green-100 { background-color: #bbf7d0; border: 1px solid rgba(34, 197, 94, 0.36); }
+  .bg-green-150 { background-color: #a7f3c0; border: 1px solid rgba(34, 197, 94, 0.44); }
+  .bg-green-200 { background-color: #86efac; border: 1px solid rgba(34, 197, 94, 0.52); }
+  .bg-green-300 { background-color: #6ee7b7; border: 1px solid rgba(34, 197, 94, 0.60); }
 
-  .bg-red-25 {
-    background: linear-gradient(135deg, #fef2f2, #fecaca);
-    border: 1px solid rgba(239, 68, 68, 0.2);
-  }
-  
-  .bg-red-50 {
-    background: linear-gradient(135deg, #fecaca, #fca5a5);
-    border: 1px solid rgba(239, 68, 68, 0.3);
-  }
-  
-  .bg-red-100 {
-    background: linear-gradient(135deg, #fca5a5, #f87171);
-    border: 1px solid rgba(239, 68, 68, 0.4);
-  }
-  
-  .bg-red-150 {
-    background: linear-gradient(135deg, #f87171, #ef4444);
-    border: 1px solid rgba(239, 68, 68, 0.5);
-  }
-  
-  .bg-red-200 {
-    background: linear-gradient(135deg, #ef4444, #dc2626);
-    border: 1px solid rgba(239, 68, 68, 0.6);
-  }
-  
-  .bg-red-300 {
-    background: linear-gradient(135deg, #dc2626, #b91c1c);
-    border: 1px solid rgba(239, 68, 68, 0.7);
-  }
+  .bg-red-25  { background-color: #fef2f2; border: 1px solid rgba(239, 68, 68, 0.20); }
+  .bg-red-50  { background-color: #fee2e2; border: 1px solid rgba(239, 68, 68, 0.28); }
+  .bg-red-100 { background-color: #fecaca; border: 1px solid rgba(239, 68, 68, 0.36); }
+  .bg-red-150 { background-color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.44); }
+  .bg-red-200 { background-color: #f99c9c; border: 1px solid rgba(239, 68, 68, 0.52); }
+  .bg-red-300 { background-color: #f87171; border: 1px solid rgba(239, 68, 68, 0.60); }
 
   /* Sticky table columns. z-index left low so per-element JSX z-* utilities
      can promote the thead corner cells above the tbody column cells. */
@@ -168,22 +146,26 @@
      animation: slideUp 0.8s ease-out;
    }
    
-   .pulse-glow {
-     animation: pulseGlow 2s ease-in-out infinite;
-   }
-
    @keyframes fadeIn {
      from { opacity: 0; transform: translateY(20px); }
      to { opacity: 1; transform: translateY(0); }
    }
-   
+
    @keyframes slideUp {
      from { opacity: 0; transform: translateY(40px); }
      to { opacity: 1; transform: translateY(0); }
    }
-   
-   @keyframes pulseGlow {
-     0%, 100% { box-shadow: 0 0 5px rgba(59, 130, 246, 0.5); }
-     50% { box-shadow: 0 0 20px rgba(59, 130, 246, 0.8); }
+
+   /* Skeleton row shimmer. Uses a softer alpha than animate-pulse so the
+      whole table doesn't strobe during loading. */
+   .skeleton-shimmer {
+     animation: skeletonShimmer 1.4s ease-in-out infinite;
+     background: linear-gradient(90deg, rgba(226, 232, 240, 0.6) 0%, rgba(241, 245, 249, 0.9) 50%, rgba(226, 232, 240, 0.6) 100%);
+     background-size: 200% 100%;
+   }
+
+   @keyframes skeletonShimmer {
+     0% { background-position: 200% 0; }
+     100% { background-position: -200% 0; }
    }
 } 

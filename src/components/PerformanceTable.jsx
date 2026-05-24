@@ -934,12 +934,15 @@ const PerformanceTable = ({ operations, dailyData, loadingAll, onLoadAllData, ha
                       </span>
                     </td>
                   </tr>
-                  {operations.map((operation) => (
-                    <tr key={operation.operation_name} className="hover:bg-gray-50 transition-colors duration-150 group h-10">
-                      <td className="table-cell-sticky table-sticky-left-0 bg-white group-hover:bg-gray-50 font-medium text-gray-900 border-r border-gray-200 text-center transition-colors duration-150 py-1">
+                  {operations.map((operation, rowIdx) => (
+                    <tr
+                      key={operation.operation_name}
+                      className={`${rowIdx % 2 === 0 ? 'bg-white' : 'bg-slate-50'} hover:bg-blue-50 transition-colors duration-150 group h-10`}
+                    >
+                      <td className="table-cell-sticky table-sticky-left-0 bg-white group-hover:bg-blue-50 font-medium text-gray-900 border-r border-gray-200 text-center transition-colors duration-150 py-1">
                         {operation.operation_name}
                       </td>
-                      <td className="table-cell-sticky text-center table-sticky-left-160 bg-white group-hover:bg-gray-50 border-r border-gray-200 transition-colors duration-150 py-1">
+                      <td className="table-cell-sticky text-center table-sticky-left-160 bg-white group-hover:bg-blue-50 border-r border-gray-200 transition-colors duration-150 py-1">
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getCategoryColor(getOperationCategory(operation.operation_name))}`}>
                           {getOperationCategory(operation.operation_name)}
                         </span>
@@ -993,11 +996,14 @@ const PerformanceTable = ({ operations, dailyData, loadingAll, onLoadAllData, ha
               ))
             ) : (
               filteredAndSortedData.map((operation, index) => (
-                <tr key={operation.operation_name} className="hover:bg-gray-50 transition-colors duration-150 group h-10">
-                  <td className="table-cell-sticky table-sticky-left-0 bg-white group-hover:bg-gray-50 font-medium text-gray-900 border-r border-gray-200 text-center transition-colors duration-150 py-1">
+                <tr
+                  key={operation.operation_name}
+                  className={`${index % 2 === 0 ? 'bg-white' : 'bg-slate-50'} hover:bg-blue-50 transition-colors duration-150 group h-10`}
+                >
+                  <td className="table-cell-sticky table-sticky-left-0 bg-white group-hover:bg-blue-50 font-medium text-gray-900 border-r border-gray-200 text-center transition-colors duration-150 py-1">
                     {operation.operation_name}
                   </td>
-                  <td className="table-cell-sticky text-center table-sticky-left-160 bg-white group-hover:bg-gray-50 border-r border-gray-200 transition-colors duration-150 py-1">
+                  <td className="table-cell-sticky text-center table-sticky-left-160 bg-white group-hover:bg-blue-50 border-r border-gray-200 transition-colors duration-150 py-1">
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getCategoryColor(getOperationCategory(operation.operation_name))}`}>
                       {getOperationCategory(operation.operation_name)}
                     </span>
