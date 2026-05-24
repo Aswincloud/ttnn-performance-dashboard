@@ -429,7 +429,7 @@ class PerfMeasurement:
             return self.manual_upload_fallback(json_file_path)
         
         # Check for required repository URL
-        repo_url = "git@github.com:Aswintechie/ttnn-performance-dashboard.git"
+        repo_url = "git@github.com:Aswincloud/ttnn-performance-dashboard.git"
         
         if not repo_url:
             print("❌ Upload failed: Missing GitHub repository URL")

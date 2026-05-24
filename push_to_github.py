@@ -15,7 +15,7 @@ from pathlib import Path
 
 
 class GitHubPerformanceUploader:
-    def __init__(self, repo_url="git@github.com:Aswintechie/ttnn-performance-dashboard.git"):
+    def __init__(self, repo_url="git@github.com:Aswincloud/ttnn-performance-dashboard.git"):
         self.repo_url = repo_url
         self.repo_name = "ttnn-performance-dashboard"
         self.temp_dir = f"/tmp/{self.repo_name}_upload_{int(datetime.now().timestamp())}"

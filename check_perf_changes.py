@@ -242,7 +242,7 @@ class PerformanceChangeDetector:
             <hr>
             <p style="color: #6c757d; font-size: 12px;">
                 This is an automated email from the TTNN Performance Dashboard.<br>
-                Repository: <a href="https://github.com/Aswintechie/ttnn-performance-dashboard">Aswintechie/ttnn-performance-dashboard</a>
+                Repository: <a href="https://github.com/Aswincloud/ttnn-performance-dashboard">Aswincloud/ttnn-performance-dashboard</a>
             </p>
         </body>
         </html>

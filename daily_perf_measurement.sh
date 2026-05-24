@@ -45,7 +45,7 @@ log_error() {
 }
 
 # GitHub Configuration
-GITHUB_REPO_URL="git@github.com:Aswintechie/ttnn-performance-dashboard.git"
+GITHUB_REPO_URL="git@github.com:Aswincloud/ttnn-performance-dashboard.git"
 
 # Validate GitHub configuration (only if uploading)
 if [ "$UPLOAD_TO_GITHUB" = true ]; then
