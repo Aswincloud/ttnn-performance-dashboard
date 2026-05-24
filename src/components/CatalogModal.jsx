@@ -1,107 +1,64 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { X, Search, Book, Zap, Code, Filter } from 'lucide-react';
+import { operationsCatalog } from '../utils/operationsCatalog';
+
+const CATEGORY_PRESENTATION = {
+  unary:     { name: 'Unary Operations',     color: 'from-blue-500 to-indigo-600',  description: 'Single-input mathematical and logical operations' },
+  binary:    { name: 'Binary Operations',    color: 'from-green-500 to-emerald-600', description: 'Two-input arithmetic, comparison, and logical operations' },
+  ternary:   { name: 'Ternary Operations',   color: 'from-purple-500 to-violet-600', description: 'Three-input conditional and mathematical operations' },
+  reduction: { name: 'Reduction Operations', color: 'from-orange-500 to-red-600',    description: 'Operations that reduce tensor dimensions' },
+  backward:  { name: 'Backward Operations',  color: 'from-gray-500 to-slate-600',    description: 'Gradient computation operations for training' },
+  complex:   { name: 'Complex Operations',   color: 'from-pink-500 to-rose-600',     description: 'Complex number mathematical operations' },
+};
+
+const flattenCategoryOperations = (category) =>
+  category.operations
+    ? category.operations
+    : Object.values(category.subcategories ?? {}).flatMap((sub) => sub.operations ?? []);
+
+const parseCoveragePercent = (raw) => {
+  const match = typeof raw === 'string' ? raw.match(/(\d+(?:\.\d+)?)\s*%/) : null;
+  return match ? parseFloat(match[1]) : null;
+};
+
+const buildCatalogData = () => ({
+  summary: {
+    totalCategories: operationsCatalog.metadata.total_categories,
+    totalOperations: operationsCatalog.metadata.total_operations,
+    testCoverage: parseCoveragePercent(operationsCatalog.metadata.test_coverage),
+  },
+  categories: Object.fromEntries(
+    Object.entries(operationsCatalog.categories).map(([key, category]) => {
+      const presentation = CATEGORY_PRESENTATION[key] ?? {};
+      return [
+        key,
+        {
+          name: presentation.name ?? key,
+          count: category.total_count,
+          description: presentation.description ?? category.description,
+          color: presentation.color ?? 'from-gray-500 to-slate-600',
+          operations: flattenCategoryOperations(category),
+        },
+      ];
+    }),
+  ),
+  highPriority: operationsCatalog.priority_classification.high_priority.operations,
+});
+
+const catalogData = buildCatalogData();
 
 const CatalogModal = ({ isOpen, onClose }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
 
-  const catalogData = {
-    summary: {
-      totalCategories: 6,
-      totalOperations: 288,
-      testCoverage: 91.7
-    },
-    categories: {
-      unary: {
-        name: 'Unary Operations',
-        count: 98,
-        description: 'Single-input mathematical and logical operations',
-        color: 'from-blue-500 to-indigo-600',
-        operations: [
-          'abs', 'acos', 'asin', 'asinh', 'atan', 'atanh', 'cos', 'acosh', 'erfinv', 'exp2', 'expm1',
-          'gez', 'gtz', 'i0', 'i1', 'isfinite', 'isinf', 'isnan', 'isneginf', 'isposinf', 'lez',
-          'log', 'log10', 'log2', 'log1p', 'logical_not', 'ltz', 'neg', 'nez', 'reciprocal', 'relu',
-          'relu6', 'sign', 'signbit', 'silu', 'sin', 'sqrt', 'square', 'tan', 'bitwise_not',
-          'floor', 'ceil', 'trunc', 'eqz', 'mish', 'tanhshrink', 'deg2rad', 'rad2deg', 'identity',
-          'exp', 'erf', 'erfc', 'gelu', 'rsqrt', 'sigmoid', 'sigmoid_accurate',
-          'elu', 'heaviside', 'leaky_relu', 'relu_max', 'relu_min', 'fill', 'glu', 'reglu',
-          'geglu', 'swiglu', 'clip', 'clamp', 'threshold',
-          'softplus', 'tanh', 'log_sigmoid', 'unary_chain', 'cbrt', 'cosh', 'digamma', 'lgamma',
-          'multigammaln', 'polygamma', 'sinh', 'softsign', 'swish', 'frac', 'hardswish',
-          'hardsigmoid', 'hardtanh', 'selu', 'tril', 'triu', 'round', 'logit', 'prelu',
-          'softshrink', 'hardshrink', 'var_hw', 'std_hw', 'logical_not_', 'celu'
-        ]
-      },
-      binary: {
-        name: 'Binary Operations',
-        count: 64,
-        description: 'Two-input arithmetic, comparison, and logical operations',
-        color: 'from-green-500 to-emerald-600',
-        operations: [
-          'add', 'subtract', 'multiply', 'divide', 'mul', 'sub', 'rpow', 'rdiv', 'assign',
-          'add_', 'subtract_', 'multiply_', 'divide_', 'mul_', 'sub_', 'div_', 'rsub_',
-          'gt', 'lt', 'eq', 'ne', 'ge', 'le',
-          'gt_', 'lt_', 'eq_', 'ne_', 'ge_', 'le_',
-          'logical_and', 'logical_or', 'logical_xor', 'ldexp', 'xlogy',
-          'logical_and_', 'logical_or_', 'logical_xor_', 'ldexp_', 'logaddexp_',
-          'bitwise_and', 'bitwise_or', 'bitwise_xor',
-          'atan2', 'hypot', 'logaddexp', 'logaddexp2', 'maximum', 'minimum', 'pow', 'fmod',
-          'remainder', 'nextafter', 'bias_gelu', 'polyval',
-          'bias_gelu_', 'logaddexp2_', 'squared_difference_',
-          'addalpha', 'subalpha', 'squared_difference', 'absolute_difference', 'isclose',
-          'round_binary', 'clip_binary'
-        ]
-      },
-      ternary: {
-        name: 'Ternary Operations',
-        count: 5,
-        description: 'Three-input conditional and mathematical operations',
-        color: 'from-purple-500 to-violet-600',
-        operations: ['addcdiv', 'addcmul', 'where', 'mac', 'lerp']
-      },
-      reduction: {
-        name: 'Reduction Operations',
-        count: 9,
-        description: 'Operations that reduce tensor dimensions',
-        color: 'from-orange-500 to-red-600',
-        operations: ['max', 'min', 'mean', 'sum', 'prod', 'var', 'std', 'cumsum', 'cumprod']
-      },
-      backward: {
-        name: 'Backward Operations',
-        count: 80,
-        description: 'Gradient computation operations for training',
-        color: 'from-gray-500 to-slate-600',
-        operations: [
-          'abs_bw', 'acos_bw', 'acosh_bw', 'asin_bw', 'asinh_bw', 'atan_bw', 'atanh_bw',
-          'ceil_bw', 'cos_bw', 'cosh_bw', 'deg2rad_bw', 'digamma_bw', 'erf_bw', 'erfc_bw',
-          'erfinv_bw', 'exp_bw', 'exp2_bw', 'expm1_bw', 'floor_bw', 'frac_bw', 'gelu_bw',
-          'hardsigmoid_bw', 'hardswish_bw', 'i0_bw', 'lgamma_bw', 'log_bw', 'log_sigmoid_bw',
-          'log1p_bw', 'log10_bw', 'log2_bw', 'logit_bw', 'multigammaln_bw', 'neg_bw',
-          'rad2deg_bw', 'reciprocal_bw', 'relu_bw', 'relu6_bw', 'round_bw', 'rsqrt_bw',
-          'selu_bw', 'sigmoid_bw', 'sign_bw', 'silu_bw', 'sin_bw', 'sinh_bw', 'softsign_bw',
-          'sqrt_bw', 'square_bw', 'tan_bw', 'tanh_bw', 'tanhshrink_bw', 'trunc_bw',
-          'fill_bw', 'fill_zero_bw', 'hardshrink_bw', 'softshrink_bw',
-          'add_bw', 'atan2_bw', 'bias_gelu_bw', 'div_bw', 'fmod_bw', 'hypot_bw', 'ldexp_bw',
-          'logaddexp_bw', 'logaddexp2_bw', 'max_bw', 'min_bw', 'mul_bw', 'remainder_bw',
-          'rsub_bw', 'squared_difference_bw', 'sub_bw', 'xlogy_bw', 'pow_bw', 'addalpha_bw',
-          'subalpha_bw', 'addcdiv_bw', 'addcmul_bw', 'lerp_bw', 'where_bw',
-          'sum_bw', 'mean_bw', 'var_bw', 'std_bw', 'prod_bw'
-        ]
-      },
-      complex: {
-        name: 'Complex Operations',
-        count: 8,
-        description: 'Complex number mathematical operations',
-        color: 'from-pink-500 to-rose-600',
-        operations: ['complex_abs', 'complex_recip', 'complex_tensor', 'real', 'imag', 'angle', 'conj', 'polar']
-      }
-    },
-    highPriority: [
-      'add', 'subtract', 'multiply', 'divide', 'sqrt', 'exp', 'log', 'reciprocal',
-      'relu', 'gelu', 'sigmoid', 'tanh', 'silu', 'celu', 'gt', 'lt', 'eq', 'ne', 'ge', 'le',
-      'logical_and', 'logical_or', 'logical_not'
-    ]
-  };
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
 
   const filteredCategories = Object.entries(catalogData.categories).filter(([key, category]) => {
     if (selectedCategory !== 'all' && key !== selectedCategory) return false;

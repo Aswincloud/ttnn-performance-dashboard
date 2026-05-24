@@ -1,6 +1,12 @@
 name = "ttnn-eltwise-performance"
 compatibility_date = "2025-07-17"
 
+# Pin Preview URLs on so the dashboard toggle isn't reset on every `wrangler deploy`.
+# With workers_dev unset (custom-domain setup), the default is off, which means each
+# deploy was flipping the toggle back and stripping the Preview URL from PR comments.
+# https://developers.cloudflare.com/workers/configuration/previews/
+preview_urls = true
+
 [assets]
 directory = "./dist"
 

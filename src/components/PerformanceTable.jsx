@@ -902,14 +902,14 @@ const PerformanceTable = ({ operations, dailyData, loadingAll, onLoadAllData, ha
           })}
         </div>
       ) : (
-        <div className={`overflow-x-auto relative transition-opacity duration-150 ${isTransitioning ? 'opacity-0' : 'opacity-100'}`} ref={tableScrollRef}>
-          <table className="min-w-full relative border-collapse">
-          <thead>
-            <tr className="border-b border-gray-200">
-              <SortableHeader sortKey="operation_name" className="table-sticky-left-0 bg-gray-50 text-center border-r border-gray-200 px-4 z-40">
+        <div className={`overflow-x-auto relative transition-opacity duration-150 ${isTransitioning ? 'opacity-0' : 'opacity-100'}`} ref={tableScrollRef} style={{ maxHeight: '70vh' }}>
+          <table className="min-w-full relative" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
+          <thead className="table-thead-sticky">
+            <tr>
+              <SortableHeader sortKey="operation_name" className="table-sticky-left-0 bg-gray-50 text-center border-r border-gray-200 px-4 z-50">
                 Operation
               </SortableHeader>
-              <th className="table-header text-center table-sticky-left-160 bg-gray-50 border-r border-gray-200 px-4 z-30">Category</th>
+              <th className="table-header text-center table-sticky-left-160 bg-gray-50 border-r border-gray-200 px-4 z-50">Category</th>
               {displayedDateColumns.map((dateObj, index) => (
                 <SortableHeader key={dateObj.date} sortKey={dateObj.date} className="min-w-32 text-center">
                   <div className="flex flex-col items-center">

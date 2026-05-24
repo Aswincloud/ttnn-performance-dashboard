@@ -146,48 +146,50 @@ function App() {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
       {/* Enhanced Header */}
       <header className="header-gradient shadow-xl border-b border-white/20 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-6 lg:px-8">
-          <div className="flex items-center justify-between h-20">
-            <div className="flex items-center">
-              <div className="relative">
+        <div className="max-w-[1536px] mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-wrap items-center justify-between gap-y-3 py-3 sm:py-0 sm:h-20">
+            <div className="flex items-center min-w-0">
+              <div className="relative shrink-0">
                 <div className="absolute inset-0 bg-blue-600 rounded-xl blur-lg opacity-30"></div>
-                <div className="relative bg-gradient-to-br from-blue-500 to-indigo-600 p-3 rounded-xl">
-                  <Zap className="h-8 w-8 text-white" />
+                <div className="relative bg-gradient-to-br from-blue-500 to-indigo-600 p-2 sm:p-3 rounded-xl">
+                  <Zap className="h-6 w-6 sm:h-8 sm:w-8 text-white" />
                 </div>
               </div>
-              <div className="ml-4">
-                <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+              <div className="ml-3 sm:ml-4 min-w-0">
+                <h1 className="text-lg sm:text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent truncate">
                   Tenstorrent TT-Metal
                 </h1>
-                <p className="text-lg font-semibold text-gray-700">Eltwise Performance Tracker</p>
-                <p className="text-sm text-gray-500 flex items-center">
+                <p className="text-sm sm:text-lg font-semibold text-gray-700 truncate">Eltwise Performance Tracker</p>
+                <p className="hidden sm:flex text-sm text-gray-500 items-center">
                   <TrendingUp className="h-4 w-4 mr-1" />
                   Real-time operation performance monitoring
                 </p>
               </div>
             </div>
-            
-            <div className="flex items-center space-x-6">
+
+            <div className="flex items-center gap-2 sm:gap-4 lg:gap-6">
               {lastRefresh && (
-                <div className="text-right">
+                <div className="hidden md:block text-right">
                   <div className="text-sm font-medium text-gray-700">Last Updated</div>
                   <div className="text-xs text-gray-500">{lastRefresh.toLocaleTimeString()}</div>
                 </div>
               )}
-              <button 
+              <button
                 onClick={() => setIsCatalogOpen(true)}
-                className="btn-secondary inline-flex items-center mr-3"
+                className="btn-secondary inline-flex items-center"
+                aria-label="Operations Catalog"
               >
-                <Book className="h-4 w-4 mr-2" />
-                Operations Catalog
+                <Book className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Operations Catalog</span>
               </button>
-              <button 
+              <button
                 onClick={loadData}
                 className="btn-secondary inline-flex items-center pulse-glow"
                 disabled={loading}
+                aria-label="Refresh Data"
               >
-                <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-                Refresh Data
+                <RefreshCw className={`h-4 w-4 sm:mr-2 ${loading ? 'animate-spin' : ''}`} />
+                <span className="hidden sm:inline">Refresh Data</span>
               </button>
             </div>
           </div>
@@ -195,7 +197,7 @@ function App() {
       </header>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-6 lg:px-8 py-8 space-y-8">
+      <main className="max-w-[1536px] mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6 sm:space-y-8">
         {/* Overview Section */}
         <section className="fade-in">
           <div className="mb-6">
@@ -227,14 +229,14 @@ function App() {
 
       {/* Footer */}
       <footer className="mt-16 bg-white/50 backdrop-blur-sm border-t border-white/20">
-        <div className="max-w-7xl mx-auto px-6 lg:px-8 py-6">
-          <div className="flex items-center justify-between">
+        <div className="max-w-[1536px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-center sm:text-left">
             <div className="text-sm text-gray-500">
-              © 2025 Aswin. Thanks to the TT-Metal community for their amazing work.
+              © {new Date().getFullYear()} Aswin. Thanks to the TT-Metal community for their amazing work.
             </div>
-            <div className="flex items-center space-x-4 text-sm text-gray-500">
+            <div className="flex items-center justify-center sm:justify-end flex-wrap gap-x-3 gap-y-1 text-sm text-gray-500">
               <span>Powered by TT-Metal</span>
-              <span>•</span>
+              <span aria-hidden="true">•</span>
               <span>{summaryStats?.totalOperations || 0} Operations Tracked</span>
             </div>
           </div>
