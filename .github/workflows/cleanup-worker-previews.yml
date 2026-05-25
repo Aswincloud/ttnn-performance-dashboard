@@ -1,0 +1,78 @@
+name: Cleanup Worker preview deployments
+
+# When a PR closes (merged or otherwise), delete the Cloudflare Worker
+# preview deployment(s) whose alias matches that PR's head branch. The
+# latest deployment is protected by Cloudflare itself — the DELETE API
+# refuses to remove it — so the production deployment can't be hit even
+# by accident.
+#
+# Branch -> alias mapping: GitHub allows "/" in refs; Cloudflare aliases
+# don't, so they're flattened with "-" (e.g. feat/foo -> feat-foo).
+
+on:
+  pull_request:
+    types: [closed]
+
+permissions:
+  contents: read
+
+jobs:
+  delete-previews:
+    name: Delete previews for ${{ github.event.pull_request.head.ref }}
+    runs-on: ubuntu-latest
+    env:
+      CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CF_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CF_SCRIPT: ttnn-eltwise-performance
+      BRANCH_REF: ${{ github.event.pull_request.head.ref }}
+    steps:
+      - name: Delete preview deployments for branch
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${CF_API_TOKEN:-}" || -z "${CF_ACCOUNT_ID:-}" ]]; then
+            echo "::error::CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID secrets must be set."
+            exit 1
+          fi
+
+          # Flatten branch ref to the alias form Cloudflare uses.
+          alias="${BRANCH_REF//\//-}"
+          echo "Looking for deployments aliased to '${alias}' (from branch '${BRANCH_REF}')."
+
+          api="https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/workers/scripts/${CF_SCRIPT}/deployments"
+
+          resp=$(curl -sS -H "Authorization: Bearer ${CF_API_TOKEN}" "${api}")
+          if [[ "$(jq -r '.success' <<<"$resp")" != "true" ]]; then
+            echo "::error::Failed to list deployments:"
+            jq '.errors' <<<"$resp"
+            exit 1
+          fi
+
+          # Collect deployment IDs whose alias annotation matches the branch.
+          mapfile -t ids < <(jq -r --arg alias "$alias" \
+            '.result.deployments[] | select(.annotations["workers/alias"] == $alias) | .id' \
+            <<<"$resp")
+
+          if (( ${#ids[@]} == 0 )); then
+            echo "No preview deployments found for alias '${alias}'."
+            exit 0
+          fi
+
+          echo "Deleting ${#ids[@]} deployment(s):"
+          for id in "${ids[@]}"; do
+            echo "  - ${id}"
+            status=$(curl -sS -o /tmp/cf-del.json -w "%{http_code}" -X DELETE \
+              -H "Authorization: Bearer ${CF_API_TOKEN}" "${api}/${id}")
+            case "$status" in
+              200|204)
+                echo "    deleted"
+                ;;
+              *)
+                # Cloudflare returns an error (typically 400) for the latest
+                # deployment — that's expected protection, not a workflow bug.
+                echo "::warning::Could not delete ${id} (HTTP ${status}):"
+                cat /tmp/cf-del.json || true
+                echo
+                ;;
+            esac
+          done
