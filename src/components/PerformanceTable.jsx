@@ -536,12 +536,13 @@ const PerformanceTable = ({ operations, dailyData, loadingAll, onLoadAllData, ha
 
   return (
     <div className="card">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
-        <div>
-          <h2 className="text-lg font-semibold text-gray-900 mb-1">Daily Eltwise Performance Comparison</h2>
-          <div className="flex items-center gap-3">
+      <div className="mb-6 space-y-4">
+        {/* Row 1 — Title + meta + view mode toggle */}
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900 mb-1">Daily Eltwise Performance Comparison</h2>
             <p className="text-sm text-gray-500">
-              {filteredAndSortedData.length} operations 
+              {filteredAndSortedData.length} operations
               {selectedCategories.length > 0 && ` (${selectedCategories.join(', ')} categories)`} • {displayedDateColumns.length}{!showAllColumns && displayedDateColumns.length < dateColumns.length ? ` of ${dateColumns.length}` : ''} days shown
               {hasMoreDays && (
                 <>
@@ -565,14 +566,13 @@ const PerformanceTable = ({ operations, dailyData, loadingAll, onLoadAllData, ha
               )}
             </p>
           </div>
-          
-          {/* View Mode Toggle */}
-          <div className="inline-flex border border-gray-300 rounded-lg overflow-hidden h-10">
+
+          <div className="inline-flex border border-gray-300 rounded-lg overflow-hidden h-10 shrink-0 self-start">
             <button
               onClick={() => handleViewModeChange('table')}
               className={`px-4 py-2 text-sm font-medium transition-all duration-300 ease-in-out border-r border-gray-300 ${
-                viewMode === 'table' 
-                  ? 'bg-blue-600 text-white border-blue-600' 
+                viewMode === 'table'
+                  ? 'bg-blue-600 text-white border-blue-600'
                   : 'bg-white text-gray-700 hover:bg-gray-50'
               }`}
             >
@@ -581,8 +581,8 @@ const PerformanceTable = ({ operations, dailyData, loadingAll, onLoadAllData, ha
             <button
               onClick={() => handleViewModeChange('chart')}
               className={`px-4 py-2 text-sm font-medium transition-all duration-300 ease-in-out ${
-                viewMode === 'chart' 
-                  ? 'bg-blue-600 text-white' 
+                viewMode === 'chart'
+                  ? 'bg-blue-600 text-white'
                   : 'bg-white text-gray-700 hover:bg-gray-50'
               }`}
             >
@@ -590,29 +590,61 @@ const PerformanceTable = ({ operations, dailyData, loadingAll, onLoadAllData, ha
             </button>
           </div>
         </div>
-        
-        <div className="flex flex-col lg:flex-row gap-3 mt-4 sm:mt-0">
-          {/* Search Input */}
-          <div className="relative flex items-center">
-            <Search className="absolute left-3 h-4 w-4 text-gray-400 pointer-events-none z-10" />
-            <input
-              type="text"
-              placeholder="Search operations..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent w-full sm:w-64 h-10"
-            />
+
+        {/* Rows 2 & 3 — 4-column grid: Filter / Display / Actions / Sort */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-[1fr_1.5fr_1fr_1fr] gap-3">
+          {/* Col 1 — Filter */}
+          <div className="flex flex-col gap-2">
+            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Filter</div>
+            <div className="relative flex items-center">
+              <Search className="absolute left-3 h-4 w-4 text-gray-400 pointer-events-none z-10" />
+              <input
+                type="text"
+                placeholder="Search operations..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent w-full h-10"
+              />
+            </div>
+
+            <div className="flex items-center gap-2 border border-gray-300 rounded-lg px-3 py-2 bg-white h-10">
+              <span className="text-xs font-medium text-gray-700 whitespace-nowrap">Date Range:</span>
+              <input
+                type="date"
+                value={dateRange.start}
+                onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
+                className="text-xs border-0 focus:ring-0 p-0 h-6 flex-1 min-w-0"
+                placeholder="Start"
+              />
+              <span className="text-gray-400">—</span>
+              <input
+                type="date"
+                value={dateRange.end}
+                onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
+                className="text-xs border-0 focus:ring-0 p-0 h-6 flex-1 min-w-0"
+                placeholder="End"
+              />
+              {(dateRange.start || dateRange.end) && (
+                <button
+                  onClick={() => setDateRange({ start: '', end: '' })}
+                  className="text-xs text-gray-500 hover:text-gray-700 shrink-0"
+                  title="Clear date range"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
           </div>
-          
-          {/* Controls Row */}
-          <div className="flex flex-wrap gap-3 items-center">
-            {/* Unit Selector */}
-            <div className="flex border border-gray-300 rounded-lg overflow-hidden">
+
+          {/* Col 2 — Display */}
+          <div className="flex flex-col gap-2">
+            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Display</div>
+            <div className="flex border border-gray-300 rounded-lg overflow-hidden h-10">
               {['ns', 'μs', 'ms', 's'].map((unit) => (
                 <button
                   key={unit}
                   onClick={() => setSelectedUnit(unit)}
-                  className={`px-3 py-2 text-sm font-medium transition-all duration-300 ease-in-out h-10 ${
+                  className={`flex-1 px-3 py-2 text-sm font-medium transition-all duration-300 ease-in-out ${
                     selectedUnit === unit
                       ? 'bg-blue-600 text-white'
                       : 'bg-white text-gray-700 hover:bg-gray-50'
@@ -622,60 +654,65 @@ const PerformanceTable = ({ operations, dailyData, loadingAll, onLoadAllData, ha
                 </button>
               ))}
             </div>
-            
-            {/* Show All Columns Toggle */}
-            <div className="flex items-center space-x-2 px-3 py-2 border border-gray-300 rounded-lg bg-white hover:bg-gray-50 h-10">
-              <input
-                type="checkbox"
-                id="showAllColumns"
-                checked={showAllColumns}
-                onChange={(e) => setShowAllColumns(e.target.checked)}
-                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-              />
-              <label htmlFor="showAllColumns" className="flex items-center text-sm font-medium text-gray-700 cursor-pointer whitespace-nowrap">
-                {showAllColumns ? <Eye className="h-4 w-4 mr-1" /> : <EyeOff className="h-4 w-4 mr-1" />}
-                Show All Days
-              </label>
-              {!showAllColumns && significantColumns.length < dateColumns.length && (
-                <span className="text-xs text-gray-500 whitespace-nowrap">
-                  ({dateColumns.length - significantColumns.length} hidden)
+
+            <div className="flex border border-gray-300 rounded-lg overflow-hidden bg-white h-10">
+              <label htmlFor="showAllColumns" className="flex-1 flex items-center gap-2 px-3 hover:bg-gray-50 cursor-pointer">
+                <input
+                  type="checkbox"
+                  id="showAllColumns"
+                  checked={showAllColumns}
+                  onChange={(e) => setShowAllColumns(e.target.checked)}
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 shrink-0"
+                />
+                <span className="flex items-center text-sm font-medium text-gray-700 whitespace-nowrap">
+                  {showAllColumns ? <Eye className="h-4 w-4 mr-1" /> : <EyeOff className="h-4 w-4 mr-1" />}
+                  Show All Days
                 </span>
-              )}
-            </div>
-            
-            <div className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg bg-white h-10">
-              <input
-                type="checkbox"
-                id="groupByCategory"
-                checked={groupByCategory}
-                onChange={(e) => setGroupByCategory(e.target.checked)}
-                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-              />
-              <label htmlFor="groupByCategory" className="flex items-center text-sm font-medium text-gray-700 cursor-pointer whitespace-nowrap">
-                Group by Category
+                {!showAllColumns && significantColumns.length < dateColumns.length && (
+                  <span className="text-xs text-gray-500 whitespace-nowrap">
+                    ({dateColumns.length - significantColumns.length} hidden)
+                  </span>
+                )}
+              </label>
+              <label htmlFor="groupByCategory" className="flex-1 flex items-center gap-2 px-3 hover:bg-gray-50 cursor-pointer border-l border-gray-300 min-w-0">
+                <input
+                  type="checkbox"
+                  id="groupByCategory"
+                  checked={groupByCategory}
+                  onChange={(e) => setGroupByCategory(e.target.checked)}
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 shrink-0"
+                />
+                <span className="text-sm font-medium text-gray-700 whitespace-nowrap">
+                  Group by Category
+                </span>
               </label>
             </div>
-            
-            {/* Filter Dropdown */}
+          </div>
+
+          {/* Col 3 — Actions */}
+          <div className="flex flex-col gap-2">
+            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Actions</div>
             <div className="relative" ref={filterRef}>
               <button
                 onClick={() => setShowFilters(!showFilters)}
-                className="flex items-center px-4 py-2 border border-gray-300 rounded-lg bg-white hover:bg-gray-50 text-sm font-medium text-gray-700 h-10"
+                className="flex items-center justify-between w-full px-4 py-2 border border-gray-300 rounded-lg bg-white hover:bg-gray-50 text-sm font-medium text-gray-700 h-10"
               >
-                <Filter className="h-4 w-4 mr-2" />
-                Filter Categories
-                {selectedCategories.length > 0 && (
-                  <span className="ml-2 px-2 py-0.5 bg-blue-100 text-blue-800 rounded-full text-xs">
-                    {selectedCategories.length}
-                  </span>
-                )}
-                <ChevronDown className={`h-4 w-4 ml-2 transition-transform duration-200 ${showFilters ? 'rotate-180' : ''}`} />
+                <span className="inline-flex items-center">
+                  <Filter className="h-4 w-4 mr-2" />
+                  Filter Categories
+                  {selectedCategories.length > 0 && (
+                    <span className="ml-2 px-2 py-0.5 bg-blue-100 text-blue-800 rounded-full text-xs">
+                      {selectedCategories.length}
+                    </span>
+                  )}
+                </span>
+                <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${showFilters ? 'rotate-180' : ''}`} />
               </button>
-              
+
               {showFilters && (
-                <div className="absolute top-full mt-2 left-0 z-10 bg-white border border-gray-300 rounded-lg shadow-lg p-4 min-w-96">
+                <div className="absolute top-full mt-2 right-0 z-10 bg-white border border-gray-300 rounded-lg shadow-lg p-4 min-w-96">
                   <div className="text-sm font-medium text-gray-700 mb-3">Select Operation Categories:</div>
-                  
+
                   <div className="space-y-4">
                     {/* Forward Operations */}
                     <div>
@@ -696,7 +733,7 @@ const PerformanceTable = ({ operations, dailyData, loadingAll, onLoadAllData, ha
                         ))}
                       </div>
                     </div>
-                    
+
                     {/* Backward Operations */}
                     <div>
                       <div className="text-xs font-medium text-gray-500 mb-2 uppercase tracking-wide">Backward Operations</div>
@@ -717,7 +754,7 @@ const PerformanceTable = ({ operations, dailyData, loadingAll, onLoadAllData, ha
                       </div>
                     </div>
                   </div>
-                  
+
                   {selectedCategories.length > 0 && (
                     <div className="mt-4 pt-3 border-t border-gray-200 flex items-center justify-between">
                       <span className="text-sm text-gray-600">{selectedCategories.length} categories selected</span>
@@ -732,19 +769,20 @@ const PerformanceTable = ({ operations, dailyData, loadingAll, onLoadAllData, ha
                 </div>
               )}
             </div>
-            
-            {/* Export Dropdown */}
+
             <div className="relative" ref={exportRef}>
               <button
                 onClick={() => setShowExportMenu(!showExportMenu)}
-                className="flex items-center px-4 py-2 border border-gray-300 rounded-lg bg-white hover:bg-gray-50 text-sm font-medium text-gray-700 h-10"
+                className="flex items-center justify-between w-full px-4 py-2 border border-gray-300 rounded-lg bg-white hover:bg-gray-50 text-sm font-medium text-gray-700 h-10"
                 title="Export as CSV"
               >
-                <Download className="h-4 w-4 mr-2" />
-                Export CSV
-                <ChevronDown className={`h-4 w-4 ml-2 transition-transform duration-200 ${showExportMenu ? 'rotate-180' : ''}`} />
+                <span className="inline-flex items-center">
+                  <Download className="h-4 w-4 mr-2" />
+                  Export CSV
+                </span>
+                <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${showExportMenu ? 'rotate-180' : ''}`} />
               </button>
-              
+
               {showExportMenu && (
                 <div className="absolute top-full mt-2 right-0 z-50 bg-white border border-gray-300 rounded-lg shadow-lg py-2 min-w-64">
                   <div className="px-4 py-2 text-xs text-gray-500 border-b border-gray-200">
@@ -782,79 +820,44 @@ const PerformanceTable = ({ operations, dailyData, loadingAll, onLoadAllData, ha
                 </div>
               )}
             </div>
-            
-            {/* Date Range Filter */}
-            <div className="flex items-center gap-2 border border-gray-300 rounded-lg px-3 py-2 bg-white h-10">
-              <span className="text-xs font-medium text-gray-700 whitespace-nowrap">Date Range:</span>
-              <input
-                type="date"
-                value={dateRange.start}
-                onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
-                className="text-xs border-0 focus:ring-0 p-0 h-6 w-28"
-                placeholder="Start"
-              />
-              <span className="text-gray-400">—</span>
-              <input
-                type="date"
-                value={dateRange.end}
-                onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
-                className="text-xs border-0 focus:ring-0 p-0 h-6 w-28"
-                placeholder="End"
-              />
-              {(dateRange.start || dateRange.end) && (
-                <button
-                  onClick={() => setDateRange({ start: '', end: '' })}
-                  className="text-xs text-gray-500 hover:text-gray-700"
-                  title="Clear date range"
-                >
-                  ✕
-                </button>
-              )}
-            </div>
           </div>
-        </div>
-        
-        {/* Performance Sort Section (separate row) */}
-        <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center mt-3">
-          <div className="flex flex-col gap-2 w-full">
-            <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
-              <div className="flex flex-col">
-                <span className="text-sm font-medium text-gray-700">Performance Sort</span>
-                <span className="text-xs text-gray-500">(based on latest column)</span>
-              </div>
-              <div className="flex border border-gray-300 rounded-lg">
-                <button
-                  onClick={() => handlePerformanceSort('none')}
-                  className={`px-5 py-2 text-sm font-medium transition-all duration-300 ease-in-out flex items-center justify-center whitespace-nowrap rounded-l-lg ${
-                    performanceSort === 'none'
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-white text-gray-700 hover:bg-gray-50'
-                  }`}
-                >
-                  None
-                </button>
-                <button
-                  onClick={() => handlePerformanceSort('most-improved')}
-                  className={`px-5 py-2 text-sm font-medium transition-all duration-300 ease-in-out flex items-center justify-center whitespace-nowrap border-l border-gray-300 ${
-                    performanceSort === 'most-improved'
-                      ? 'bg-green-600 text-white'
-                      : 'bg-white text-gray-700 hover:bg-gray-50'
-                  }`}
-                >
-                  Improved
-                </button>
-                <button
-                  onClick={() => handlePerformanceSort('most-degraded')}
-                  className={`px-5 py-2 text-sm font-medium transition-all duration-300 ease-in-out flex items-center justify-center whitespace-nowrap border-l border-gray-300 rounded-r-lg ${
-                    performanceSort === 'most-degraded'
-                      ? 'bg-red-600 text-white'
-                      : 'bg-white text-gray-700 hover:bg-gray-50'
-                  }`}
-                >
-                  Degraded
-                </button>
-              </div>
+
+          {/* Col 4 — Sort */}
+          <div className="flex flex-col gap-2">
+            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Sort</div>
+            <div className="flex border border-gray-300 rounded-lg overflow-hidden h-10">
+              <button
+                onClick={() => handlePerformanceSort('none')}
+                className={`flex-1 px-3 py-2 text-sm font-medium transition-all duration-300 ease-in-out flex items-center justify-center whitespace-nowrap ${
+                  performanceSort === 'none'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-white text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                None
+              </button>
+              <button
+                onClick={() => handlePerformanceSort('most-improved')}
+                className={`flex-1 px-3 py-2 text-sm font-medium transition-all duration-300 ease-in-out flex items-center justify-center whitespace-nowrap border-l border-gray-300 ${
+                  performanceSort === 'most-improved'
+                    ? 'bg-green-600 text-white'
+                    : 'bg-white text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                Improved
+              </button>
+              <button
+                onClick={() => handlePerformanceSort('most-degraded')}
+                className={`flex-1 px-3 py-2 text-sm font-medium transition-all duration-300 ease-in-out flex items-center justify-center whitespace-nowrap border-l border-gray-300 ${
+                  performanceSort === 'most-degraded'
+                    ? 'bg-red-600 text-white'
+                    : 'bg-white text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                Degraded
+              </button>
             </div>
+            <span className="text-xs text-gray-500">Based on latest column</span>
           </div>
         </div>
       </div>

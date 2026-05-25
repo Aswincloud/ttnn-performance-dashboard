@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { RefreshCw, AlertCircle, Zap, TrendingUp, Book } from 'lucide-react';
+import { RefreshCw, AlertCircle, Zap, TrendingUp, Book, Github } from 'lucide-react';
 import OverviewCards from './components/OverviewCards';
 import PerformanceTable from './components/PerformanceTable';
 import CatalogModal from './components/CatalogModal';
@@ -280,6 +280,17 @@ function App() {
               © {new Date().getFullYear()} Aswin. Thanks to the TT-Metal community for their amazing work.
             </div>
             <div className="flex items-center justify-center sm:justify-end flex-wrap gap-x-3 gap-y-1 text-sm text-gray-500">
+              <a
+                href="https://github.com/Aswincloud/ttnn-performance-dashboard"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 hover:text-gray-900 transition-colors"
+                aria-label="View source on GitHub"
+              >
+                <Github className="h-4 w-4" />
+                <span>Source</span>
+              </a>
+              <span aria-hidden="true">•</span>
               <span>Powered by TT-Metal</span>
               <span aria-hidden="true">•</span>
               <span>{summaryStats?.totalOperations || 0} Operations Tracked</span>
