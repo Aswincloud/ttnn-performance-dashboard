@@ -3,6 +3,30 @@ import { Search, ChevronUp, ChevronDown, Filter, BarChart3, TrendingUp, Trending
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { operationsCatalog } from '../utils/operationsCatalog.js';
 
+// Versioned key so we can invalidate persisted prefs if the schema ever changes
+// (e.g. category names rename, sort keys change). Bump suffix to force-reset.
+const PREFS_PREFIX = 'ttnn-dash:v1:';
+
+const usePersistedState = (key, initialValue) => {
+  const storageKey = `${PREFS_PREFIX}${key}`;
+  const [value, setValue] = useState(() => {
+    try {
+      const raw = localStorage.getItem(storageKey);
+      return raw !== null ? JSON.parse(raw) : initialValue;
+    } catch {
+      return initialValue;
+    }
+  });
+  useEffect(() => {
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(value));
+    } catch {
+      // Ignore quota / private-mode failures; in-memory state still works.
+    }
+  }, [storageKey, value]);
+  return [value, setValue];
+};
+
 const RowSparkline = ({ values, width = 80, height = 22, maxPoints = 30 }) => {
   if (!values || values.length < 2) {
     return <span className="text-xs text-gray-300">—</span>;
@@ -44,17 +68,17 @@ const RowSparkline = ({ values, width = 80, height = 22, maxPoints = 30 }) => {
 
 const PerformanceTable = ({ operations, dailyData, loadingAll, onLoadAllData, hasMoreDays, totalAvailable, currentlyLoaded }) => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [sortConfig, setSortConfig] = useState({ key: 'operation_name', direction: 'asc' });
-  const [selectedUnit, setSelectedUnit] = useState('ns');
-  const [performanceSort, setPerformanceSort] = useState('none');
-  const [selectedCategories, setSelectedCategories] = useState([
-    'Unary', 'Binary Arithmetic', 'Binary Comparison', 'Binary Logical', 
+  const [sortConfig, setSortConfig] = usePersistedState('sortConfig', { key: 'operation_name', direction: 'asc' });
+  const [selectedUnit, setSelectedUnit] = usePersistedState('selectedUnit', 'ns');
+  const [performanceSort, setPerformanceSort] = usePersistedState('performanceSort', 'none');
+  const [selectedCategories, setSelectedCategories] = usePersistedState('selectedCategories', [
+    'Unary', 'Binary Arithmetic', 'Binary Comparison', 'Binary Logical',
     'Ternary', 'Reduction', 'Complex'
   ]);
   const [showFilters, setShowFilters] = useState(false);
-  const [showAllColumns, setShowAllColumns] = useState(true);
-  const [groupByCategory, setGroupByCategory] = useState(false);
-  const [viewMode, setViewMode] = useState('table'); // 'table' or 'chart'
+  const [showAllColumns, setShowAllColumns] = usePersistedState('showAllColumns', true);
+  const [groupByCategory, setGroupByCategory] = usePersistedState('groupByCategory', false);
+  const [viewMode, setViewMode] = usePersistedState('viewMode', 'table');
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
   const [showExportMenu, setShowExportMenu] = useState(false);
