@@ -1,7 +1,42 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { Search, ChevronUp, ChevronDown, Filter, BarChart3, TrendingUp, TrendingDown, Minus, Eye, EyeOff, Loader2, Download } from 'lucide-react';
+import { Search, ChevronUp, ChevronDown, Filter, BarChart3, TrendingUp, TrendingDown, Minus, Eye, EyeOff, Loader2, Download, X } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { operationsCatalog } from '../utils/operationsCatalog.js';
+
+const RowSparkline = ({ values, width = 80, height = 22 }) => {
+  if (!values || values.length < 2) {
+    return <span className="text-xs text-gray-300">—</span>;
+  }
+
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const range = max - min || 1;
+  const step = values.length > 1 ? width / (values.length - 1) : 0;
+
+  const points = values.map((v, i) => {
+    const x = i * step;
+    const y = height - ((v - min) / range) * height;
+    return `${x.toFixed(2)},${y.toFixed(2)}`;
+  });
+
+  const first = values[0];
+  const last = values[values.length - 1];
+  const pct = ((last - first) / first) * 100;
+  const trend = pct <= -2 ? 'better' : pct >= 2 ? 'worse' : 'flat';
+  const stroke = trend === 'better' ? '#16a34a' : trend === 'worse' ? '#dc2626' : '#94a3b8';
+  const fill = trend === 'better' ? 'rgba(22, 163, 74, 0.10)' : trend === 'worse' ? 'rgba(220, 38, 38, 0.10)' : 'rgba(148, 163, 184, 0.10)';
+
+  const areaPoints = `0,${height} ${points.join(' ')} ${width},${height}`;
+  const lastY = height - ((last - min) / range) * height;
+
+  return (
+    <svg width={width} height={height} className="block" aria-hidden="true">
+      <polygon points={areaPoints} fill={fill} />
+      <polyline points={points.join(' ')} fill="none" stroke={stroke} strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx={width} cy={lastY} r="1.75" fill={stroke} />
+    </svg>
+  );
+};
 
 const PerformanceTable = ({ operations, dailyData, loadingAll, onLoadAllData, hasMoreDays, totalAvailable, currentlyLoaded }) => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -19,9 +54,17 @@ const PerformanceTable = ({ operations, dailyData, loadingAll, onLoadAllData, ha
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
   const [showExportMenu, setShowExportMenu] = useState(false);
+  const [chartModalOp, setChartModalOp] = useState(null);
   const filterRef = useRef(null);
   const tableScrollRef = useRef(null);
   const exportRef = useRef(null);
+
+  useEffect(() => {
+    if (!chartModalOp) return;
+    const onKey = (e) => { if (e.key === 'Escape') setChartModalOp(null); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [chartModalOp]);
 
   // Close dropdowns when clicking outside
   useEffect(() => {
@@ -710,7 +753,7 @@ const PerformanceTable = ({ operations, dailyData, loadingAll, onLoadAllData, ha
               </button>
 
               {showFilters && (
-                <div className="absolute top-full mt-2 right-0 z-10 bg-white border border-gray-300 rounded-lg shadow-lg p-4 min-w-96">
+                <div className="absolute top-full mt-2 right-0 z-50 bg-white border border-gray-300 rounded-lg shadow-lg p-4 min-w-96">
                   <div className="text-sm font-medium text-gray-700 mb-3">Select Operation Categories:</div>
 
                   <div className="space-y-4">
@@ -916,7 +959,7 @@ const PerformanceTable = ({ operations, dailyData, loadingAll, onLoadAllData, ha
               <SortableHeader sortKey="operation_name" className="table-sticky-left-0 bg-gray-50 text-center border-r border-gray-200 px-4 z-50">
                 Operation
               </SortableHeader>
-              <th className="table-header text-center table-sticky-left-160 bg-gray-50 border-r border-gray-200 px-4 z-50">Category</th>
+              <th className="table-header text-center table-sticky-left-180 bg-gray-50 border-r border-gray-200 px-3 z-50 whitespace-nowrap">Trend</th>
               {displayedDateColumns.map((dateObj, index) => (
                 <SortableHeader key={dateObj.date} sortKey={dateObj.date} className="min-w-32 text-center">
                   <div className="flex flex-col items-center">
@@ -944,15 +987,27 @@ const PerformanceTable = ({ operations, dailyData, loadingAll, onLoadAllData, ha
                   {operations.map((operation, rowIdx) => (
                     <tr
                       key={operation.operation_name}
-                      className={`${rowIdx % 2 === 0 ? 'bg-white' : 'bg-slate-50'} hover:bg-blue-50 transition-colors duration-150 group h-10`}
+                      className={`${rowIdx % 2 === 0 ? 'bg-white' : 'bg-slate-50'} hover:bg-blue-50 transition-colors duration-150 group h-14`}
                     >
-                      <td className="table-cell-sticky table-sticky-left-0 bg-white group-hover:bg-blue-50 font-medium text-gray-900 border-r border-gray-200 text-center transition-colors duration-150 py-1">
-                        {operation.operation_name}
+                      <td className="table-cell-sticky table-sticky-left-0 bg-white group-hover:bg-blue-50 border-r border-gray-200 transition-colors duration-150 py-1 px-3">
+                        <div className="flex flex-col items-center gap-1">
+                          <span className="font-medium text-gray-900 text-sm truncate max-w-full">{operation.operation_name}</span>
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium ${getCategoryColor(getOperationCategory(operation.operation_name))}`}>
+                            {getOperationCategory(operation.operation_name)}
+                          </span>
+                        </div>
                       </td>
-                      <td className="table-cell-sticky text-center table-sticky-left-160 bg-white group-hover:bg-blue-50 border-r border-gray-200 transition-colors duration-150 py-1">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getCategoryColor(getOperationCategory(operation.operation_name))}`}>
-                          {getOperationCategory(operation.operation_name)}
-                        </span>
+                      <td
+                        className="table-cell-sticky table-sticky-left-180 bg-white group-hover:bg-blue-50 border-r border-gray-200 transition-colors duration-150 py-1 px-2 cursor-zoom-in"
+                        onClick={() => setChartModalOp(operation)}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setChartModalOp(operation); } }}
+                        title="Click to enlarge trend"
+                      >
+                        <div className="flex items-center justify-center">
+                          <RowSparkline values={displayedDateColumns.map(d => operation.dailyPerformance[d.date]?.duration_ns).filter(v => v != null)} />
+                        </div>
                       </td>
                       {displayedDateColumns.map((dateObj, dateIndex) => {
                         const dayData = operation.dailyPerformance[dateObj.date];
@@ -1003,15 +1058,27 @@ const PerformanceTable = ({ operations, dailyData, loadingAll, onLoadAllData, ha
               filteredAndSortedData.map((operation, index) => (
                 <tr
                   key={operation.operation_name}
-                  className={`${index % 2 === 0 ? 'bg-white' : 'bg-slate-50'} hover:bg-blue-50 transition-colors duration-150 group h-10`}
+                  className={`${index % 2 === 0 ? 'bg-white' : 'bg-slate-50'} hover:bg-blue-50 transition-colors duration-150 group h-14`}
                 >
-                  <td className="table-cell-sticky table-sticky-left-0 bg-white group-hover:bg-blue-50 font-medium text-gray-900 border-r border-gray-200 text-center transition-colors duration-150 py-1">
-                    {operation.operation_name}
+                  <td className="table-cell-sticky table-sticky-left-0 bg-white group-hover:bg-blue-50 border-r border-gray-200 transition-colors duration-150 py-1 px-3">
+                    <div className="flex flex-col items-center gap-1">
+                      <span className="font-medium text-gray-900 text-sm truncate max-w-full">{operation.operation_name}</span>
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium ${getCategoryColor(getOperationCategory(operation.operation_name))}`}>
+                        {getOperationCategory(operation.operation_name)}
+                      </span>
+                    </div>
                   </td>
-                  <td className="table-cell-sticky text-center table-sticky-left-160 bg-white group-hover:bg-blue-50 border-r border-gray-200 transition-colors duration-150 py-1">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getCategoryColor(getOperationCategory(operation.operation_name))}`}>
-                      {getOperationCategory(operation.operation_name)}
-                    </span>
+                  <td
+                    className="table-cell-sticky table-sticky-left-180 bg-white group-hover:bg-blue-50 border-r border-gray-200 transition-colors duration-150 py-1 px-2 cursor-zoom-in"
+                    onClick={() => setChartModalOp(operation)}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setChartModalOp(operation); } }}
+                    title="Click to enlarge trend"
+                  >
+                    <div className="flex items-center justify-center">
+                      <RowSparkline values={displayedDateColumns.map(d => operation.dailyPerformance[d.date]?.duration_ns).filter(v => v != null)} />
+                    </div>
                   </td>
                 {displayedDateColumns.map((dateObj, dateIndex) => {
                    const dayData = operation.dailyPerformance[dateObj.date];
@@ -1185,6 +1252,70 @@ const PerformanceTable = ({ operations, dailyData, loadingAll, onLoadAllData, ha
            </div>
          </div>
        </div>
+
+       {chartModalOp && (() => {
+         const modalChartData = displayedDateColumns.map(dateObj => ({
+           date: dateObj.date,
+           commitId: dateObj.commitId,
+           value: chartModalOp.dailyPerformance[dateObj.date]?.duration_ns
+             ? convertFromNanoseconds(chartModalOp.dailyPerformance[dateObj.date].duration_ns, selectedUnit).value
+             : null,
+         })).filter(d => d.value !== null);
+
+         return (
+           <div
+             className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
+             onClick={() => setChartModalOp(null)}
+             role="dialog"
+             aria-modal="true"
+             aria-label={`${chartModalOp.operation_name} performance trend`}
+           >
+             <div
+               className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[85vh] overflow-hidden flex flex-col"
+               onClick={(e) => e.stopPropagation()}
+             >
+               <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+                 <div className="flex items-center gap-3 min-w-0">
+                   <h3 className="text-lg font-semibold text-gray-900 truncate">{chartModalOp.operation_name}</h3>
+                   <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium shrink-0 ${getCategoryColor(getOperationCategory(chartModalOp.operation_name))}`}>
+                     {getOperationCategory(chartModalOp.operation_name)}
+                   </span>
+                 </div>
+                 <button
+                   onClick={() => setChartModalOp(null)}
+                   className="text-gray-400 hover:text-gray-600 transition-colors shrink-0 ml-3"
+                   aria-label="Close chart"
+                 >
+                   <X className="h-5 w-5" />
+                 </button>
+               </div>
+               <div className="p-6 flex-1 overflow-auto">
+                 {modalChartData.length >= 2 ? (
+                   <ResponsiveContainer width="100%" height={400}>
+                     <LineChart data={modalChartData}>
+                       <CartesianGrid strokeDasharray="3 3" />
+                       <XAxis dataKey="date" tick={{ fontSize: 12 }} />
+                       <YAxis tick={{ fontSize: 12 }} label={{ value: selectedUnit, angle: -90, position: 'insideLeft' }} />
+                       <Tooltip
+                         formatter={(value) => [`${value.toFixed(3)} ${selectedUnit}`, 'Performance']}
+                         labelFormatter={(label) => {
+                           const dataPoint = modalChartData.find(d => d.date === label);
+                           return `${label} (${dataPoint?.commitId || 'N/A'})`;
+                         }}
+                       />
+                       <Line type="monotone" dataKey="value" stroke="#3b82f6" strokeWidth={2} dot={{ r: 3 }} />
+                     </LineChart>
+                   </ResponsiveContainer>
+                 ) : (
+                   <div className="h-[400px] flex items-center justify-center text-sm text-gray-500">
+                     Not enough data points to chart this operation.
+                   </div>
+                 )}
+               </div>
+             </div>
+           </div>
+         );
+       })()}
      </div>
    );
  };
