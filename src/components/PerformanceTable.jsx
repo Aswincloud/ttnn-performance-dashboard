@@ -94,6 +94,7 @@ const PerformanceTable = ({ operations, dailyData, loadingAll, onLoadAllData, ha
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [chartModalOp, setChartModalOp] = useState(null);
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
   const filterRef = useRef(null);
   const tableScrollRef = useRef(null);
   const exportRef = useRef(null);
@@ -760,7 +761,7 @@ const PerformanceTable = ({ operations, dailyData, loadingAll, onLoadAllData, ha
             </p>
           </div>
 
-          <div className="inline-flex border border-gray-300 rounded-lg overflow-hidden h-10 shrink-0 self-start">
+          <div className={`${showMobileFilters ? 'inline-flex' : 'hidden'} md:inline-flex border border-gray-300 rounded-lg overflow-hidden h-10 shrink-0 self-start`}>
             <button
               onClick={() => handleViewModeChange('table')}
               className={`px-4 py-2 text-sm font-medium transition-all duration-300 ease-in-out border-r border-gray-300 ${
@@ -788,19 +789,31 @@ const PerformanceTable = ({ operations, dailyData, loadingAll, onLoadAllData, ha
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-[1fr_1.5fr_1fr_1fr] gap-3">
           {/* Col 1 — Filter */}
           <div className="flex flex-col gap-2">
-            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Filter</div>
-            <div className="relative flex items-center">
-              <Search className="absolute left-3 h-4 w-4 text-gray-400 pointer-events-none z-10" />
-              <input
-                type="text"
-                placeholder="Search operations..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent w-full h-10"
-              />
+            <div className="hidden md:block text-xs font-semibold text-gray-500 uppercase tracking-wide">Filter</div>
+            <div className="flex items-center gap-2">
+              <div className="relative flex items-center flex-1">
+                <Search className="absolute left-3 h-4 w-4 text-gray-400 pointer-events-none z-10" />
+                <input
+                  type="text"
+                  placeholder="Search operations..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent w-full h-10"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowMobileFilters((v) => !v)}
+                className="md:hidden inline-flex items-center gap-1 px-3 h-10 border border-gray-300 rounded-lg bg-white text-sm font-medium text-gray-700 shrink-0"
+                aria-expanded={showMobileFilters}
+                aria-label="Toggle more options"
+              >
+                <Filter className="h-4 w-4" />
+                <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${showMobileFilters ? 'rotate-180' : ''}`} />
+              </button>
             </div>
 
-            <div className="flex items-center gap-2 border border-gray-300 rounded-lg px-3 py-2 bg-white h-10">
+            <div className={`${showMobileFilters ? 'flex' : 'hidden'} md:flex items-center gap-2 border border-gray-300 rounded-lg px-3 py-2 bg-white h-10`}>
               <span className="text-xs font-medium text-gray-700 whitespace-nowrap">Date Range:</span>
               <input
                 type="date"
@@ -830,8 +843,8 @@ const PerformanceTable = ({ operations, dailyData, loadingAll, onLoadAllData, ha
           </div>
 
           {/* Col 2 — Display */}
-          <div className="flex flex-col gap-2">
-            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Display</div>
+          <div className={`${showMobileFilters ? 'flex' : 'hidden'} md:flex flex-col gap-2`}>
+            <div className="hidden md:block text-xs font-semibold text-gray-500 uppercase tracking-wide">Display</div>
             <div className="flex border border-gray-300 rounded-lg overflow-hidden h-10">
               {['ns', 'μs', 'ms', 's'].map((unit) => (
                 <button
@@ -883,8 +896,8 @@ const PerformanceTable = ({ operations, dailyData, loadingAll, onLoadAllData, ha
           </div>
 
           {/* Col 3 — Actions */}
-          <div className="flex flex-col gap-2">
-            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Actions</div>
+          <div className={`${showMobileFilters ? 'flex' : 'hidden'} md:flex flex-col gap-2`}>
+            <div className="hidden md:block text-xs font-semibold text-gray-500 uppercase tracking-wide">Actions</div>
             <div className="relative" ref={filterRef}>
               <button
                 onClick={() => setShowFilters(!showFilters)}
@@ -1016,8 +1029,8 @@ const PerformanceTable = ({ operations, dailyData, loadingAll, onLoadAllData, ha
           </div>
 
           {/* Col 4 — Sort */}
-          <div className="flex flex-col gap-2">
-            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Sort</div>
+          <div className={`${showMobileFilters ? 'flex' : 'hidden'} md:flex flex-col gap-2`}>
+            <div className="hidden md:block text-xs font-semibold text-gray-500 uppercase tracking-wide">Sort</div>
             <div className="flex border border-gray-300 rounded-lg overflow-hidden h-10">
               <button
                 onClick={() => handlePerformanceSort('none')}
@@ -1097,7 +1110,7 @@ const PerformanceTable = ({ operations, dailyData, loadingAll, onLoadAllData, ha
               <SortableHeader sortKey="operation_name" className="table-sticky-left-0 bg-gray-50 text-center border-r border-gray-200 px-4 z-50">
                 Operation
               </SortableHeader>
-              <th className="table-header text-center table-sticky-left-180 bg-gray-50 border-r border-gray-200 px-3 z-50 whitespace-nowrap">Trend</th>
+              <th className="hidden md:table-cell table-header text-center table-sticky-left-180 bg-gray-50 border-r border-gray-200 px-3 z-50 whitespace-nowrap">Trend</th>
               {displayedDateColumns.map((dateObj, index) => (
                 <SortableHeader key={dateObj.date} sortKey={dateObj.date} className="min-w-24 text-center">
                   <div className="flex flex-col items-center leading-tight">
@@ -1136,7 +1149,7 @@ const PerformanceTable = ({ operations, dailyData, loadingAll, onLoadAllData, ha
                         </div>
                       </td>
                       <td
-                        className="table-cell-sticky table-sticky-left-180 bg-white group-hover:bg-blue-50 border-r border-gray-200 transition-colors duration-150 py-1 px-2 cursor-zoom-in"
+                        className="hidden md:table-cell table-cell-sticky table-sticky-left-180 bg-white group-hover:bg-blue-50 border-r border-gray-200 transition-colors duration-150 py-1 px-2 cursor-zoom-in"
                         onClick={() => setChartModalOp(operation)}
                         role="button"
                         tabIndex={0}
@@ -1207,7 +1220,7 @@ const PerformanceTable = ({ operations, dailyData, loadingAll, onLoadAllData, ha
                     </div>
                   </td>
                   <td
-                    className="table-cell-sticky table-sticky-left-180 bg-white group-hover:bg-blue-50 border-r border-gray-200 transition-colors duration-150 py-1 px-2 cursor-zoom-in"
+                    className="hidden md:table-cell table-cell-sticky table-sticky-left-180 bg-white group-hover:bg-blue-50 border-r border-gray-200 transition-colors duration-150 py-1 px-2 cursor-zoom-in"
                     onClick={() => setChartModalOp(operation)}
                     role="button"
                     tabIndex={0}
@@ -1279,8 +1292,8 @@ const PerformanceTable = ({ operations, dailyData, loadingAll, onLoadAllData, ha
       )}
 
        <div className="mt-4 border-t pt-4 space-y-3">
-         <div className="flex items-center justify-between text-xs text-gray-500">
-           <div className="flex items-center space-x-4">
+         <div className="flex flex-wrap items-center justify-between gap-y-2 text-xs text-gray-500">
+           <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
              <div className="flex items-center">
                <TrendingUp className="h-3 w-3 text-green-600 mr-1" />
                <span>Performance improved ({'>'}5% faster)</span>
@@ -1299,9 +1312,9 @@ const PerformanceTable = ({ operations, dailyData, loadingAll, onLoadAllData, ha
            </div>
          </div>
          
-         <div className="flex items-center text-xs text-gray-500">
+         <div className="flex flex-wrap items-center gap-y-2 text-xs text-gray-500">
            <span className="mr-3">Performance colors (relative to previous day):</span>
-           <div className="flex items-center space-x-2">
+           <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
              <div className="flex items-center">
                <div className="w-4 h-3 bg-green-200 rounded mr-1"></div>
                <span>{'>'}15% faster</span>
