@@ -3,24 +3,28 @@ import { Search, ChevronUp, ChevronDown, Filter, BarChart3, TrendingUp, Trending
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { operationsCatalog } from '../utils/operationsCatalog.js';
 
-const RowSparkline = ({ values, width = 80, height = 22 }) => {
+const RowSparkline = ({ values, width = 80, height = 22, maxPoints = 30 }) => {
   if (!values || values.length < 2) {
     return <span className="text-xs text-gray-300">—</span>;
   }
 
-  const min = Math.min(...values);
-  const max = Math.max(...values);
-  const range = max - min || 1;
-  const step = values.length > 1 ? width / (values.length - 1) : 0;
+  // Cap to most recent N points so the line stays readable when the user
+  // has loaded hundreds of days. The full chart is one click away in the modal.
+  const trimmed = values.length > maxPoints ? values.slice(-maxPoints) : values;
 
-  const points = values.map((v, i) => {
+  const min = Math.min(...trimmed);
+  const max = Math.max(...trimmed);
+  const range = max - min || 1;
+  const step = trimmed.length > 1 ? width / (trimmed.length - 1) : 0;
+
+  const points = trimmed.map((v, i) => {
     const x = i * step;
     const y = height - ((v - min) / range) * height;
     return `${x.toFixed(2)},${y.toFixed(2)}`;
   });
 
-  const first = values[0];
-  const last = values[values.length - 1];
+  const first = trimmed[0];
+  const last = trimmed[trimmed.length - 1];
   const pct = ((last - first) / first) * 100;
   const trend = pct <= -2 ? 'better' : pct >= 2 ? 'worse' : 'flat';
   const stroke = trend === 'better' ? '#16a34a' : trend === 'worse' ? '#dc2626' : '#94a3b8';
@@ -113,6 +117,14 @@ const PerformanceTable = ({ operations, dailyData, loadingAll, onLoadAllData, ha
   const formatValue = (nanoseconds, unit) => {
     const converted = convertFromNanoseconds(nanoseconds, unit);
     return converted.value.toFixed(converted.decimals);
+  };
+
+  // Build a compact "Mon D" label from a YYYY-MM-DD string without going
+  // through Date parsing, which would shift the day in non-UTC zones.
+  const formatCompactDate = (isoDate) => {
+    if (!isoDate || isoDate.length < 10) return isoDate;
+    const [y, m, d] = isoDate.slice(0, 10).split('-').map(Number);
+    return new Date(y, m - 1, d).toLocaleString('en-US', { month: 'short', day: 'numeric' });
   };
 
   const getPerformanceColor = (currentValue, previousValue, isFirstColumn) => {
@@ -320,6 +332,40 @@ const PerformanceTable = ({ operations, dailyData, loadingAll, onLoadAllData, ha
     
     return Array.from(dateMap.values());
   }, [dailyData]);
+
+  // Latest-day callout: top regressions and improvements vs the day before,
+  // based on ALL loaded data (not user filters). Returns null if there is no
+  // prior day to compare against or no change crosses the 5% threshold.
+  const latestDayDelta = useMemo(() => {
+    if (allDateColumns.length < 2 || processedData.length === 0) return null;
+
+    const latestDate = allDateColumns[allDateColumns.length - 1].date;
+    const prevDate = allDateColumns[allDateColumns.length - 2].date;
+    const THRESHOLD = 5;
+
+    const changes = [];
+    for (const op of processedData) {
+      const latest = op.dailyPerformance[latestDate]?.duration_ns;
+      const prev = op.dailyPerformance[prevDate]?.duration_ns;
+      if (!latest || !prev) continue;
+      const pct = ((latest - prev) / prev) * 100;
+      if (Math.abs(pct) >= THRESHOLD) changes.push({ name: op.operation_name, pct });
+    }
+
+    if (changes.length === 0) return null;
+
+    const regressions = changes.filter(c => c.pct > 0).sort((a, b) => b.pct - a.pct);
+    const improvements = changes.filter(c => c.pct < 0).sort((a, b) => a.pct - b.pct);
+
+    return {
+      latestDate,
+      threshold: THRESHOLD,
+      regressionCount: regressions.length,
+      improvementCount: improvements.length,
+      topRegressions: regressions.slice(0, 3),
+      topImprovements: improvements.slice(0, 3),
+    };
+  }, [processedData, allDateColumns]);
 
   // Filtered date columns (respects date range filter)
   const dateColumns = useMemo(() => {
@@ -579,6 +625,75 @@ const PerformanceTable = ({ operations, dailyData, loadingAll, onLoadAllData, ha
 
   return (
     <div className="card">
+      {latestDayDelta && (
+        <div className="mb-5 border border-gray-200 rounded-lg overflow-hidden">
+          <div className="px-4 py-2 bg-gray-50 border-b border-gray-200 flex items-center justify-between gap-2">
+            <div className="text-xs font-semibold text-gray-700 uppercase tracking-wide">
+              Latest day · {formatCompactDate(latestDayDelta.latestDate)}
+            </div>
+            <div className="text-xs text-gray-500">vs. previous day · ≥{latestDayDelta.threshold}% change</div>
+          </div>
+          <div className="flex flex-col sm:flex-row">
+            {latestDayDelta.topRegressions.length > 0 && (
+              <div className={`flex-1 px-4 py-3 bg-red-50/40 ${latestDayDelta.topImprovements.length > 0 ? 'border-b sm:border-b-0 sm:border-r border-red-100' : ''}`}>
+                <div className="flex items-center gap-1.5 text-xs font-medium text-red-700 mb-1.5">
+                  <TrendingDown className="h-3.5 w-3.5" />
+                  {latestDayDelta.regressionCount} regression{latestDayDelta.regressionCount !== 1 ? 's' : ''}
+                </div>
+                <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-sm">
+                  {latestDayDelta.topRegressions.map(r => (
+                    <button
+                      key={r.name}
+                      onClick={() => {
+                        const op = processedData.find(o => o.operation_name === r.name);
+                        if (op) setChartModalOp(op);
+                      }}
+                      className="font-mono text-red-700 hover:text-red-900 hover:underline cursor-pointer"
+                      title="Open trend chart"
+                    >
+                      {r.name} <span className="text-red-600">+{r.pct.toFixed(1)}%</span>
+                    </button>
+                  ))}
+                  {latestDayDelta.regressionCount > latestDayDelta.topRegressions.length && (
+                    <span className="text-xs text-red-600/70">
+                      +{latestDayDelta.regressionCount - latestDayDelta.topRegressions.length} more
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+            {latestDayDelta.topImprovements.length > 0 && (
+              <div className="flex-1 px-4 py-3 bg-green-50/40">
+                <div className="flex items-center gap-1.5 text-xs font-medium text-green-700 mb-1.5">
+                  <TrendingUp className="h-3.5 w-3.5" />
+                  {latestDayDelta.improvementCount} improvement{latestDayDelta.improvementCount !== 1 ? 's' : ''}
+                </div>
+                <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-sm">
+                  {latestDayDelta.topImprovements.map(i => (
+                    <button
+                      key={i.name}
+                      onClick={() => {
+                        const op = processedData.find(o => o.operation_name === i.name);
+                        if (op) setChartModalOp(op);
+                      }}
+                      className="font-mono text-green-700 hover:text-green-900 hover:underline cursor-pointer"
+                      title="Open trend chart"
+                    >
+                      {i.name} <span className="text-green-600">{i.pct.toFixed(1)}%</span>
+                    </button>
+                  ))}
+                  {latestDayDelta.improvementCount > latestDayDelta.topImprovements.length && (
+                    <span className="text-xs text-green-600/70">
+                      +{latestDayDelta.improvementCount - latestDayDelta.topImprovements.length} more
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       <div className="mb-6 space-y-4">
         {/* Row 1 — Title + meta + view mode toggle */}
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
@@ -961,12 +1076,12 @@ const PerformanceTable = ({ operations, dailyData, loadingAll, onLoadAllData, ha
               </SortableHeader>
               <th className="table-header text-center table-sticky-left-180 bg-gray-50 border-r border-gray-200 px-3 z-50 whitespace-nowrap">Trend</th>
               {displayedDateColumns.map((dateObj, index) => (
-                <SortableHeader key={dateObj.date} sortKey={dateObj.date} className="min-w-32 text-center">
-                  <div className="flex flex-col items-center">
-                    <span>{dateObj.date}</span>
+                <SortableHeader key={dateObj.date} sortKey={dateObj.date} className="min-w-24 text-center">
+                  <div className="flex flex-col items-center leading-tight">
+                    <span title={dateObj.date}>{formatCompactDate(dateObj.date)}</span>
                     <span className="text-xs text-blue-600 font-mono">{dateObj.commitId}</span>
                     {index === displayedDateColumns.length - 1 && (
-                      <span className="text-xs text-green-600 font-semibold">Latest</span>
+                      <span className="text-[10px] text-green-600 font-semibold">Latest</span>
                     )}
                   </div>
                 </SortableHeader>
