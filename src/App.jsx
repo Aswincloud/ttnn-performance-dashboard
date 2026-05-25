@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { RefreshCw, AlertCircle, Zap, TrendingUp, Book, Github } from 'lucide-react';
+import { RefreshCw, AlertCircle, Zap, TrendingUp, Book, Github, Bug, GitPullRequest } from 'lucide-react';
 import OverviewCards from './components/OverviewCards';
 import PerformanceTable from './components/PerformanceTable';
 import CatalogModal from './components/CatalogModal';
@@ -289,6 +289,28 @@ function App() {
               >
                 <Github className="h-4 w-4" />
                 <span>Source</span>
+              </a>
+              <span aria-hidden="true">•</span>
+              <a
+                href="https://github.com/Aswincloud/ttnn-performance-dashboard/issues/new"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 hover:text-gray-900 transition-colors"
+                aria-label="Report a bug on GitHub"
+              >
+                <Bug className="h-4 w-4" />
+                <span>Report Bug</span>
+              </a>
+              <span aria-hidden="true">•</span>
+              <a
+                href="https://github.com/Aswincloud/ttnn-performance-dashboard/blob/main/CONTRIBUTING.md"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 hover:text-gray-900 transition-colors"
+                aria-label="How to contribute"
+              >
+                <GitPullRequest className="h-4 w-4" />
+                <span>Contribute</span>
               </a>
               <span aria-hidden="true">•</span>
               <span>Powered by TT-Metal</span>
