@@ -1,7 +1,18 @@
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useMemo, useRef, useEffect, Suspense, lazy } from 'react';
 import { Search, ChevronUp, ChevronDown, Filter, BarChart3, TrendingUp, TrendingDown, Minus, Eye, EyeOff, Loader2, Download, X } from 'lucide-react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { operationsCatalog } from '../utils/operationsCatalog.js';
+
+// Recharts is heavy (~110KB gzipped) and only needed when the user opens the
+// trend modal or switches to chart view. Lazy-load so it stays out of the
+// initial bundle.
+const TrendLineChart = lazy(() => import('./TrendLineChart.jsx'));
+
+const ChartFallback = ({ height }) => (
+  <div className="flex items-center justify-center text-sm text-gray-400" style={{ height }}>
+    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+    Loading chart…
+  </div>
+);
 
 // Versioned key so we can invalidate persisted prefs if the schema ever changes
 // (e.g. category names rename, sort keys change). Bump suffix to force-reset.
@@ -1071,21 +1082,9 @@ const PerformanceTable = ({ operations, dailyData, loadingAll, onLoadAllData, ha
                     {getOperationCategory(operation.operation_name)}
                   </span>
                 </div>
-                <ResponsiveContainer width="100%" height={200}>
-                  <LineChart data={chartData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="date" tick={{ fontSize: 12 }} />
-                    <YAxis tick={{ fontSize: 12 }} label={{ value: selectedUnit, angle: -90, position: 'insideLeft' }} />
-                    <Tooltip 
-                      formatter={(value) => [`${value.toFixed(3)} ${selectedUnit}`, 'Performance']}
-                      labelFormatter={(label) => {
-                        const dataPoint = chartData.find(d => d.date === label);
-                        return `${label} (${dataPoint?.commitId || 'N/A'})`;
-                      }}
-                    />
-                    <Line type="monotone" dataKey="value" stroke="#3b82f6" strokeWidth={2} dot={{ r: 3 }} />
-                  </LineChart>
-                </ResponsiveContainer>
+                <Suspense fallback={<ChartFallback height={200} />}>
+                  <TrendLineChart data={chartData} unit={selectedUnit} height={200} />
+                </Suspense>
               </div>
             );
           })}
@@ -1430,21 +1429,9 @@ const PerformanceTable = ({ operations, dailyData, loadingAll, onLoadAllData, ha
                </div>
                <div className="p-6 flex-1 overflow-auto">
                  {modalChartData.length >= 2 ? (
-                   <ResponsiveContainer width="100%" height={400}>
-                     <LineChart data={modalChartData}>
-                       <CartesianGrid strokeDasharray="3 3" />
-                       <XAxis dataKey="date" tick={{ fontSize: 12 }} />
-                       <YAxis tick={{ fontSize: 12 }} label={{ value: selectedUnit, angle: -90, position: 'insideLeft' }} />
-                       <Tooltip
-                         formatter={(value) => [`${value.toFixed(3)} ${selectedUnit}`, 'Performance']}
-                         labelFormatter={(label) => {
-                           const dataPoint = modalChartData.find(d => d.date === label);
-                           return `${label} (${dataPoint?.commitId || 'N/A'})`;
-                         }}
-                       />
-                       <Line type="monotone" dataKey="value" stroke="#3b82f6" strokeWidth={2} dot={{ r: 3 }} />
-                     </LineChart>
-                   </ResponsiveContainer>
+                   <Suspense fallback={<ChartFallback height={400} />}>
+                     <TrendLineChart data={modalChartData} unit={selectedUnit} height={400} />
+                   </Suspense>
                  ) : (
                    <div className="h-[400px] flex items-center justify-center text-sm text-gray-500">
                      Not enough data points to chart this operation.
