@@ -48,31 +48,47 @@ jobs:
             exit 1
           fi
 
-          # Collect deployment IDs whose alias annotation matches the branch.
-          mapfile -t ids < <(jq -r --arg alias "$alias" \
+          # Run jq in the current shell (not in process substitution) so a
+          # non-zero exit fails the step under `set -e` instead of being
+          # swallowed and producing a false "no deployments found" no-op.
+          ids_str=$(jq -r --arg alias "$alias" \
             '.result.deployments[] | select(.annotations["workers/alias"] == $alias) | .id' \
             <<<"$resp")
 
-          if (( ${#ids[@]} == 0 )); then
+          if [[ -z "$ids_str" ]]; then
             echo "No preview deployments found for alias '${alias}'."
             exit 0
           fi
 
+          mapfile -t ids <<<"$ids_str"
+
           echo "Deleting ${#ids[@]} deployment(s):"
+          failures=0
           for id in "${ids[@]}"; do
             echo "  - ${id}"
             status=$(curl -sS -o /tmp/cf-del.json -w "%{http_code}" -X DELETE \
               -H "Authorization: Bearer ${CF_API_TOKEN}" "${api}/${id}")
-            case "$status" in
-              200|204)
-                echo "    deleted"
-                ;;
-              *)
-                # Cloudflare returns an error (typically 400) for the latest
-                # deployment — that's expected protection, not a workflow bug.
-                echo "::warning::Could not delete ${id} (HTTP ${status}):"
-                cat /tmp/cf-del.json || true
-                echo
-                ;;
-            esac
+            if [[ "$status" == "200" || "$status" == "204" ]]; then
+              echo "    deleted"
+              continue
+            fi
+
+            # Cloudflare returns 400 with a "latest deployment" message when
+            # you try to delete the active deployment — that's expected
+            # protection, not a workflow bug. Any other failure (auth, 5xx,
+            # unexpected error) should fail the job loudly.
+            err_msg=$(jq -r '.errors[0].message // ""' /tmp/cf-del.json 2>/dev/null || echo "")
+            if [[ "$err_msg" == *latest* || "$err_msg" == *active* ]]; then
+              echo "    skipped (latest/active deployment, protected by API)"
+            else
+              echo "::error::Failed to delete ${id} (HTTP ${status}): ${err_msg}"
+              cat /tmp/cf-del.json || true
+              echo
+              failures=$((failures + 1))
+            fi
           done
+
+          if (( failures > 0 )); then
+            echo "::error::${failures} deployment deletion(s) failed."
+            exit 1
+          fi
