@@ -1,10 +1,6 @@
 // Utility functions to load and process performance data
 
-// Configuration: Number of recent days to load initially
 const INITIAL_DAILY_FILES = 20;
-const LOAD_MORE_INCREMENT = 20;
-const BACKGROUND_LOAD_BATCH_SIZE = 10; // Load 10 files at a time in background
-const BACKGROUND_LOAD_DELAY = 1000; // Wait 1 second between batches
 
 export async function loadPerformanceData(limit = INITIAL_DAILY_FILES) {
   const base = import.meta.env.BASE_URL;
@@ -53,37 +49,6 @@ export async function loadPerformanceData(limit = INITIAL_DAILY_FILES) {
   }
 }
 
-// Load additional data in the background
-export async function loadAdditionalData(indexData, currentData, startIndex, batchSize) {
-  const base = import.meta.env.BASE_URL;
-  const filesToLoad = indexData.files.slice(startIndex, startIndex + batchSize);
-  
-  if (filesToLoad.length === 0) {
-    return [];
-  }
-  
-  const newDailyData = await Promise.all(
-    filesToLoad.map(async (file) => {
-      try {
-        const response = await fetch(`${base}${file.path}`);
-        const data = await response.json();
-        return {
-          ...data,
-          filename: file.filename,
-          date: file.measurement_date
-        };
-      } catch (error) {
-        console.error(`Error loading ${file.filename}:`, error);
-        return null;
-      }
-    })
-  );
-  
-  return newDailyData.filter(d => d !== null);
-}
-
-export { INITIAL_DAILY_FILES, LOAD_MORE_INCREMENT, BACKGROUND_LOAD_BATCH_SIZE, BACKGROUND_LOAD_DELAY };
-
 export function processOperationData(data) {
   if (!data?.latest?.results) return [];
   
@@ -122,35 +87,6 @@ export function calculateSummaryStats(data) {
     lastUpdated: metadata.measurement_date,
     gitCommit: metadata.git_commit_id?.substring(0, 8) || 'N/A'
   };
-}
-
-export function compareDailyData(dailyData) {
-  if (!dailyData || dailyData.length < 2) return null;
-  
-  const sortedData = [...dailyData].sort((a, b) => 
-    new Date(a.metadata.measurement_date) - new Date(b.metadata.measurement_date));
-  
-  const latest = sortedData[sortedData.length - 1];
-  const previous = sortedData[sortedData.length - 2];
-  
-  const latestAvg = calculateAveragePerformance(latest.results);
-  const previousAvg = calculateAveragePerformance(previous.results);
-  
-  const improvement = ((previousAvg - latestAvg) / previousAvg * 100).toFixed(1);
-  
-  return {
-    improvement: parseFloat(improvement),
-    latestAvg: latestAvg.toFixed(3),
-    previousAvg: previousAvg.toFixed(3),
-    trend: improvement > 0 ? 'improving' : improvement < 0 ? 'degrading' : 'stable'
-  };
-}
-
-function calculateAveragePerformance(results) {
-  if (!results || results.length === 0) return 0;
-  const filteredResults = results.filter(r => r.operation_name !== 'argmax');
-  if (filteredResults.length === 0) return 0;
-  return filteredResults.reduce((sum, r) => sum + r.average_duration_ns, 0) / filteredResults.length / 1000000;
 }
 
 function getPerformanceRating(durationNs) {

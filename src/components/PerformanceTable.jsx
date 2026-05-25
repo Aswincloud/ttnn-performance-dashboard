@@ -234,7 +234,11 @@ const PerformanceTable = ({ operations, dailyData, loadingAll, onLoadAllData, ha
       };
 
       sortedDailyData.forEach(day => {
-        const dateKey = new Date(day.metadata.measurement_date).toLocaleDateString();
+        // measurement_date is timezone-naive ISO (e.g. "2026-05-24T02:06:53").
+        // Slicing the raw string keeps the key on the dataset's intended calendar
+        // day; routing through new Date()/toISOString() would shift it by the
+        // viewer's UTC offset.
+        const dateKey = day.metadata.measurement_date.slice(0, 10);
         const operation = day.results.find(r => r.operation_name === operationName);
         
         if (operation) {
@@ -262,7 +266,7 @@ const PerformanceTable = ({ operations, dailyData, loadingAll, onLoadAllData, ha
     [...dailyData]
       .sort((a, b) => new Date(a.metadata.measurement_date) - new Date(b.metadata.measurement_date))
       .forEach(day => {
-        const dateStr = new Date(day.metadata.measurement_date).toLocaleDateString();
+        const dateStr = day.metadata.measurement_date.slice(0, 10);
         // Keep the latest entry for each date (overwrite if duplicate)
         dateMap.set(dateStr, {
           date: dateStr,
@@ -956,9 +960,7 @@ const PerformanceTable = ({ operations, dailyData, loadingAll, onLoadAllData, ha
                         const previousValue = previousData?.duration_ns;
                         const isFirstColumn = dateIndex === 0;
                         const colorClass = dayData ? getPerformanceColor(dayData.duration_ns, previousValue, isFirstColumn) : '';
-                        const previousChangePercent = !isFirstColumn && previousValue && dayData ? 
-                          ((dayData.duration_ns - previousValue) / previousValue * 100) : 0;
-                        
+
                         return (
                           <td key={dateObj.date} className="table-cell text-center relative py-1">
                             {dayData ? (
@@ -1019,11 +1021,7 @@ const PerformanceTable = ({ operations, dailyData, loadingAll, onLoadAllData, ha
                    
                    const isFirstColumn = dateIndex === 0;
                    const colorClass = dayData ? getPerformanceColor(dayData.duration_ns, previousValue, isFirstColumn) : '';
-                   
-                   // Calculate change from previous day for display
-                   const previousChangePercent = !isFirstColumn && previousValue && dayData ? 
-                     ((dayData.duration_ns - previousValue) / previousValue * 100) : 0;
-                   
+
                    return (
                      <td key={dateObj.date} className="table-cell text-center relative py-1">
                        {dayData ? (
@@ -1094,7 +1092,7 @@ const PerformanceTable = ({ operations, dailyData, loadingAll, onLoadAllData, ha
          </div>
          
          <div className="flex items-center text-xs text-gray-500">
-           <span className="mr-3">Performance colors (relative to first column baseline):</span>
+           <span className="mr-3">Performance colors (relative to previous day):</span>
            <div className="flex items-center space-x-2">
              <div className="flex items-center">
                <div className="w-4 h-3 bg-green-200 rounded mr-1"></div>

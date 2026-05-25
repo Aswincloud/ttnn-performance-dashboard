@@ -1,9 +1,9 @@
 # 🚀 Tenstorrent TT-Metal Eltwise Performance Tracker
 
 [![Deploy Status](https://img.shields.io/badge/Deploy-Live-brightgreen)](https://ttnn-eltwise-performance.aswincloud.com)
-[![React](https://img.shields.io/badge/React-18.2.0-blue)](https://reactjs.org/)
-[![Vite](https://img.shields.io/badge/Vite-4.5.14-purple)](https://vitejs.dev/)
-[![Tailwind CSS](https://img.shields.io/badge/Tailwind%20CSS-3.4.13-teal)](https://tailwindcss.com/)
+[![React](https://img.shields.io/badge/React-19-blue)](https://reactjs.org/)
+[![Vite](https://img.shields.io/badge/Vite-7-purple)](https://vitejs.dev/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind%20CSS-4-teal)](https://tailwindcss.com/)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 > **A sophisticated performance monitoring dashboard for Tenstorrent's TT-Metal TTNN eltwise operations, providing day-by-day performance analysis, trend tracking, and comprehensive operation categorization.**
@@ -36,10 +36,10 @@ The **Tenstorrent TT-Metal Eltwise Performance Tracker** is an advanced React-ba
 
 | Technology | Version | Purpose |
 |------------|---------|---------|
-| **React** | 18.2.0 | Frontend framework |
-| **Vite** | 4.5.14 | Build tool and dev server |
-| **Tailwind CSS** | 3.4.13 | Utility-first CSS framework |
-| **Recharts** | 2.13.3 | Data visualization library |
+| **React** | 19 | Frontend framework |
+| **Vite** | 7 | Build tool and dev server |
+| **Tailwind CSS** | 4 | Utility-first CSS framework |
+| **Recharts** | 3 | Data visualization library |
 | **Cloudflare Workers** | Latest | Deployment platform |
 
 ---
