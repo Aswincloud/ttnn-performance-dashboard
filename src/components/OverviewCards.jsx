@@ -15,7 +15,7 @@ const TestConfigBanner = ({ summaryStats }) => {
           </div>
         </div>
         
-        <div className="grid grid-cols-3 gap-x-3 gap-y-3 w-full md:w-auto md:flex md:items-center md:gap-6 md:flex-wrap">
+        <div className="grid grid-cols-2 gap-x-3 gap-y-3 w-full md:w-auto md:flex md:items-center md:gap-6 md:flex-wrap">
           <div className="flex items-center gap-2 min-w-0">
             <Cpu className="h-4 w-4 text-gray-500 shrink-0" />
             <div className="min-w-0">
