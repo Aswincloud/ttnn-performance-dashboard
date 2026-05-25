@@ -1097,7 +1097,7 @@ const PerformanceTable = ({ operations, dailyData, loadingAll, onLoadAllData, ha
               <SortableHeader sortKey="operation_name" className="table-sticky-left-0 bg-gray-50 text-center border-r border-gray-200 px-4 z-50">
                 Operation
               </SortableHeader>
-              <th className="table-header text-center table-sticky-left-180 bg-gray-50 border-r border-gray-200 px-3 z-50 whitespace-nowrap">Trend</th>
+              <th className="hidden md:table-cell table-header text-center table-sticky-left-180 bg-gray-50 border-r border-gray-200 px-3 z-50 whitespace-nowrap">Trend</th>
               {displayedDateColumns.map((dateObj, index) => (
                 <SortableHeader key={dateObj.date} sortKey={dateObj.date} className="min-w-24 text-center">
                   <div className="flex flex-col items-center leading-tight">
@@ -1136,7 +1136,7 @@ const PerformanceTable = ({ operations, dailyData, loadingAll, onLoadAllData, ha
                         </div>
                       </td>
                       <td
-                        className="table-cell-sticky table-sticky-left-180 bg-white group-hover:bg-blue-50 border-r border-gray-200 transition-colors duration-150 py-1 px-2 cursor-zoom-in"
+                        className="hidden md:table-cell table-cell-sticky table-sticky-left-180 bg-white group-hover:bg-blue-50 border-r border-gray-200 transition-colors duration-150 py-1 px-2 cursor-zoom-in"
                         onClick={() => setChartModalOp(operation)}
                         role="button"
                         tabIndex={0}
@@ -1207,7 +1207,7 @@ const PerformanceTable = ({ operations, dailyData, loadingAll, onLoadAllData, ha
                     </div>
                   </td>
                   <td
-                    className="table-cell-sticky table-sticky-left-180 bg-white group-hover:bg-blue-50 border-r border-gray-200 transition-colors duration-150 py-1 px-2 cursor-zoom-in"
+                    className="hidden md:table-cell table-cell-sticky table-sticky-left-180 bg-white group-hover:bg-blue-50 border-r border-gray-200 transition-colors duration-150 py-1 px-2 cursor-zoom-in"
                     onClick={() => setChartModalOp(operation)}
                     role="button"
                     tabIndex={0}
