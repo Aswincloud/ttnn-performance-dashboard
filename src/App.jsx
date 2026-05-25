@@ -292,7 +292,7 @@ function App() {
               </a>
               <span aria-hidden="true">•</span>
               <a
-                href="https://github.com/Aswincloud/ttnn-performance-dashboard/issues/new"
+                href="https://github.com/Aswincloud/ttnn-performance-dashboard/issues/new/choose"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1.5 hover:text-gray-900 transition-colors"
