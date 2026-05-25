@@ -234,9 +234,11 @@ const PerformanceTable = ({ operations, dailyData, loadingAll, onLoadAllData, ha
       };
 
       sortedDailyData.forEach(day => {
-        // ISO yyyy-mm-dd: locale-independent and sortable. toLocaleDateString()
-        // varies by browser locale and breaks dailyPerformance lookups across users.
-        const dateKey = new Date(day.metadata.measurement_date).toISOString().slice(0, 10);
+        // measurement_date is timezone-naive ISO (e.g. "2026-05-24T02:06:53").
+        // Slicing the raw string keeps the key on the dataset's intended calendar
+        // day; routing through new Date()/toISOString() would shift it by the
+        // viewer's UTC offset.
+        const dateKey = day.metadata.measurement_date.slice(0, 10);
         const operation = day.results.find(r => r.operation_name === operationName);
         
         if (operation) {
@@ -264,7 +266,7 @@ const PerformanceTable = ({ operations, dailyData, loadingAll, onLoadAllData, ha
     [...dailyData]
       .sort((a, b) => new Date(a.metadata.measurement_date) - new Date(b.metadata.measurement_date))
       .forEach(day => {
-        const dateStr = new Date(day.metadata.measurement_date).toISOString().slice(0, 10);
+        const dateStr = day.metadata.measurement_date.slice(0, 10);
         // Keep the latest entry for each date (overwrite if duplicate)
         dateMap.set(dateStr, {
           date: dateStr,
