@@ -37,7 +37,7 @@ jobs:
 
           # Flatten branch ref to the alias form Cloudflare uses.
           alias="${BRANCH_REF//\//-}"
-          echo "Looking for deployments aliased to '${alias}' (from branch '${BRANCH_REF}')."
+          echo "Looking for deployments aliased to '${alias}' (from PR branch '${BRANCH_REF}')."
 
           api="https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/workers/scripts/${CF_SCRIPT}/deployments"
 
