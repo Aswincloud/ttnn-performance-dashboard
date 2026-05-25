@@ -1279,8 +1279,8 @@ const PerformanceTable = ({ operations, dailyData, loadingAll, onLoadAllData, ha
       )}
 
        <div className="mt-4 border-t pt-4 space-y-3">
-         <div className="flex items-center justify-between text-xs text-gray-500">
-           <div className="flex items-center space-x-4">
+         <div className="flex flex-wrap items-center justify-between gap-y-2 text-xs text-gray-500">
+           <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
              <div className="flex items-center">
                <TrendingUp className="h-3 w-3 text-green-600 mr-1" />
                <span>Performance improved ({'>'}5% faster)</span>
@@ -1299,9 +1299,9 @@ const PerformanceTable = ({ operations, dailyData, loadingAll, onLoadAllData, ha
            </div>
          </div>
          
-         <div className="flex items-center text-xs text-gray-500">
+         <div className="flex flex-wrap items-center gap-y-2 text-xs text-gray-500">
            <span className="mr-3">Performance colors (relative to previous day):</span>
-           <div className="flex items-center space-x-2">
+           <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
              <div className="flex items-center">
                <div className="w-4 h-3 bg-green-200 rounded mr-1"></div>
                <span>{'>'}15% faster</span>
