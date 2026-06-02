@@ -43,9 +43,10 @@ crons = ["0 4 * * *"]
 SITE_URL = "https://ttnn-eltwise-performance.aswincloud.com"
 
 # Home DDNS hostname for the admin subscriber view. Resolved via DNS-over-HTTPS
-# and compared to the visitor's CF-Connecting-IP to decide whether to reveal the
-# admin UI. Public DNS, not a secret. Must be DNS-only (grey cloud) so it resolves
-# to the real home IP rather than a Cloudflare anycast address.
+# and compared to the visitor's CF-Connecting-IP — both to reveal the admin UI
+# and to gate /api/admin/subscribers (access == being on the home network).
+# Public DNS, not a secret. Must be DNS-only (grey cloud) so it resolves to the
+# real home IP rather than a Cloudflare anycast address.
 ADMIN_HOSTNAME = "ssh.aswincloud.com"
 
 # ADMIN_EMAIL — where lifecycle heads-ups (pending/confirm/unsubscribe) are sent.
@@ -54,13 +55,6 @@ ADMIN_HOSTNAME = "ssh.aswincloud.com"
 # Set it only on the production Worker as a secret:
 #   npx wrangler secret put ADMIN_EMAIL
 # Leaving it unset disables admin notifications (worker/index.js notifyAdmin no-ops).
-#
-# ADMIN_KEY — secret Bearer key gating /api/admin/subscribers (the PII data).
-# NOT set here (prod-only secret). The home-IP match only reveals the admin UI;
-# this key is the real gate, so an ISP-reassigned old IP or a LAN neighbor still
-# can't read subscriber emails. Set on production only:
-#   npx wrangler secret put ADMIN_KEY
-# Unset → /api/admin/subscribers always returns 401 (fail closed).
 
 # Custom domain configuration
 [[routes]]

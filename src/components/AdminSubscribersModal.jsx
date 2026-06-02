@@ -1,42 +1,20 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { X, Users, Loader2, KeyRound, RefreshCw } from 'lucide-react';
-
-const KEY_STORAGE = 'ttnn-dash:v1:adminKey';
+import { X, Users, Loader2, RefreshCw } from 'lucide-react';
 
 // Read-only subscriber list for the operator. Only mounted/triggered when the
 // dashboard detects it's being viewed from the home IP (App pings
-// /api/admin/context). The actual data fetch additionally requires a secret
-// admin key, entered once and kept in localStorage — it never leaves this
-// browser except as a Bearer header to the same origin.
+// /api/admin/context). The data endpoint is gated on the same home-IP check, so
+// no key is required — being on the home network is the access.
 const AdminSubscribersModal = ({ isOpen, onClose }) => {
-  const [adminKey, setAdminKey] = useState(() => {
-    try {
-      return localStorage.getItem(KEY_STORAGE) || '';
-    } catch {
-      return '';
-    }
-  });
-  const [keyInput, setKeyInput] = useState('');
   const [data, setData] = useState(null);
-  const [status, setStatus] = useState('idle'); // idle | loading | ok | error | needkey
+  const [status, setStatus] = useState('idle'); // idle | loading | ok | error
   const [message, setMessage] = useState('');
 
-  const fetchSubscribers = useCallback(async (key) => {
-    if (!key) {
-      setStatus('needkey');
-      return;
-    }
+  const fetchSubscribers = useCallback(async () => {
     setStatus('loading');
     setMessage('');
     try {
-      const res = await fetch('/api/admin/subscribers', {
-        headers: { Authorization: `Bearer ${key}` },
-      });
-      if (res.status === 401) {
-        setStatus('needkey');
-        setMessage('That admin key was rejected. Try again.');
-        return;
-      }
+      const res = await fetch('/api/admin/subscribers');
       if (res.status === 403) {
         setStatus('error');
         setMessage('This view is only available from the home network.');
@@ -65,36 +43,12 @@ const AdminSubscribersModal = ({ isOpen, onClose }) => {
     return () => window.removeEventListener('keydown', onKey);
   }, [isOpen, onClose]);
 
-  // On open, fetch with the stored key (or prompt if none).
+  // Fetch when opened.
   useEffect(() => {
-    if (isOpen) fetchSubscribers(adminKey);
-  }, [isOpen, adminKey, fetchSubscribers]);
+    if (isOpen) fetchSubscribers();
+  }, [isOpen, fetchSubscribers]);
 
   if (!isOpen) return null;
-
-  const saveKeyAndFetch = (e) => {
-    e.preventDefault();
-    const k = keyInput.trim();
-    if (!k) return;
-    try {
-      localStorage.setItem(KEY_STORAGE, k);
-    } catch {
-      // ignore persistence failure; in-memory key still works this session
-    }
-    setKeyInput('');
-    setAdminKey(k); // triggers the effect → fetch
-  };
-
-  const clearKey = () => {
-    try {
-      localStorage.removeItem(KEY_STORAGE);
-    } catch {
-      /* ignore */
-    }
-    setAdminKey('');
-    setData(null);
-    setStatus('needkey');
-  };
 
   const fmtPct = (v) => (v == null ? '—' : `${v}%`);
   const fmtDate = (s) => (s ? s.slice(0, 10) : '—');
@@ -131,7 +85,7 @@ const AdminSubscribersModal = ({ isOpen, onClose }) => {
           <div className="flex items-center gap-1">
             {status === 'ok' && (
               <button
-                onClick={() => fetchSubscribers(adminKey)}
+                onClick={fetchSubscribers}
                 className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
                 aria-label="Refresh"
                 title="Refresh"
@@ -150,26 +104,7 @@ const AdminSubscribersModal = ({ isOpen, onClose }) => {
         </div>
 
         {/* Body */}
-        {status === 'needkey' ? (
-          <form onSubmit={saveKeyAndFetch} className="py-4 max-w-sm mx-auto w-full">
-            <div className="flex items-center justify-center mb-3 text-gray-500">
-              <KeyRound className="h-5 w-5 mr-2" />
-              <span className="text-sm">Enter the admin key to view subscribers</span>
-            </div>
-            <input
-              type="password"
-              autoFocus
-              value={keyInput}
-              onChange={(e) => setKeyInput(e.target.value)}
-              placeholder="Admin key"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm h-10"
-            />
-            {message && <p className="text-sm text-red-600 mt-2">{message}</p>}
-            <button type="submit" className="btn-primary w-full mt-3">
-              Unlock
-            </button>
-          </form>
-        ) : status === 'loading' ? (
+        {status === 'loading' ? (
           <div className="flex items-center justify-center py-12 text-gray-500">
             <Loader2 className="h-6 w-6 animate-spin mr-2" />
             Loading subscribers…
@@ -177,7 +112,7 @@ const AdminSubscribersModal = ({ isOpen, onClose }) => {
         ) : status === 'error' ? (
           <div className="text-center py-10">
             <p className="text-gray-700">{message}</p>
-            <button onClick={() => fetchSubscribers(adminKey)} className="btn-secondary mt-4">
+            <button onClick={fetchSubscribers} className="btn-secondary mt-4">
               Retry
             </button>
           </div>
@@ -230,9 +165,6 @@ const AdminSubscribersModal = ({ isOpen, onClose }) => {
         {status === 'ok' && (
           <div className="flex items-center justify-between pt-3 mt-2 border-t border-gray-200 text-xs text-gray-500 flex-shrink-0">
             <span>{data?.total ?? 0} total</span>
-            <button onClick={clearKey} className="hover:text-gray-800 inline-flex items-center gap-1">
-              <KeyRound className="h-3.5 w-3.5" /> Forget key
-            </button>
           </div>
         )}
       </div>

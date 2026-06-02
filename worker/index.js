@@ -11,7 +11,7 @@ import {
 } from './db.js';
 import { sendEmail, confirmationEmail, adminNotificationEmail } from './email.js';
 import { runAlerts } from './alerts.js';
-import { isAtHome, timingSafeEqual, bearerToken } from './adminAccess.js';
+import { isAtHome } from './adminAccess.js';
 
 // Fire-and-forget admin heads-up for a confirm / unsubscribe. Best-effort: a
 // failure here must never break the user-facing confirm/unsubscribe response,
@@ -146,18 +146,11 @@ async function handleAdminContext(request, env) {
   return json({ atHome });
 }
 
-// Read-only subscriber list. Gated by BOTH the home-IP check AND a secret key,
-// and fails closed if either the key isn't configured or anything errors.
+// Read-only subscriber list. Gated by the home-IP check (the operator's home
+// network, tracked by ADMIN_HOSTNAME's DDNS). Fails closed on any resolve error.
 async function handleAdminSubscribers(request, env) {
-  // Factor 1: home IP. 403 (not a 401) so a wrong network is distinguishable
-  // from a wrong key during setup, without revealing whether the key was close.
   if (!(await isAtHome(env, request))) {
     return json({ error: 'Forbidden' }, 403);
-  }
-  // Factor 2: secret key. Unset key → always deny (fail closed).
-  const provided = bearerToken(request);
-  if (!env.ADMIN_KEY || !provided || !timingSafeEqual(provided, env.ADMIN_KEY)) {
-    return json({ error: 'Unauthorized' }, 401);
   }
 
   const subscribers = await listAllSubscribers(env.DB);

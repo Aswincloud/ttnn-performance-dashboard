@@ -1,15 +1,14 @@
 // Access control for the admin subscriber view.
 //
-// Two independent factors gate the subscriber data (see worker/index.js):
-//   1. The request comes from the operator's home IP — determined by resolving
-//      ADMIN_HOSTNAME (a DNS-only DDNS record, e.g. ssh.aswincloud.com) and
-//      comparing to the edge-set CF-Connecting-IP.
-//   2. A secret ADMIN_KEY presented as a Bearer token.
+// The subscriber data is gated on the request coming from the operator's home
+// network — determined by resolving ADMIN_HOSTNAME (a DNS-only DDNS record, e.g.
+// ssh.aswincloud.com) via DNS-over-HTTPS and comparing to the edge-set
+// CF-Connecting-IP. Fails closed: any resolve error → "not home".
 //
-// IP match alone only reveals the UI; it is NOT sufficient to read PII, because
-// an ISP could reassign the operator's old IP (before DDNS updates) to a
-// stranger, and anyone on the home LAN shares the IP. The key is the real gate.
-// Everything here fails closed: any error → "not home" / "not authorized".
+// Note: this trusts everyone/everything sharing the home public IP (other LAN
+// devices, and briefly a stranger if the ISP reassigns the IP before DDNS
+// updates). Acceptable for this single-operator home setup; if that changes,
+// re-add a secret-key second factor.
 
 // Cache the resolved home IPs briefly so we don't issue a DoH lookup on every
 // request. Module scope persists across requests on a warm isolate.
@@ -52,24 +51,4 @@ export async function isAtHome(env, request) {
   }
 
   return Array.isArray(ips) && ips.includes(clientIp);
-}
-
-// Constant-time string comparison, to avoid leaking the key via response timing.
-export function timingSafeEqual(a, b) {
-  if (typeof a !== 'string' || typeof b !== 'string') return false;
-  // Compare against a fixed-length derived value so length itself isn't a fast
-  // reject path. XOR-accumulate over the longer of the two.
-  const len = Math.max(a.length, b.length);
-  let diff = a.length ^ b.length;
-  for (let i = 0; i < len; i++) {
-    diff |= (a.charCodeAt(i) || 0) ^ (b.charCodeAt(i) || 0);
-  }
-  return diff === 0;
-}
-
-// Extract a Bearer token from the Authorization header, or null.
-export function bearerToken(request) {
-  const h = request.headers.get('Authorization') || '';
-  const m = h.match(/^Bearer\s+(.+)$/i);
-  return m ? m[1] : null;
 }
