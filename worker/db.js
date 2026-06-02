@@ -54,12 +54,15 @@ export async function upsertSubscriber(db, { email, improve_pct, degrade_pct }) 
   return { confirmToken, alreadyConfirmed: false };
 }
 
-// Flip a pending subscriber to confirmed. Returns the row's unsub_token on
-// success, or null if the token didn't match a pending row.
+// Flip a pending subscriber to confirmed. Returns the subscriber row
+// { email, improve_pct, degrade_pct, unsub_token } on success, or null if the
+// token didn't match a pending row.
 export async function confirmByToken(db, token) {
   if (!token) return null;
   const row = await db
-    .prepare('SELECT id, unsub_token FROM subscribers WHERE confirm_token = ?')
+    .prepare(
+      'SELECT id, email, improve_pct, degrade_pct, unsub_token FROM subscribers WHERE confirm_token = ?'
+    )
     .bind(token)
     .first();
   if (!row) return null;
@@ -70,17 +73,31 @@ export async function confirmByToken(db, token) {
     )
     .bind(new Date().toISOString(), row.id)
     .run();
-  return row.unsub_token;
+  return row;
 }
 
-// Delete a subscriber by unsubscribe token. Returns true if a row was removed.
+// Delete a subscriber by unsubscribe token. Returns the deleted row
+// { email, improve_pct, degrade_pct, confirmed } if one matched, else null.
 export async function deleteByUnsubToken(db, token) {
-  if (!token) return false;
-  const res = await db
-    .prepare('DELETE FROM subscribers WHERE unsub_token = ?')
+  if (!token) return null;
+  const row = await db
+    .prepare(
+      'SELECT email, improve_pct, degrade_pct, confirmed FROM subscribers WHERE unsub_token = ?'
+    )
     .bind(token)
-    .run();
-  return (res.meta?.changes ?? 0) > 0;
+    .first();
+  if (!row) return null;
+
+  await db.prepare('DELETE FROM subscribers WHERE unsub_token = ?').bind(token).run();
+  return row;
+}
+
+// Count of confirmed subscribers (for the admin heads-up).
+export async function countConfirmed(db) {
+  const row = await db
+    .prepare('SELECT COUNT(*) AS n FROM subscribers WHERE confirmed = 1')
+    .first();
+  return row ? row.n : 0;
 }
 
 // All confirmed subscribers, for the daily alert run.

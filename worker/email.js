@@ -73,6 +73,37 @@ export function confirmationEmail({ siteUrl, confirmUrl, improve_pct, degrade_pc
   return { subject: 'Confirm your TTNN performance alerts', html };
 }
 
+// Internal heads-up to the admin when a subscriber confirms or unsubscribes.
+// event is 'confirmed' | 'unsubscribed'. Only fired for real (token-backed)
+// events, never on a raw form submission, so it can't be spammed.
+export function adminNotificationEmail({ siteUrl, event, subscriber, totalConfirmed }) {
+  const confirmed = event === 'confirmed';
+  const verb = confirmed ? 'subscribed' : 'unsubscribed';
+  const watching = [];
+  if (subscriber.improve_pct != null) watching.push(`improvement ≥ ${esc(subscriber.improve_pct)}%`);
+  if (subscriber.degrade_pct != null) watching.push(`degradation ≥ ${esc(subscriber.degrade_pct)}%`);
+
+  const html = page(`
+    <div class="header" ${confirmed ? '' : 'style="background-color:#fdecea;"'}>
+      <h2>${confirmed ? '🔔 New alert subscriber' : '👋 Subscriber unsubscribed'}</h2>
+      <p><strong>${esc(subscriber.email)}</strong> ${verb}.</p>
+    </div>
+    <table>
+      <tr><th>Email</th><td>${esc(subscriber.email)}</td></tr>
+      ${watching.length ? `<tr><th>Thresholds</th><td>${watching.join(', ')}</td></tr>` : ''}
+      <tr><th>Confirmed subscribers now</th><td>${esc(totalConfirmed)}</td></tr>
+    </table>
+    <hr>
+    <p class="muted">Automated notice from the
+       <a href="${esc(siteUrl)}">TTNN Performance Dashboard</a>.</p>
+  `);
+
+  const subject = confirmed
+    ? `New TTNN alert subscriber: ${subscriber.email}`
+    : `TTNN alert unsubscribe: ${subscriber.email}`;
+  return { subject, html };
+}
+
 function opBlock(op) {
   const improvement = op.change_type === 'improvement';
   const sign = op.change_percent > 0 ? '+' : '';

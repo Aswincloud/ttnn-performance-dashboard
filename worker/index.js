@@ -6,9 +6,31 @@ import {
   upsertSubscriber,
   confirmByToken,
   deleteByUnsubToken,
+  countConfirmed,
 } from './db.js';
-import { sendEmail, confirmationEmail } from './email.js';
+import { sendEmail, confirmationEmail, adminNotificationEmail } from './email.js';
 import { runAlerts } from './alerts.js';
+
+// Fire-and-forget admin heads-up for a confirm / unsubscribe. Best-effort: a
+// failure here must never break the user-facing confirm/unsubscribe response,
+// so we swallow errors (logged) rather than propagate them.
+async function notifyAdmin(env, event, subscriber) {
+  const to = env.ADMIN_EMAIL;
+  if (!to) return; // not configured — skip silently
+  try {
+    const totalConfirmed = await countConfirmed(env.DB);
+    const { subject, html } = adminNotificationEmail({
+      siteUrl: env.SITE_URL,
+      event,
+      subscriber,
+      totalConfirmed,
+    });
+    const res = await sendEmail(env, { to, subject, html });
+    if (!res.ok) console.error(`admin notify (${event}) failed: ${res.status} ${res.body}`);
+  } catch (err) {
+    console.error(`admin notify (${event}) error:`, err && err.stack ? err.stack : err);
+  }
+}
 
 const json = (data, status = 200) =>
   new Response(JSON.stringify(data), {
@@ -66,16 +88,18 @@ async function handleSubscribe(request, env) {
   return json({ ok: true, message: 'Check your email to confirm your subscription.' });
 }
 
-async function handleConfirm(url, env) {
+async function handleConfirm(url, env, ctx) {
   const token = url.searchParams.get('token');
-  const unsubToken = await confirmByToken(env.DB, token);
-  if (!unsubToken) {
+  const subscriber = await confirmByToken(env.DB, token);
+  if (!subscriber) {
     return htmlPage(
       'Link expired',
       'This confirmation link is invalid or already used. Try subscribing again.',
       env.SITE_URL
     );
   }
+  // Heads-up to the admin — only on a real confirmation (token-backed).
+  ctx.waitUntil(notifyAdmin(env, 'confirmed', subscriber));
   return htmlPage(
     'Subscription confirmed ✅',
     'You will now receive TTNN performance alerts when an operation crosses your thresholds.',
@@ -83,9 +107,12 @@ async function handleConfirm(url, env) {
   );
 }
 
-async function handleUnsubscribe(url, env) {
+async function handleUnsubscribe(url, env, ctx) {
   const token = url.searchParams.get('token');
   const removed = await deleteByUnsubToken(env.DB, token);
+  if (removed) {
+    ctx.waitUntil(notifyAdmin(env, 'unsubscribed', removed));
+  }
   return htmlPage(
     removed ? 'Unsubscribed' : 'Already unsubscribed',
     removed
@@ -96,7 +123,7 @@ async function handleUnsubscribe(url, env) {
 }
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const url = new URL(request.url);
     const { pathname } = url;
 
@@ -104,10 +131,10 @@ export default {
       return handleSubscribe(request, env);
     }
     if (pathname === '/api/confirm' && request.method === 'GET') {
-      return handleConfirm(url, env);
+      return handleConfirm(url, env, ctx);
     }
     if (pathname === '/api/unsubscribe' && request.method === 'GET') {
-      return handleUnsubscribe(url, env);
+      return handleUnsubscribe(url, env, ctx);
     }
     if (pathname.startsWith('/api/')) {
       return json({ error: 'Not found' }, 404);

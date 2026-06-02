@@ -33,6 +33,9 @@ crons = ["0 4 * * *"]
 
 [vars]
 SITE_URL = "https://ttnn-eltwise-performance.aswincloud.com"
+# Where to send a heads-up when someone confirms or unsubscribes. Leave unset to
+# disable admin notifications. Must be deliverable from the Resend FROM_EMAIL domain.
+ADMIN_EMAIL = "aswin@aswincloud.com"
 
 # Custom domain configuration
 [[routes]]
