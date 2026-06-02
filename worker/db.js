@@ -112,6 +112,19 @@ export async function countConfirmed(db) {
   return row ? row.n : 0;
 }
 
+// All subscribers (confirmed + pending) for the read-only admin view. Excludes
+// tokens — the admin view never needs them and they shouldn't leave the DB.
+export async function listAllSubscribers(db) {
+  const res = await db
+    .prepare(
+      `SELECT email, improve_pct, degrade_pct, confirmed, created_at, confirmed_at
+       FROM subscribers
+       ORDER BY confirmed DESC, created_at DESC`
+    )
+    .all();
+  return res.results ?? [];
+}
+
 // All confirmed subscribers, for the daily alert run.
 export async function listConfirmed(db) {
   const res = await db

@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { RefreshCw, AlertCircle, Zap, TrendingUp, Book, Github, Bug, GitPullRequest, Bell } from 'lucide-react';
+import { RefreshCw, AlertCircle, Zap, TrendingUp, Book, Github, Bug, GitPullRequest, Bell, Users } from 'lucide-react';
 import OverviewCards from './components/OverviewCards';
 import PerformanceTable from './components/PerformanceTable';
 import CatalogModal from './components/CatalogModal';
 import SubscribeModal from './components/SubscribeModal';
+import AdminSubscribersModal from './components/AdminSubscribersModal';
 import {
   loadPerformanceData,
   processOperationData,
@@ -18,6 +19,8 @@ function App() {
   const [lastRefresh, setLastRefresh] = useState(null);
   const [isCatalogOpen, setIsCatalogOpen] = useState(false);
   const [isSubscribeOpen, setIsSubscribeOpen] = useState(false);
+  const [isAdminOpen, setIsAdminOpen] = useState(false);
+  const [atHome, setAtHome] = useState(false);
 
   const loadData = async () => {
     try {
@@ -94,6 +97,24 @@ function App() {
 
   useEffect(() => {
     loadData();
+  }, []);
+
+  // Reveal the admin "Subscribers" button only when the dashboard is opened from
+  // the operator's home IP. This is UI-only; the subscriber data endpoint is
+  // independently gated by a secret key, so a false positive here exposes nothing.
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/admin/context')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!cancelled && d?.atHome) setAtHome(true);
+      })
+      .catch(() => {
+        /* not at home / endpoint unavailable → button stays hidden */
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const summaryStats = data ? calculateSummaryStats(data) : null;
@@ -220,6 +241,16 @@ function App() {
                   <div className="text-sm font-medium text-gray-700">Last Updated</div>
                   <div className="text-xs text-gray-500">{lastRefresh.toLocaleTimeString()}</div>
                 </div>
+              )}
+              {atHome && (
+                <button
+                  onClick={() => setIsAdminOpen(true)}
+                  className="btn-secondary inline-flex items-center"
+                  aria-label="View subscribers (admin)"
+                >
+                  <Users className="h-4 w-4 sm:mr-2" />
+                  <span className="hidden sm:inline">Subscribers</span>
+                </button>
               )}
               <button
                 onClick={() => setIsSubscribeOpen(true)}
@@ -351,6 +382,12 @@ function App() {
       <SubscribeModal
         isOpen={isSubscribeOpen}
         onClose={() => setIsSubscribeOpen(false)}
+      />
+
+      {/* Admin Subscribers Modal (home-IP gated button; key-gated data) */}
+      <AdminSubscribersModal
+        isOpen={isAdminOpen}
+        onClose={() => setIsAdminOpen(false)}
       />
     </div>
   );
