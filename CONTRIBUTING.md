@@ -74,10 +74,13 @@ Share that preview URL with reviewers — they can see your change live without 
 
 ## Python pipeline
 
-The alert and publish scripts (`check_perf_changes.py`, `push_to_github.py`, `test_perf_alerts.py`) install from `requirements.txt`:
+`push_to_github.py` publishes measurement results to this repo and uses only the Python standard library (nothing to install — `requirements.txt` is intentionally empty of dependencies).
+
+Performance **alerting** no longer runs in Python/CI: it moved to the Cloudflare Worker (`worker/alerts.js`) backed by a D1 subscriber list. See [PERFORMANCE_ALERTS.md](PERFORMANCE_ALERTS.md) and [SETUP_ALERTS.md](SETUP_ALERTS.md). To work on the Worker locally:
 
 ```bash
-pip install -r requirements.txt
+npm run build
+npx wrangler dev --local        # serves the dashboard + /api/* + a local D1
 ```
 
 The on-device measurement scripts (`perf_measurement_script.py`, `test_eltwise_operations.py`) run under tt-metal's environment on Tenstorrent hardware and are **not** pinned here.

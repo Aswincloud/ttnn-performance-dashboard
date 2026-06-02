@@ -1,12 +1,14 @@
-# Python dependencies for the performance alert and PR/CI pipeline.
+# Python dependencies for the publish pipeline.
 #
 # Used by:
-#   - check_perf_changes.py     (alerts on >20% regressions)
-#   - push_to_github.py         (publishes results to this repo)
-#   - test_perf_alerts.py       (unit tests for the alert path)
+#   - push_to_github.py   (publishes measurement results to this repo)
+#     Uses only the Python standard library (subprocess / json / shutil) —
+#     no third-party packages required.
+#
+# The performance-alert path no longer lives here: alerting moved to the
+# Cloudflare Worker (worker/alerts.js) backed by a D1 subscriber list.
+# See PERFORMANCE_ALERTS.md.
 #
 # NOT used here (run on Tenstorrent hardware against tt-metal's own env):
 #   - perf_measurement_script.py / test_eltwise_operations.py
 #     These require torch, numpy, scipy, ttnn, pytest and are not pinned here.
-
-requests>=2.31,<3
