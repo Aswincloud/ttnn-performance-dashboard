@@ -1,14 +1,21 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { X, Users, Loader2, RefreshCw } from 'lucide-react';
+import { X, Users, Loader2, RefreshCw, Pencil, Trash2, Check, Ban } from 'lucide-react';
 
-// Read-only subscriber list for the operator. Only mounted/triggered when the
-// dashboard detects it's being viewed from the home IP (App pings
-// /api/admin/context). The data endpoint is gated on the same home-IP check, so
-// no key is required — being on the home network is the access.
+// Read-only subscriber list + admin edit/delete for the operator. The list is
+// gated on the home IP (App pings /api/admin/context). Mutating actions
+// additionally require a password, held in memory only for the session (it's a
+// credential — never written to localStorage).
 const AdminSubscribersModal = ({ isOpen, onClose }) => {
   const [data, setData] = useState(null);
   const [status, setStatus] = useState('idle'); // idle | loading | ok | error
   const [message, setMessage] = useState('');
+
+  const [password, setPassword] = useState(''); // in-memory only
+  const [pendingAction, setPendingAction] = useState(null); // queued op awaiting password
+  const [editing, setEditing] = useState(null); // email being edited
+  const [editVals, setEditVals] = useState({ improve_pct: '', degrade_pct: '' });
+  const [confirmDelete, setConfirmDelete] = useState(null); // email pending delete confirm
+  const [actionError, setActionError] = useState('');
 
   const fetchSubscribers = useCallback(async () => {
     setStatus('loading');
@@ -33,7 +40,6 @@ const AdminSubscribersModal = ({ isOpen, onClose }) => {
     }
   }, []);
 
-  // Escape to close.
   useEffect(() => {
     if (!isOpen) return;
     const onKey = (e) => {
@@ -43,15 +49,99 @@ const AdminSubscribersModal = ({ isOpen, onClose }) => {
     return () => window.removeEventListener('keydown', onKey);
   }, [isOpen, onClose]);
 
-  // Fetch when opened.
   useEffect(() => {
     if (isOpen) fetchSubscribers();
   }, [isOpen, fetchSubscribers]);
 
+  // Reset transient edit/password UI whenever the modal reopens.
+  useEffect(() => {
+    if (isOpen) {
+      setEditing(null);
+      setConfirmDelete(null);
+      setPendingAction(null);
+      setActionError('');
+    }
+  }, [isOpen]);
+
   if (!isOpen) return null;
+
+  // Run a write (delete/update) with the given password. On 401, surface a
+  // password prompt and remember the action to retry once a password is given.
+  const runWrite = async (action, pw) => {
+    setActionError('');
+    try {
+      const res = await fetch(action.url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...action.payload, password: pw }),
+      });
+      if (res.status === 401) {
+        setPassword('');
+        setPendingAction(action);
+        setActionError('Incorrect password. Try again.');
+        return;
+      }
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setActionError(body.error || `Action failed (${res.status}).`);
+        return;
+      }
+      // Success — clear edit/confirm state and refresh.
+      setEditing(null);
+      setConfirmDelete(null);
+      setPendingAction(null);
+      await fetchSubscribers();
+    } catch {
+      setActionError('Network error. Please try again.');
+    }
+  };
+
+  // Entry point for any write: if we already hold a password use it, else queue
+  // the action and prompt.
+  const requestWrite = (action) => {
+    if (password) runWrite(action, password);
+    else {
+      setPendingAction(action);
+      setActionError('');
+    }
+  };
+
+  const submitPassword = (e) => {
+    e.preventDefault();
+    const pw = e.target.elements.pw.value;
+    if (!pw) return;
+    setPassword(pw);
+    const action = pendingAction;
+    setPendingAction(null);
+    if (action) runWrite(action, pw);
+  };
+
+  const startEdit = (s) => {
+    setConfirmDelete(null);
+    setActionError('');
+    setEditing(s.email);
+    setEditVals({
+      improve_pct: s.improve_pct ?? '',
+      degrade_pct: s.degrade_pct ?? '',
+    });
+  };
+
+  const saveEdit = (email) => {
+    const payload = {
+      email,
+      improve_pct: editVals.improve_pct === '' ? null : Number(editVals.improve_pct),
+      degrade_pct: editVals.degrade_pct === '' ? null : Number(editVals.degrade_pct),
+    };
+    requestWrite({ url: '/api/admin/subscribers/update', payload });
+  };
+
+  const doDelete = (email) =>
+    requestWrite({ url: '/api/admin/subscribers/delete', payload: { email } });
 
   const fmtPct = (v) => (v == null ? '—' : `${v}%`);
   const fmtDate = (s) => (s ? s.slice(0, 10) : '—');
+  const inputCls =
+    'w-16 px-1.5 py-0.5 border border-gray-300 rounded text-sm text-center focus:ring-1 focus:ring-blue-500';
 
   return (
     <div
@@ -103,6 +193,36 @@ const AdminSubscribersModal = ({ isOpen, onClose }) => {
           </div>
         </div>
 
+        {/* Password prompt (shown when a write needs one) */}
+        {pendingAction && (
+          <form onSubmit={submitPassword} className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+            <label className="block text-sm font-medium text-amber-900 mb-2">
+              Enter admin password to confirm this change
+            </label>
+            <div className="flex gap-2">
+              <input
+                name="pw"
+                type="password"
+                autoFocus
+                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm h-9 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="Password"
+              />
+              <button type="submit" className="btn-primary px-4 text-sm">Confirm</button>
+              <button
+                type="button"
+                onClick={() => { setPendingAction(null); setActionError(''); }}
+                className="btn-secondary px-3 text-sm"
+              >
+                Cancel
+              </button>
+            </div>
+            {actionError && <p className="text-sm text-red-600 mt-2">{actionError}</p>}
+          </form>
+        )}
+        {actionError && !pendingAction && (
+          <p className="text-sm text-red-600 mb-3">{actionError}</p>
+        )}
+
         {/* Body */}
         {status === 'loading' ? (
           <div className="flex items-center justify-center py-12 text-gray-500">
@@ -126,32 +246,121 @@ const AdminSubscribersModal = ({ isOpen, onClose }) => {
                   <th className="text-center font-semibold py-2 px-2">Degrade</th>
                   <th className="text-center font-semibold py-2 px-2">Status</th>
                   <th className="text-right font-semibold py-2 px-2">Joined</th>
+                  <th className="text-right font-semibold py-2 px-2 w-20">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {data?.subscribers?.length ? (
-                  data.subscribers.map((s) => (
-                    <tr key={s.email} className="border-b border-gray-100 hover:bg-blue-50/40">
-                      <td className="py-2 px-2 font-mono text-gray-800">{s.email}</td>
-                      <td className="py-2 px-2 text-center text-green-700">{fmtPct(s.improve_pct)}</td>
-                      <td className="py-2 px-2 text-center text-red-700">{fmtPct(s.degrade_pct)}</td>
-                      <td className="py-2 px-2 text-center">
-                        {s.confirmed === 1 ? (
-                          <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                            Confirmed
-                          </span>
-                        ) : (
-                          <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
-                            Pending
-                          </span>
-                        )}
-                      </td>
-                      <td className="py-2 px-2 text-right text-gray-500">{fmtDate(s.created_at)}</td>
-                    </tr>
-                  ))
+                  data.subscribers.map((s) => {
+                    const isEditing = editing === s.email;
+                    const isConfirming = confirmDelete === s.email;
+                    return (
+                      <tr key={s.email} className="border-b border-gray-100 hover:bg-blue-50/40">
+                        <td className="py-2 px-2 font-mono text-gray-800">{s.email}</td>
+                        <td className="py-2 px-2 text-center text-green-700">
+                          {isEditing ? (
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.5"
+                              value={editVals.improve_pct}
+                              onChange={(e) => setEditVals((v) => ({ ...v, improve_pct: e.target.value }))}
+                              className={inputCls}
+                              placeholder="—"
+                            />
+                          ) : (
+                            fmtPct(s.improve_pct)
+                          )}
+                        </td>
+                        <td className="py-2 px-2 text-center text-red-700">
+                          {isEditing ? (
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.5"
+                              value={editVals.degrade_pct}
+                              onChange={(e) => setEditVals((v) => ({ ...v, degrade_pct: e.target.value }))}
+                              className={inputCls}
+                              placeholder="—"
+                            />
+                          ) : (
+                            fmtPct(s.degrade_pct)
+                          )}
+                        </td>
+                        <td className="py-2 px-2 text-center">
+                          {s.confirmed === 1 ? (
+                            <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                              Confirmed
+                            </span>
+                          ) : (
+                            <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
+                              Pending
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-2 px-2 text-right text-gray-500">{fmtDate(s.created_at)}</td>
+                        <td className="py-2 px-2">
+                          <div className="flex items-center justify-end gap-1">
+                            {isEditing ? (
+                              <>
+                                <button
+                                  onClick={() => saveEdit(s.email)}
+                                  className="p-1 text-green-600 hover:bg-green-50 rounded"
+                                  title="Save"
+                                >
+                                  <Check className="h-4 w-4" />
+                                </button>
+                                <button
+                                  onClick={() => setEditing(null)}
+                                  className="p-1 text-gray-500 hover:bg-gray-100 rounded"
+                                  title="Cancel"
+                                >
+                                  <Ban className="h-4 w-4" />
+                                </button>
+                              </>
+                            ) : isConfirming ? (
+                              <>
+                                <button
+                                  onClick={() => doDelete(s.email)}
+                                  className="px-2 py-0.5 text-xs bg-red-600 text-white rounded hover:bg-red-700"
+                                  title="Confirm delete"
+                                >
+                                  Delete
+                                </button>
+                                <button
+                                  onClick={() => setConfirmDelete(null)}
+                                  className="p-1 text-gray-500 hover:bg-gray-100 rounded"
+                                  title="Cancel"
+                                >
+                                  <Ban className="h-4 w-4" />
+                                </button>
+                              </>
+                            ) : (
+                              <>
+                                <button
+                                  onClick={() => startEdit(s)}
+                                  className="p-1 text-gray-500 hover:bg-blue-50 hover:text-blue-600 rounded"
+                                  title="Edit thresholds"
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                </button>
+                                <button
+                                  onClick={() => { setEditing(null); setActionError(''); setConfirmDelete(s.email); }}
+                                  className="p-1 text-gray-500 hover:bg-red-50 hover:text-red-600 rounded"
+                                  title="Delete"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
                 ) : (
                   <tr>
-                    <td colSpan={5} className="text-center text-gray-400 py-10">
+                    <td colSpan={6} className="text-center text-gray-400 py-10">
                       No subscribers yet.
                     </td>
                   </tr>
@@ -165,6 +374,11 @@ const AdminSubscribersModal = ({ isOpen, onClose }) => {
         {status === 'ok' && (
           <div className="flex items-center justify-between pt-3 mt-2 border-t border-gray-200 text-xs text-gray-500 flex-shrink-0">
             <span>{data?.total ?? 0} total</span>
+            {password && (
+              <button onClick={() => setPassword('')} className="hover:text-gray-800">
+                Forget password
+              </button>
+            )}
           </div>
         )}
       </div>

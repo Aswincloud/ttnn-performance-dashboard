@@ -52,3 +52,28 @@ export async function isAtHome(env, request) {
 
   return Array.isArray(ips) && ips.includes(clientIp);
 }
+
+// SHA-256 of a string as lowercase hex.
+async function sha256Hex(str) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+  return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+// Constant-time hex-string compare (both inputs are fixed-length 64-char hex).
+function timingSafeHexEqual(a, b) {
+  if (typeof a !== 'string' || typeof b !== 'string' || a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
+// Verify a submitted password against the stored SHA-256 hash (env secret).
+// Only the hash is ever stored — the plaintext lives nowhere at rest. Fails
+// closed: if the hash secret isn't configured, no password is accepted.
+export async function verifyPassword(env, provided) {
+  if (!env.ADMIN_PASSWORD_HASH || typeof provided !== 'string' || provided === '') {
+    return false;
+  }
+  const hash = await sha256Hex(provided);
+  return timingSafeHexEqual(hash, env.ADMIN_PASSWORD_HASH.toLowerCase());
+}
