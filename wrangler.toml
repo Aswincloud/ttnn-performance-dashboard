@@ -41,9 +41,13 @@ crons = ["0 4 * * *"]
 
 [vars]
 SITE_URL = "https://ttnn-eltwise-performance.aswincloud.com"
-# Where to send a heads-up when someone confirms or unsubscribes. Leave unset to
-# disable admin notifications. Must be deliverable from the Resend FROM_EMAIL domain.
-ADMIN_EMAIL = "aswin@aswincloud.com"
+
+# ADMIN_EMAIL — where lifecycle heads-ups (pending/confirm/unsubscribe) are sent.
+# Intentionally NOT set here: a value committed to versioned config would also be
+# applied to preview/PR deploys, emailing the admin from throwaway environments.
+# Set it only on the production Worker as a secret:
+#   npx wrangler secret put ADMIN_EMAIL
+# Leaving it unset disables admin notifications (worker/index.js notifyAdmin no-ops).
 
 # Custom domain configuration
 [[routes]]

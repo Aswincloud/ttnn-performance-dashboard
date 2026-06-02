@@ -67,12 +67,17 @@ export async function confirmByToken(db, token) {
     .first();
   if (!row) return null;
 
-  await db
+  // Confirm conditionally on the token still being present, so a double-clicked
+  // link can't confirm twice. Only the request whose UPDATE actually changed a
+  // row "wins" — the loser sees changes === 0 and is treated as already-used.
+  // This is what prevents duplicate "confirmed" admin notifications.
+  const res = await db
     .prepare(
-      'UPDATE subscribers SET confirmed = 1, confirm_token = NULL, confirmed_at = ? WHERE id = ?'
+      'UPDATE subscribers SET confirmed = 1, confirm_token = NULL, confirmed_at = ? WHERE confirm_token = ?'
     )
-    .bind(new Date().toISOString(), row.id)
+    .bind(new Date().toISOString(), token)
     .run();
+  if ((res.meta?.changes ?? 0) === 0) return null;
   return row;
 }
 
@@ -88,7 +93,14 @@ export async function deleteByUnsubToken(db, token) {
     .first();
   if (!row) return null;
 
-  await db.prepare('DELETE FROM subscribers WHERE unsub_token = ?').bind(token).run();
+  // Only the request whose DELETE actually removed the row "wins"; a concurrent
+  // second call sees changes === 0 and returns null, so the "unsubscribed"
+  // admin notification fires at most once.
+  const res = await db
+    .prepare('DELETE FROM subscribers WHERE unsub_token = ?')
+    .bind(token)
+    .run();
+  if ((res.meta?.changes ?? 0) === 0) return null;
   return row;
 }
 
