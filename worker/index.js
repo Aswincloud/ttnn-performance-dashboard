@@ -7,9 +7,11 @@ import {
   confirmByToken,
   deleteByUnsubToken,
   countConfirmed,
+  listAllSubscribers,
 } from './db.js';
 import { sendEmail, confirmationEmail, adminNotificationEmail } from './email.js';
 import { runAlerts } from './alerts.js';
+import { isAtHome, timingSafeEqual, bearerToken } from './adminAccess.js';
 
 // Fire-and-forget admin heads-up for a confirm / unsubscribe. Best-effort: a
 // failure here must never break the user-facing confirm/unsubscribe response,
@@ -137,6 +139,37 @@ async function handleUnsubscribe(url, env, ctx) {
   );
 }
 
+// Cheap "should the admin UI show?" probe. Leaks only a boolean — no PII, no
+// auth needed. The data endpoint below is what's actually protected.
+async function handleAdminContext(request, env) {
+  const atHome = await isAtHome(env, request);
+  return json({ atHome });
+}
+
+// Read-only subscriber list. Gated by BOTH the home-IP check AND a secret key,
+// and fails closed if either the key isn't configured or anything errors.
+async function handleAdminSubscribers(request, env) {
+  // Factor 1: home IP. 403 (not a 401) so a wrong network is distinguishable
+  // from a wrong key during setup, without revealing whether the key was close.
+  if (!(await isAtHome(env, request))) {
+    return json({ error: 'Forbidden' }, 403);
+  }
+  // Factor 2: secret key. Unset key → always deny (fail closed).
+  const provided = bearerToken(request);
+  if (!env.ADMIN_KEY || !provided || !timingSafeEqual(provided, env.ADMIN_KEY)) {
+    return json({ error: 'Unauthorized' }, 401);
+  }
+
+  const subscribers = await listAllSubscribers(env.DB);
+  const confirmed = subscribers.filter((s) => s.confirmed === 1).length;
+  return json({
+    subscribers,
+    total: subscribers.length,
+    confirmed,
+    pending: subscribers.length - confirmed,
+  });
+}
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
@@ -144,6 +177,12 @@ export default {
 
     if (pathname === '/api/subscribe' && request.method === 'POST') {
       return handleSubscribe(request, env, ctx);
+    }
+    if (pathname === '/api/admin/context' && request.method === 'GET') {
+      return handleAdminContext(request, env);
+    }
+    if (pathname === '/api/admin/subscribers' && request.method === 'GET') {
+      return handleAdminSubscribers(request, env);
     }
     if (pathname === '/api/confirm' && request.method === 'GET') {
       return handleConfirm(url, env, ctx);
