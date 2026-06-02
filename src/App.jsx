@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { RefreshCw, AlertCircle, Zap, TrendingUp, Book, Github, Bug, GitPullRequest } from 'lucide-react';
+import { RefreshCw, AlertCircle, Zap, TrendingUp, Book, Github, Bug, GitPullRequest, Bell } from 'lucide-react';
 import OverviewCards from './components/OverviewCards';
 import PerformanceTable from './components/PerformanceTable';
 import CatalogModal from './components/CatalogModal';
+import SubscribeModal from './components/SubscribeModal';
 import {
   loadPerformanceData,
   processOperationData,
@@ -16,6 +17,7 @@ function App() {
   const [error, setError] = useState(null);
   const [lastRefresh, setLastRefresh] = useState(null);
   const [isCatalogOpen, setIsCatalogOpen] = useState(false);
+  const [isSubscribeOpen, setIsSubscribeOpen] = useState(false);
 
   const loadData = async () => {
     try {
@@ -220,6 +222,14 @@ function App() {
                 </div>
               )}
               <button
+                onClick={() => setIsSubscribeOpen(true)}
+                className="btn-secondary inline-flex items-center"
+                aria-label="Subscribe to performance alerts"
+              >
+                <Bell className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Get Alerts</span>
+              </button>
+              <button
                 onClick={() => setIsCatalogOpen(true)}
                 className="btn-secondary inline-flex items-center"
                 aria-label="Operations Catalog"
@@ -280,6 +290,16 @@ function App() {
               © {new Date().getFullYear()} Aswin. Thanks to the TT-Metal community for their amazing work.
             </div>
             <div className="flex items-center justify-center sm:justify-end flex-wrap gap-x-3 gap-y-1 text-sm text-gray-500">
+              <button
+                type="button"
+                onClick={() => setIsSubscribeOpen(true)}
+                className="inline-flex items-center gap-1.5 hover:text-gray-900 transition-colors"
+                aria-label="Subscribe to performance alerts"
+              >
+                <Bell className="h-4 w-4" />
+                <span>Get Alerts</span>
+              </button>
+              <span aria-hidden="true">•</span>
               <a
                 href="https://github.com/Aswincloud/ttnn-performance-dashboard"
                 target="_blank"
@@ -322,9 +342,15 @@ function App() {
       </footer>
 
       {/* Catalog Modal */}
-      <CatalogModal 
-        isOpen={isCatalogOpen} 
-        onClose={() => setIsCatalogOpen(false)} 
+      <CatalogModal
+        isOpen={isCatalogOpen}
+        onClose={() => setIsCatalogOpen(false)}
+      />
+
+      {/* Alert Subscription Modal */}
+      <SubscribeModal
+        isOpen={isSubscribeOpen}
+        onClose={() => setIsSubscribeOpen(false)}
       />
     </div>
   );

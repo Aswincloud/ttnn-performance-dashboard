@@ -1,6 +1,11 @@
 name = "ttnn-eltwise-performance"
 compatibility_date = "2025-07-17"
 
+# Worker entry. Static assets (the built dashboard) are served first; only
+# requests with no matching asset — i.e. the /api/* routes — fall through to
+# this script's fetch handler. The SPA therefore serves exactly as before.
+main = "worker/index.js"
+
 # Pin Preview URLs on so the dashboard toggle isn't reset on every `wrangler deploy`.
 # With workers_dev unset (custom-domain setup), the default is off, which means each
 # deploy was flipping the toggle back and stripping the Preview URL from PR comments.
@@ -9,8 +14,27 @@ preview_urls = true
 
 [assets]
 directory = "./dist"
+# Bind the assets so the Worker can both serve the SPA (env.ASSETS.fetch) and
+# read the baked-in performance JSON during the scheduled alert run.
+binding = "ASSETS"
+
+# D1 database backing the alert subscriptions. Create it once with
+#   npx wrangler d1 create ttnn-alerts
+# then paste the printed database_id below.
+[[d1_databases]]
+binding = "DB"
+database_name = "ttnn-alerts"
+database_id = "178062f1-eba8-4c48-b741-a4409165d41f"
+
+# Daily alert run. Data is published ~02:00 UTC; 04:00 leaves margin for the
+# per-push redeploy to land the new data before we read it.
+[triggers]
+crons = ["0 4 * * *"]
+
+[vars]
+SITE_URL = "https://ttnn-eltwise-performance.aswincloud.com"
 
 # Custom domain configuration
 [[routes]]
 pattern = "ttnn-eltwise-performance.aswincloud.com/*"
-zone_name = "aswincloud.com" 
+zone_name = "aswincloud.com"

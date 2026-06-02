@@ -12,7 +12,7 @@
 <!-- How did you verify this? Tick what applies and add detail. -->
 - [ ] `npm run build` succeeds
 - [ ] Manually verified the dashboard renders (`npm run dev` or `npm run preview`)
-- [ ] Python alerts path tested (`pytest test_perf_alerts.py`) — if pipeline touched
+- [ ] Worker `/api/*` + alert path tested (`npx wrangler dev --local`) — if the Worker was touched
 
 ## Screenshots
 

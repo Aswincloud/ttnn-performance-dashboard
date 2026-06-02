@@ -28,7 +28,7 @@ The **Tenstorrent TT-Metal Eltwise Performance Tracker** is an advanced React-ba
 - **🎨 Color-Coded Performance** - Green for improvements, red for degradations with percentage changes
 - **📱 Responsive Design** - Modern UI with sticky columns and horizontal scrolling support
 - **🔄 Real-time Data Loading** - Automatic data fetching and processing
-- **📧 Automated Email Alerts** - Get notified when performance changes exceed 20% threshold (via Resend API)
+- **📧 Self-Service Email Alerts** - Subscribe with your own improvement/degradation thresholds; tailored daily emails via a Cloudflare Worker + Resend
 
 ---
 
@@ -226,20 +226,21 @@ We welcome contributions! Please follow these guidelines:
 
 ## 📧 **Performance Alerts**
 
-The dashboard includes automated email notifications for significant performance changes:
+Anyone can subscribe to email alerts and pick their **own** thresholds — separately for improvements and degradations. Each confirmed subscriber gets a tailored daily email listing only the operations that crossed their thresholds.
 
-- **Automatic Detection**: Compares latest results with previous measurements
-- **Threshold-Based Alerts**: Sends emails when any operation changes by >20%
-- **Detailed Reports**: HTML emails with regressions and improvements
-- **Resend API Integration**: Reliable email delivery using Resend
-- **GitHub Actions Workflow**: Automatic triggering on new data
+- **Self-service signup**: the **Get Alerts** button on the dashboard
+- **Per-subscriber thresholds**: independent improvement % and degradation %
+- **Double opt-in**: confirmation email first; every alert has an unsubscribe link
+- **Runs on Cloudflare**: Worker + D1 + daily Cron Trigger, sending via Resend — no GitHub Actions involvement
 
-📖 **[Complete Alert Documentation](PERFORMANCE_ALERTS.md)**
+📖 **[Complete Alert Documentation](PERFORMANCE_ALERTS.md)** · **[Operator Setup](SETUP_ALERTS.md)**
 
-### Setup
-1. Add `RESEND_API_KEY` to GitHub repository secrets
-2. Alerts automatically sent to `aswin@aswincloud.com`
-3. Configurable threshold via environment variables
+### Setup (operator, one-time)
+1. Create the D1 database and apply `migrations/0001_init.sql`
+2. Set `RESEND_API_KEY` + `FROM_EMAIL` as Cloudflare Worker secrets
+3. `wrangler deploy` — the cron registers automatically
+
+See [SETUP_ALERTS.md](SETUP_ALERTS.md) for the exact commands.
 
 ---
 
