@@ -1,17 +1,19 @@
 // Worker entry. Serves the static dashboard for everything except /api/*,
 // which it handles itself. Also runs the daily alert cron via `scheduled`.
 
-import { validateSubscription } from './validate.js';
+import { validateSubscription, validateThresholds } from './validate.js';
 import {
   upsertSubscriber,
   confirmByToken,
   deleteByUnsubToken,
   countConfirmed,
   listAllSubscribers,
+  deleteByEmail,
+  updateThresholdsByEmail,
 } from './db.js';
 import { sendEmail, confirmationEmail, adminNotificationEmail } from './email.js';
 import { runAlerts } from './alerts.js';
-import { isAtHome } from './adminAccess.js';
+import { isAtHome, verifyPassword } from './adminAccess.js';
 
 // Fire-and-forget admin heads-up for a confirm / unsubscribe. Best-effort: a
 // failure here must never break the user-facing confirm/unsubscribe response,
@@ -163,6 +165,62 @@ async function handleAdminSubscribers(request, env) {
   });
 }
 
+// Shared gate for mutating admin actions: home IP (403) AND correct password
+// (401). Reads are IP-only; writes additionally require the password so that
+// merely being on the home network can't delete/edit other people's records.
+// Returns a Response on failure, or null to proceed.
+async function adminWriteGate(request, env, body) {
+  if (!(await isAtHome(env, request))) return json({ error: 'Forbidden' }, 403);
+  if (!(await verifyPassword(env, body && body.password))) {
+    return json({ error: 'Incorrect password' }, 401);
+  }
+  return null;
+}
+
+// Admin: delete a subscriber by email. Body: { email, password }.
+async function handleAdminDelete(request, env) {
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return json({ error: 'Invalid JSON' }, 400);
+  }
+  const blocked = await adminWriteGate(request, env, body);
+  if (blocked) return blocked;
+
+  const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
+  if (!email) return json({ error: 'email required' }, 400);
+
+  const removed = await deleteByEmail(env.DB, email);
+  return json({ ok: removed, removed });
+}
+
+// Admin: update a subscriber's thresholds. Body: { email, improve_pct, degrade_pct, password }.
+async function handleAdminUpdate(request, env) {
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return json({ error: 'Invalid JSON' }, 400);
+  }
+  const blocked = await adminWriteGate(request, env, body);
+  if (blocked) return blocked;
+
+  const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
+  if (!email) return json({ error: 'email required' }, 400);
+
+  const v = validateThresholds(body);
+  if (!v.ok) return json({ error: v.error }, 400);
+
+  const updated = await updateThresholdsByEmail(
+    env.DB,
+    email,
+    v.value.improve_pct,
+    v.value.degrade_pct
+  );
+  return json({ ok: updated, updated });
+}
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
@@ -176,6 +234,12 @@ export default {
     }
     if (pathname === '/api/admin/subscribers' && request.method === 'GET') {
       return handleAdminSubscribers(request, env);
+    }
+    if (pathname === '/api/admin/subscribers/delete' && request.method === 'POST') {
+      return handleAdminDelete(request, env);
+    }
+    if (pathname === '/api/admin/subscribers/update' && request.method === 'POST') {
+      return handleAdminUpdate(request, env);
     }
     if (pathname === '/api/confirm' && request.method === 'GET') {
       return handleConfirm(url, env, ctx);

@@ -61,3 +61,20 @@ export function validateSubscription(body) {
     value: { email, improve_pct: improve.value, degrade_pct: degrade.value },
   };
 }
+
+// Validate just the threshold pair (for admin threshold edits). Same rules as
+// subscribe: each optional, but at least one must be set.
+// Returns { ok: true, value: { improve_pct, degrade_pct } } or { ok: false, error }.
+export function validateThresholds(body) {
+  if (!body || typeof body !== 'object') {
+    return { ok: false, error: 'Invalid request body' };
+  }
+  const improve = normalizeThreshold(body.improve_pct, 'Improvement threshold');
+  if (!improve.ok) return improve;
+  const degrade = normalizeThreshold(body.degrade_pct, 'Degradation threshold');
+  if (!degrade.ok) return degrade;
+  if (improve.value === null && degrade.value === null) {
+    return { ok: false, error: 'Set at least one threshold (improvement or degradation)' };
+  }
+  return { ok: true, value: { improve_pct: improve.value, degrade_pct: degrade.value } };
+}

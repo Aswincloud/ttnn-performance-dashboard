@@ -125,6 +125,22 @@ export async function listAllSubscribers(db) {
   return res.results ?? [];
 }
 
+// Admin: delete a subscriber by email. Returns true if a row was removed.
+export async function deleteByEmail(db, email) {
+  const res = await db.prepare('DELETE FROM subscribers WHERE email = ?').bind(email).run();
+  return (res.meta?.changes ?? 0) > 0;
+}
+
+// Admin: update a subscriber's thresholds by email. NULL clears a direction.
+// Returns true if a row was updated.
+export async function updateThresholdsByEmail(db, email, improve_pct, degrade_pct) {
+  const res = await db
+    .prepare('UPDATE subscribers SET improve_pct = ?, degrade_pct = ? WHERE email = ?')
+    .bind(improve_pct, degrade_pct, email)
+    .run();
+  return (res.meta?.changes ?? 0) > 0;
+}
+
 // All confirmed subscribers, for the daily alert run.
 export async function listConfirmed(db) {
   const res = await db

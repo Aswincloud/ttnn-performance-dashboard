@@ -55,6 +55,14 @@ ADMIN_HOSTNAME = "ssh.aswincloud.com"
 # Set it only on the production Worker as a secret:
 #   npx wrangler secret put ADMIN_EMAIL
 # Leaving it unset disables admin notifications (worker/index.js notifyAdmin no-ops).
+#
+# ADMIN_PASSWORD_HASH — SHA-256 (lowercase hex) of the password that gates admin
+# *write* actions (delete / edit thresholds). Reads stay home-IP-only; writes
+# require this password too. Only the hash is stored — the plaintext lives
+# nowhere. Generate and set on production only:
+#   printf '%s' 'your-password' | sha256sum     # the hex before the space
+#   npx wrangler secret put ADMIN_PASSWORD_HASH  # paste that hex
+# Unset → all admin write endpoints return 401 (fail closed).
 
 # Custom domain configuration
 [[routes]]
