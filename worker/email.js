@@ -61,10 +61,11 @@ export function confirmationEmail({ siteUrl, confirmUrl, improve_pct, degrade_pc
     </div>
     <p>You'll be notified about: ${watching.join(' and ')}.</p>
     <p style="margin: 24px 0;">
-      <a class="btn" href="${esc(confirmUrl)}">Confirm subscription</a>
+      <a href="${esc(confirmUrl)}" style="display:inline-block;background:#2563eb;color:#ffffff;text-decoration:none;padding:12px 22px;border-radius:6px;font-weight:bold;font-family:Arial,sans-serif;">Confirm subscription</a>
     </p>
     <p class="muted">If you didn't request this, just ignore this email — no alerts are sent
-       until you confirm. Link: <a href="${esc(confirmUrl)}">${esc(confirmUrl)}</a></p>
+       until you confirm. Or paste this link into your browser:<br>
+       <a href="${esc(confirmUrl)}">${esc(confirmUrl)}</a></p>
     <hr>
     <p class="muted">TTNN Performance Dashboard · <a href="${esc(siteUrl)}">${esc(siteUrl)}</a></p>
   `);
