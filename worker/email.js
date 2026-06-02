@@ -73,6 +73,47 @@ export function confirmationEmail({ siteUrl, confirmUrl, improve_pct, degrade_pc
   return { subject: 'Confirm your TTNN performance alerts', html };
 }
 
+// Internal heads-up to the admin on a subscriber lifecycle event.
+// event is 'pending' | 'confirmed' | 'unsubscribed':
+//   pending     — someone submitted the form but hasn't confirmed yet. Rate
+//                 limited per IP upstream, so this can't be infinitely spammed.
+//   confirmed   — clicked the confirmation link (token-backed).
+//   unsubscribed— clicked the unsubscribe link (token-backed).
+const EVENT_META = {
+  pending: { heading: '✉️ Signup started (unconfirmed)', verb: 'entered their email but has not confirmed yet', bg: '#fff8e1' },
+  confirmed: { heading: '🔔 New alert subscriber', verb: 'confirmed their subscription', bg: '' },
+  unsubscribed: { heading: '👋 Subscriber unsubscribed', verb: 'unsubscribed', bg: '#fdecea' },
+};
+
+export function adminNotificationEmail({ siteUrl, event, subscriber, totalConfirmed }) {
+  const m = EVENT_META[event] || EVENT_META.pending;
+  const watching = [];
+  if (subscriber.improve_pct != null) watching.push(`improvement ≥ ${esc(subscriber.improve_pct)}%`);
+  if (subscriber.degrade_pct != null) watching.push(`degradation ≥ ${esc(subscriber.degrade_pct)}%`);
+
+  const html = page(`
+    <div class="header" ${m.bg ? `style="background-color:${m.bg};"` : ''}>
+      <h2>${m.heading}</h2>
+      <p><strong>${esc(subscriber.email)}</strong> ${m.verb}.</p>
+    </div>
+    <table>
+      <tr><th>Email</th><td>${esc(subscriber.email)}</td></tr>
+      ${watching.length ? `<tr><th>Thresholds</th><td>${watching.join(', ')}</td></tr>` : ''}
+      <tr><th>Confirmed subscribers now</th><td>${esc(totalConfirmed)}</td></tr>
+    </table>
+    <hr>
+    <p class="muted">Automated notice from the
+       <a href="${esc(siteUrl)}">TTNN Performance Dashboard</a>.</p>
+  `);
+
+  const subjects = {
+    pending: `TTNN signup started (unconfirmed): ${subscriber.email}`,
+    confirmed: `New TTNN alert subscriber: ${subscriber.email}`,
+    unsubscribed: `TTNN alert unsubscribe: ${subscriber.email}`,
+  };
+  return { subject: subjects[event] || subjects.pending, html };
+}
+
 function opBlock(op) {
   const improvement = op.change_type === 'improvement';
   const sign = op.change_percent > 0 ? '+' : '';

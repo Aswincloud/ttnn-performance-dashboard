@@ -54,33 +54,62 @@ export async function upsertSubscriber(db, { email, improve_pct, degrade_pct }) 
   return { confirmToken, alreadyConfirmed: false };
 }
 
-// Flip a pending subscriber to confirmed. Returns the row's unsub_token on
-// success, or null if the token didn't match a pending row.
+// Flip a pending subscriber to confirmed. Returns the subscriber row
+// { email, improve_pct, degrade_pct, unsub_token } on success, or null if the
+// token didn't match a pending row.
 export async function confirmByToken(db, token) {
   if (!token) return null;
   const row = await db
-    .prepare('SELECT id, unsub_token FROM subscribers WHERE confirm_token = ?')
+    .prepare(
+      'SELECT id, email, improve_pct, degrade_pct, unsub_token FROM subscribers WHERE confirm_token = ?'
+    )
     .bind(token)
     .first();
   if (!row) return null;
 
-  await db
+  // Confirm conditionally on the token still being present, so a double-clicked
+  // link can't confirm twice. Only the request whose UPDATE actually changed a
+  // row "wins" — the loser sees changes === 0 and is treated as already-used.
+  // This is what prevents duplicate "confirmed" admin notifications.
+  const res = await db
     .prepare(
-      'UPDATE subscribers SET confirmed = 1, confirm_token = NULL, confirmed_at = ? WHERE id = ?'
+      'UPDATE subscribers SET confirmed = 1, confirm_token = NULL, confirmed_at = ? WHERE confirm_token = ?'
     )
-    .bind(new Date().toISOString(), row.id)
+    .bind(new Date().toISOString(), token)
     .run();
-  return row.unsub_token;
+  if ((res.meta?.changes ?? 0) === 0) return null;
+  return row;
 }
 
-// Delete a subscriber by unsubscribe token. Returns true if a row was removed.
+// Delete a subscriber by unsubscribe token. Returns the deleted row
+// { email, improve_pct, degrade_pct, confirmed } if one matched, else null.
 export async function deleteByUnsubToken(db, token) {
-  if (!token) return false;
+  if (!token) return null;
+  const row = await db
+    .prepare(
+      'SELECT email, improve_pct, degrade_pct, confirmed FROM subscribers WHERE unsub_token = ?'
+    )
+    .bind(token)
+    .first();
+  if (!row) return null;
+
+  // Only the request whose DELETE actually removed the row "wins"; a concurrent
+  // second call sees changes === 0 and returns null, so the "unsubscribed"
+  // admin notification fires at most once.
   const res = await db
     .prepare('DELETE FROM subscribers WHERE unsub_token = ?')
     .bind(token)
     .run();
-  return (res.meta?.changes ?? 0) > 0;
+  if ((res.meta?.changes ?? 0) === 0) return null;
+  return row;
+}
+
+// Count of confirmed subscribers (for the admin heads-up).
+export async function countConfirmed(db) {
+  const row = await db
+    .prepare('SELECT COUNT(*) AS n FROM subscribers WHERE confirmed = 1')
+    .first();
+  return row ? row.n : 0;
 }
 
 // All confirmed subscribers, for the daily alert run.
