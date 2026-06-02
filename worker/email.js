@@ -73,20 +73,28 @@ export function confirmationEmail({ siteUrl, confirmUrl, improve_pct, degrade_pc
   return { subject: 'Confirm your TTNN performance alerts', html };
 }
 
-// Internal heads-up to the admin when a subscriber confirms or unsubscribes.
-// event is 'confirmed' | 'unsubscribed'. Only fired for real (token-backed)
-// events, never on a raw form submission, so it can't be spammed.
+// Internal heads-up to the admin on a subscriber lifecycle event.
+// event is 'pending' | 'confirmed' | 'unsubscribed':
+//   pending     — someone submitted the form but hasn't confirmed yet. Rate
+//                 limited per IP upstream, so this can't be infinitely spammed.
+//   confirmed   — clicked the confirmation link (token-backed).
+//   unsubscribed— clicked the unsubscribe link (token-backed).
+const EVENT_META = {
+  pending: { heading: '✉️ Signup started (unconfirmed)', verb: 'entered their email but has not confirmed yet', bg: '#fff8e1' },
+  confirmed: { heading: '🔔 New alert subscriber', verb: 'confirmed their subscription', bg: '' },
+  unsubscribed: { heading: '👋 Subscriber unsubscribed', verb: 'unsubscribed', bg: '#fdecea' },
+};
+
 export function adminNotificationEmail({ siteUrl, event, subscriber, totalConfirmed }) {
-  const confirmed = event === 'confirmed';
-  const verb = confirmed ? 'subscribed' : 'unsubscribed';
+  const m = EVENT_META[event] || EVENT_META.pending;
   const watching = [];
   if (subscriber.improve_pct != null) watching.push(`improvement ≥ ${esc(subscriber.improve_pct)}%`);
   if (subscriber.degrade_pct != null) watching.push(`degradation ≥ ${esc(subscriber.degrade_pct)}%`);
 
   const html = page(`
-    <div class="header" ${confirmed ? '' : 'style="background-color:#fdecea;"'}>
-      <h2>${confirmed ? '🔔 New alert subscriber' : '👋 Subscriber unsubscribed'}</h2>
-      <p><strong>${esc(subscriber.email)}</strong> ${verb}.</p>
+    <div class="header" ${m.bg ? `style="background-color:${m.bg};"` : ''}>
+      <h2>${m.heading}</h2>
+      <p><strong>${esc(subscriber.email)}</strong> ${m.verb}.</p>
     </div>
     <table>
       <tr><th>Email</th><td>${esc(subscriber.email)}</td></tr>
@@ -98,10 +106,12 @@ export function adminNotificationEmail({ siteUrl, event, subscriber, totalConfir
        <a href="${esc(siteUrl)}">TTNN Performance Dashboard</a>.</p>
   `);
 
-  const subject = confirmed
-    ? `New TTNN alert subscriber: ${subscriber.email}`
-    : `TTNN alert unsubscribe: ${subscriber.email}`;
-  return { subject, html };
+  const subjects = {
+    pending: `TTNN signup started (unconfirmed): ${subscriber.email}`,
+    confirmed: `New TTNN alert subscriber: ${subscriber.email}`,
+    unsubscribed: `TTNN alert unsubscribe: ${subscriber.email}`,
+  };
+  return { subject: subjects[event] || subjects.pending, html };
 }
 
 function opBlock(op) {

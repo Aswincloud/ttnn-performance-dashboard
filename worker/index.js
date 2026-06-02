@@ -51,7 +51,17 @@ const htmlPage = (title, message, siteUrl) =>
     { status: 200, headers: { 'Content-Type': 'text/html; charset=utf-8' } }
   );
 
-async function handleSubscribe(request, env) {
+async function handleSubscribe(request, env, ctx) {
+  // Per-IP rate limit (5 / 60s). CF-Connecting-IP is set at the edge and is not
+  // spoofable. Applied before any DB work so a flood can't write rows either.
+  if (env.SUBSCRIBE_LIMITER) {
+    const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
+    const { success } = await env.SUBSCRIBE_LIMITER.limit({ key: ip });
+    if (!success) {
+      return json({ error: 'Too many requests. Please try again in a minute.' }, 429);
+    }
+  }
+
   let body;
   try {
     body = await request.json();
@@ -84,6 +94,11 @@ async function handleSubscribe(request, env) {
     console.error(`confirmation send failed: ${res.status} ${res.body}`);
     return json({ error: 'Could not send confirmation email. Try again later.' }, 502);
   }
+
+  // Heads-up to the admin that a signup was started but not yet confirmed.
+  // Gated behind the rate limit above, so a single IP can trigger at most
+  // 5 of these per minute. Best-effort, non-blocking.
+  ctx.waitUntil(notifyAdmin(env, 'pending', v.value));
 
   return json({ ok: true, message: 'Check your email to confirm your subscription.' });
 }
@@ -128,7 +143,7 @@ export default {
     const { pathname } = url;
 
     if (pathname === '/api/subscribe' && request.method === 'POST') {
-      return handleSubscribe(request, env);
+      return handleSubscribe(request, env, ctx);
     }
     if (pathname === '/api/confirm' && request.method === 'GET') {
       return handleConfirm(url, env, ctx);
