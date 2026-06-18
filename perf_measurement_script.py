@@ -211,8 +211,16 @@ class PerfMeasurement:
                 else:
                     print(f"    ❌ Could not extract duration from output")
             else:
-                print(f"    ❌ Test failed with return code {result.returncode}")
-                print(f"    Error output: {result.stderr[:200]}...")
+                print(f"    ❌ Test failed (exit code {result.returncode})")
+                stderr_lines = result.stderr.strip().splitlines()
+                # Show last meaningful lines from stderr
+                relevant = [l for l in stderr_lines if l.strip()][-10:]
+                for line in relevant:
+                    print(f"       {line}")
+                if not relevant and result.stdout:
+                    stdout_lines = result.stdout.strip().splitlines()
+                    for line in stdout_lines[-5:]:
+                        print(f"       {line}")
                 
         except subprocess.TimeoutExpired:
             print(f"    ⏰ Test {test_name} run {run_number} timed out")

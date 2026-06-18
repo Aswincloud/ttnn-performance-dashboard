@@ -13,6 +13,13 @@ PYTHON_ENV="$SCRIPT_DIR/python_env"
 NOTIFICATION_EMAIL="aswin@aswincloud.com"
 RESEND_API_KEY="${RESEND_API_KEY:-re_DUMMY_replace_with_real_key}"
 
+# Clear logs older than 3 days
+for f in "$LOG_FILE" "$ERROR_LOG"; do
+    if [ -f "$f" ] && [ "$(find "$f" -mtime +3 2>/dev/null)" ]; then
+        > "$f"
+    fi
+done
+
 # Parse command line arguments
 UPLOAD_TO_GITHUB=false
 while [[ $# -gt 0 ]]; do
