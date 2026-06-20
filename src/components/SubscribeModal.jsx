@@ -158,7 +158,7 @@ const SubscribeModal = ({ isOpen, onClose }) => {
             </div>
 
             <p className="text-xs text-gray-500">
-              Set either or both. You'll be alerted when any operation gets faster by your
+              Set either or both. You&apos;ll be alerted when any operation gets faster by your
               improvement % or slower by your degradation %, compared to the previous day. A
               confirmation email is sent first — you only get alerts after you confirm.
             </p>

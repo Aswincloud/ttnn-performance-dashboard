@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { RefreshCw, AlertCircle, Zap, TrendingUp, Book, Github, Bug, GitPullRequest, Bell, Users } from 'lucide-react';
 import OverviewCards from './components/OverviewCards';
 import PerformanceTable from './components/PerformanceTable';

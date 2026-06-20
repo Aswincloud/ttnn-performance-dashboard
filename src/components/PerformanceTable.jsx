@@ -77,7 +77,7 @@ const RowSparkline = ({ values, width = 80, height = 22, maxPoints = 30 }) => {
   );
 };
 
-const PerformanceTable = ({ operations, dailyData, loadingAll, onLoadAllData, hasMoreDays, totalAvailable, currentlyLoaded }) => {
+const PerformanceTable = ({ dailyData, loadingAll, onLoadAllData, hasMoreDays, totalAvailable, currentlyLoaded }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortConfig, setSortConfig] = usePersistedState('sortConfig', { key: 'operation_name', direction: 'asc' });
   const [selectedUnit, setSelectedUnit] = usePersistedState('selectedUnit', 'ns');
@@ -258,33 +258,6 @@ const PerformanceTable = ({ operations, dailyData, loadingAll, onLoadAllData, ha
   };
 
 
-
-  const getOperationSubcategory = (operationName) => {
-    const name = operationName.toLowerCase();
-    const categories = operationsCatalog.categories;
-    
-    // Check each main category's subcategories
-    for (const [mainCat, catData] of Object.entries(categories)) {
-      if (catData.subcategories) {
-        for (const [subCatKey, subCatData] of Object.entries(catData.subcategories)) {
-          if (subCatData.operations && subCatData.operations.includes(name)) {
-            return {
-              main: mainCat,
-              sub: subCatKey,
-              description: subCatData.description
-            };
-          }
-        }
-      } else if (catData.operations && catData.operations.includes(name)) {
-        return {
-          main: mainCat,
-          sub: null,
-          description: catData.description
-        };
-      }
-    }
-    return null;
-  };
 
   const calculatePerformanceChange = (operation, dateColumns) => {
     if (!dateColumns || dateColumns.length < 2) return 0;
@@ -590,6 +563,23 @@ const PerformanceTable = ({ operations, dailyData, loadingAll, onLoadAllData, ha
     </th>
   );
 
+  // Group data by category. Declared before any early return so the hook order
+  // stays identical on every render (react-hooks/rules-of-hooks).
+  const groupedData = useMemo(() => {
+    if (!groupByCategory) return null;
+
+    const grouped = {};
+    filteredAndSortedData.forEach(op => {
+      const category = getOperationCategory(op.operation_name);
+      if (!grouped[category]) {
+        grouped[category] = [];
+      }
+      grouped[category].push(op);
+    });
+
+    return grouped;
+  }, [groupByCategory, filteredAndSortedData]);
+
   if (!dailyData || dailyData.length === 0) {
     return (
       <div className="card">
@@ -601,22 +591,6 @@ const PerformanceTable = ({ operations, dailyData, loadingAll, onLoadAllData, ha
       </div>
     );
   }
-
-  // Group data by category
-  const groupedData = useMemo(() => {
-    if (!groupByCategory) return null;
-    
-    const grouped = {};
-    filteredAndSortedData.forEach(op => {
-      const category = getOperationCategory(op.operation_name);
-      if (!grouped[category]) {
-        grouped[category] = [];
-      }
-      grouped[category].push(op);
-    });
-    
-    return grouped;
-  }, [groupByCategory, filteredAndSortedData]);
 
   // Export function
   const exportAsCSV = (exportType = 'current') => {
