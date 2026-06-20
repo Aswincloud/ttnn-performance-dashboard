@@ -1,5 +1,6 @@
 # 🚀 Tenstorrent TT-Metal Eltwise Performance Tracker
 
+[![CI](https://github.com/Aswincloud/ttnn-performance-dashboard/actions/workflows/ci.yml/badge.svg)](https://github.com/Aswincloud/ttnn-performance-dashboard/actions/workflows/ci.yml)
 [![Deploy Status](https://img.shields.io/badge/Deploy-Live-brightgreen)](https://ttnn-eltwise-performance.aswincloud.com)
 [![React](https://img.shields.io/badge/React-19-blue)](https://reactjs.org/)
 [![Vite](https://img.shields.io/badge/Vite-7-purple)](https://vitejs.dev/)
@@ -47,7 +48,7 @@ The **Tenstorrent TT-Metal Eltwise Performance Tracker** is an advanced React-ba
 ## 🚀 **Quick Start**
 
 ### Prerequisites
-- Node.js (v16+ recommended)
+- Node.js 20 (see `.nvmrc`; `nvm use` will pick it up)
 - npm or yarn
 - Git
 
@@ -55,7 +56,7 @@ The **Tenstorrent TT-Metal Eltwise Performance Tracker** is an advanced React-ba
 
 ```bash
 # Clone the repository
-git clone https://github.com/Aswintechie/ttnn-performance-dashboard.git
+git clone https://github.com/Aswincloud/ttnn-performance-dashboard.git
 cd ttnn-performance-dashboard
 
 # Install dependencies
@@ -111,26 +112,37 @@ The dashboard tracks **262 TTNN eltwise operations** across 6 main categories:
 ```
 ttnn-performance-dashboard/
 ├── 📁 src/
-│   ├── 📄 App.jsx                    # Main application component
-│   ├── 📄 main.jsx                   # Application entry point
-│   ├── 📄 index.css                  # Global styles
+│   ├── 📄 App.jsx                       # Main application component
+│   ├── 📄 main.jsx                      # Application entry point
+│   ├── 📄 index.css                     # Global styles
 │   ├── 📁 components/
-│   │   ├── 📄 OverviewCards.jsx      # Performance summary cards
-│   │   ├── 📄 PerformanceTable.jsx   # Main data table with filtering
-│   │   └── 📄 TrendChart.jsx         # Performance visualization
+│   │   ├── 📄 OverviewCards.jsx         # Performance summary cards
+│   │   ├── 📄 PerformanceTable.jsx      # Main data table with filtering
+│   │   ├── 📄 TrendLineChart.jsx        # Performance visualization
+│   │   ├── 📄 CatalogModal.jsx          # Operations catalog dialog
+│   │   ├── 📄 SubscribeModal.jsx        # Email-alert signup dialog
+│   │   └── 📄 AdminSubscribersModal.jsx # Admin subscriber view
 │   └── 📁 utils/
-│       ├── 📄 dataLoader.js          # Data fetching utilities
-│       └── 📄 operationsCatalog.js   # Operations categorization
-├── 📁 data/                          # Performance data files
-│   ├── 📄 index.json                 # Data index
-│   ├── 📁 daily/                     # Daily performance results
-│   └── 📁 latest/                    # Latest performance data
-├── 📁 public/                        # Static assets
-├── 📄 package.json                   # Dependencies and scripts
-├── 📄 vite.config.js                 # Vite configuration
-├── 📄 tailwind.config.js             # Tailwind CSS configuration
-├── 📄 wrangler.toml                  # Cloudflare Workers config
-└── 📄 eltwise_operations_catalog.md  # Detailed operations documentation
+│       ├── 📄 dataLoader.js             # Data fetching utilities
+│       └── 📄 operationsCatalog.js      # Operations categorization
+├── 📁 worker/                           # Cloudflare Worker (alert API + cron)
+│   ├── 📄 index.js                      # fetch router + scheduled handler
+│   ├── 📄 alerts.js                     # Daily comparison/alert engine
+│   ├── 📄 db.js                         # D1 helpers
+│   ├── 📄 email.js                      # Resend email builders
+│   └── 📄 validate.js                   # Input validation
+├── 📁 migrations/                       # D1 schema (subscribers + meta)
+├── 📁 data/                             # Performance data files
+│   ├── 📄 index.json                    # Data index
+│   ├── 📁 daily/                        # Daily performance results
+│   └── 📁 latest/                       # Latest performance data
+├── 📁 docs/                             # Extended documentation
+├── 📁 public/                           # Static assets
+├── 📄 package.json                      # Dependencies and scripts
+├── 📄 eslint.config.js                  # ESLint (flat) config
+├── 📄 vite.config.js                    # Vite configuration
+├── 📄 tailwind.config.js                # Tailwind CSS configuration
+└── 📄 wrangler.toml                     # Cloudflare Workers config
 ```
 
 ---
@@ -233,14 +245,14 @@ Anyone can subscribe to email alerts and pick their **own** thresholds — separ
 - **Double opt-in**: confirmation email first; every alert has an unsubscribe link
 - **Runs on Cloudflare**: Worker + D1 + daily Cron Trigger, sending via Resend — no GitHub Actions involvement
 
-📖 **[Complete Alert Documentation](PERFORMANCE_ALERTS.md)** · **[Operator Setup](SETUP_ALERTS.md)**
+📖 **[Complete Alert Documentation](docs/PERFORMANCE_ALERTS.md)** · **[Operator Setup](docs/SETUP_ALERTS.md)**
 
 ### Setup (operator, one-time)
 1. Create the D1 database and apply `migrations/0001_init.sql`
 2. Set `RESEND_API_KEY` + `FROM_EMAIL` as Cloudflare Worker secrets
 3. `wrangler deploy` — the cron registers automatically
 
-See [SETUP_ALERTS.md](SETUP_ALERTS.md) for the exact commands.
+See [SETUP_ALERTS.md](docs/SETUP_ALERTS.md) for the exact commands.
 
 ---
 
@@ -273,8 +285,8 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 
 ## 📞 **Support**
 
-- 📧 **Issues**: [GitHub Issues](https://github.com/Aswintechie/ttnn-performance-dashboard/issues)
-- 💬 **Discussions**: [GitHub Discussions](https://github.com/Aswintechie/ttnn-performance-dashboard/discussions)
+- 📧 **Issues**: [GitHub Issues](https://github.com/Aswincloud/ttnn-performance-dashboard/issues)
+- 💬 **Discussions**: [GitHub Discussions](https://github.com/Aswincloud/ttnn-performance-dashboard/discussions)
 - 🌐 **Live Demo**: [ttnn-eltwise-performance.aswincloud.com](https://ttnn-eltwise-performance.aswincloud.com)
 
 ---
@@ -283,7 +295,7 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 
 **Built with ❤️ for the Tenstorrent Community**
 
-[![GitHub stars](https://img.shields.io/github/stars/Aswintechie/ttnn-performance-dashboard?style=social)](https://github.com/Aswintechie/ttnn-performance-dashboard)
-[![GitHub forks](https://img.shields.io/github/forks/Aswintechie/ttnn-performance-dashboard?style=social)](https://github.com/Aswintechie/ttnn-performance-dashboard)
+[![GitHub stars](https://img.shields.io/github/stars/Aswincloud/ttnn-performance-dashboard?style=social)](https://github.com/Aswincloud/ttnn-performance-dashboard)
+[![GitHub forks](https://img.shields.io/github/forks/Aswincloud/ttnn-performance-dashboard?style=social)](https://github.com/Aswincloud/ttnn-performance-dashboard)
 
 </div> 
