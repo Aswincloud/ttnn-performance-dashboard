@@ -76,7 +76,7 @@ Share that preview URL with reviewers — they can see your change live without 
 
 `push_to_github.py` publishes measurement results to this repo and uses only the Python standard library (nothing to install — `requirements.txt` is intentionally empty of dependencies).
 
-Performance **alerting** no longer runs in Python/CI: it moved to the Cloudflare Worker (`worker/alerts.js`) backed by a D1 subscriber list. See [PERFORMANCE_ALERTS.md](PERFORMANCE_ALERTS.md) and [SETUP_ALERTS.md](SETUP_ALERTS.md). To work on the Worker locally:
+Performance **alerting** no longer runs in Python/CI: it moved to the Cloudflare Worker (`worker/alerts.js`) backed by a D1 subscriber list. See [PERFORMANCE_ALERTS.md](docs/PERFORMANCE_ALERTS.md) and [SETUP_ALERTS.md](docs/SETUP_ALERTS.md). To work on the Worker locally:
 
 ```bash
 npm run build
@@ -93,4 +93,4 @@ Use the [issue templates](https://github.com/Aswincloud/ttnn-performance-dashboa
 - **UI improvement** — visual or UX suggestion
 - **Feature request** — new functionality
 
-For performance-alert tuning or pipeline questions, see [`PERFORMANCE_ALERTS.md`](PERFORMANCE_ALERTS.md) and [`SETUP_ALERTS.md`](SETUP_ALERTS.md).
+For performance-alert tuning or pipeline questions, see [`PERFORMANCE_ALERTS.md`](docs/PERFORMANCE_ALERTS.md) and [`SETUP_ALERTS.md`](docs/SETUP_ALERTS.md).

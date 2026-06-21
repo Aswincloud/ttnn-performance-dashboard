@@ -135,3 +135,6 @@ Thumbs.db
 .yarn/install-state.gz
 .pnp.*
 __pycache__/
+
+# Guard against accidental curl-typo dirs/files (e.g. `curl ... -H header` run in repo root)
+/-H *
