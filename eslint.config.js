@@ -39,11 +39,16 @@ export default [
       'react/prop-types': 'off', // no prop-types in this codebase by choice
       // Allow intentionally-unused args/vars prefixed with _.
       'no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
-      // "Reset form state when the modal opens" is an intentional, correct use of
-      // an effect here. This rule is advisory (React-Compiler-oriented); warn so
-      // it's visible without blocking CI. rules-of-hooks below stays an error —
-      // that one catches real ordering bugs.
+      // The two rules below are advisory, React-Compiler-oriented checks added in
+      // eslint-plugin-react-hooks 7.1. They flag intentional, working patterns in
+      // this codebase (modals resetting form state on open; small inner render
+      // helpers like SortableHeader/LoadingState that close over local state).
+      // Hoisting/refactoring those is out of scope for a hygiene pass and carries
+      // behavior risk, so they warn — visible, not CI-blocking. The genuinely
+      // important react-hooks/rules-of-hooks stays an error (it catches real hook
+      // ordering bugs, like the conditional useMemo fixed in this change).
       'react-hooks/set-state-in-effect': 'warn',
+      'react-hooks/static-components': 'warn',
     },
   },
 
