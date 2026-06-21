@@ -14,6 +14,60 @@ const ChartFallback = ({ height }) => (
   </div>
 );
 
+// Color legend for the cell background gradient. The swatch classes here MUST
+// mirror the thresholds in getPerformanceColor — they're the key that makes the
+// 13-shade gradient readable as data. Module-level so it isn't recreated on each
+// render (react-hooks/static-components).
+const LEGEND_IMPROVE = [
+  { cls: 'bg-green-300', label: '>25%' },
+  { cls: 'bg-green-200', label: '20' },
+  { cls: 'bg-green-150', label: '15' },
+  { cls: 'bg-green-100', label: '10' },
+  { cls: 'bg-green-50', label: '5' },
+  { cls: 'bg-green-25', label: '2%' },
+];
+const LEGEND_DEGRADE = [
+  { cls: 'bg-red-25', label: '2%' },
+  { cls: 'bg-red-50', label: '5' },
+  { cls: 'bg-red-100', label: '10' },
+  { cls: 'bg-red-150', label: '15' },
+  { cls: 'bg-red-200', label: '20' },
+  { cls: 'bg-red-300', label: '>25%' },
+];
+
+const PerformanceLegend = () => (
+  <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-gray-500 px-1 pb-3">
+    <span className="font-medium text-green-700">Faster</span>
+    <div className="flex items-center">
+      {LEGEND_IMPROVE.map((s) => (
+        <span
+          key={s.cls}
+          className={`${s.cls} inline-flex items-center justify-center h-4 min-w-[1.75rem] px-1 text-[10px] text-gray-700 border border-black/5 first:rounded-l last:rounded-r`}
+          title={`Improvement around ${s.label}`}
+        >
+          {s.label}
+        </span>
+      ))}
+    </div>
+    <span className="inline-flex items-center justify-center h-4 min-w-[2.5rem] px-1 text-[10px] text-gray-400 bg-white border border-gray-200 rounded">
+      ±2%
+    </span>
+    <div className="flex items-center">
+      {LEGEND_DEGRADE.map((s) => (
+        <span
+          key={s.cls}
+          className={`${s.cls} inline-flex items-center justify-center h-4 min-w-[1.75rem] px-1 text-[10px] text-gray-700 border border-black/5 first:rounded-l last:rounded-r`}
+          title={`Degradation around ${s.label}`}
+        >
+          {s.label}
+        </span>
+      ))}
+    </div>
+    <span className="font-medium text-red-700">Slower</span>
+    <span className="text-gray-400">· vs previous day</span>
+  </div>
+);
+
 // Versioned key so we can invalidate persisted prefs if the schema ever changes
 // (e.g. category names rename, sort keys change). Bump suffix to force-reset.
 const PREFS_PREFIX = 'ttnn-dash:v1:';
@@ -1077,6 +1131,8 @@ const PerformanceTable = ({ dailyData, loadingAll, onLoadAllData, hasMoreDays, t
           })}
         </div>
       ) : (
+        <>
+        <PerformanceLegend />
         <div className={`overflow-x-auto relative transition-opacity duration-150 ${isTransitioning ? 'opacity-0' : 'opacity-100'}`} ref={tableScrollRef} style={{ maxHeight: '70vh' }}>
           <table className="min-w-full relative" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
           <thead className="table-thead-sticky">
@@ -1256,6 +1312,7 @@ const PerformanceTable = ({ dailyData, loadingAll, onLoadAllData, hasMoreDays, t
           </tbody>
         </table>
         </div>
+        </>
       )}
 
       {filteredAndSortedData.length === 0 && viewMode === 'table' && (
