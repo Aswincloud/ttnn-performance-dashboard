@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { RefreshCw, AlertCircle, Zap, TrendingUp, Book, Github, Bug, GitPullRequest, Bell, Users } from 'lucide-react';
+import { RefreshCw, AlertCircle, Zap, TrendingUp, Book, Github, Bug, GitPullRequest, Bell, Users, Sun, Moon } from 'lucide-react';
 import OverviewCards from './components/OverviewCards';
 import PerformanceTable from './components/PerformanceTable';
 import CatalogModal from './components/CatalogModal';
@@ -21,6 +21,31 @@ function App() {
   const [isSubscribeOpen, setIsSubscribeOpen] = useState(false);
   const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [atHome, setAtHome] = useState(false);
+
+  // Theme: persisted, defaults to the OS preference on first visit. Applied as a
+  // `.dark` class on <html> so the CSS dark: variant + .dark overrides take effect.
+  const [theme, setTheme] = useState(() => {
+    try {
+      const saved = localStorage.getItem('ttnn-dash:v1:theme');
+      if (saved === 'dark' || saved === 'light') return saved;
+    } catch {
+      // localStorage may be unavailable (private mode) — fall through to OS pref.
+    }
+    return typeof window !== 'undefined' &&
+      window.matchMedia?.('(prefers-color-scheme: dark)').matches
+      ? 'dark'
+      : 'light';
+  });
+
+  useEffect(() => {
+    const root = document.documentElement;
+    root.classList.toggle('dark', theme === 'dark');
+    try {
+      localStorage.setItem('ttnn-dash:v1:theme', theme);
+    } catch {
+      // Persisting is best-effort; the in-memory state still drives the UI.
+    }
+  }, [theme]);
 
   const loadData = async () => {
     try {
@@ -125,7 +150,7 @@ function App() {
   );
 
   const LoadingState = () => (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-slate-900 dark:via-gray-900 dark:to-indigo-950">
       <header className="header-gradient shadow-xl border-b border-white/20 sticky top-0 z-50">
         <div className="max-w-[1536px] mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-wrap items-center justify-between gap-y-3 py-3 sm:py-0 sm:h-20">
@@ -189,12 +214,12 @@ function App() {
   );
 
   const ErrorState = () => (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-slate-900 dark:via-gray-900 dark:to-indigo-950 flex items-center justify-center">
       <div className="text-center max-w-md">
         <div className="glass-card">
           <AlertCircle className="h-16 w-16 text-red-500 mx-auto mb-6" />
-          <h3 className="text-xl font-bold text-gray-900 mb-3">Connection Issue</h3>
-          <p className="text-gray-600 mb-6">{error}</p>
+          <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-3">Connection Issue</h3>
+          <p className="text-gray-600 dark:text-gray-400 mb-6">{error}</p>
           <button 
             onClick={loadData}
             className="btn-primary inline-flex items-center"
@@ -211,7 +236,7 @@ function App() {
   if (error) return <ErrorState />;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-slate-900 dark:via-gray-900 dark:to-indigo-950">
       {/* Enhanced Header */}
       <header className="header-gradient shadow-xl border-b border-white/20 sticky top-0 z-50">
         <div className="max-w-[1536px] mx-auto px-4 sm:px-6 lg:px-8">
@@ -227,8 +252,8 @@ function App() {
                 <h1 className="text-lg sm:text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent truncate">
                   Tenstorrent TT-Metal
                 </h1>
-                <p className="text-sm sm:text-lg font-semibold text-gray-700 truncate">Eltwise Performance Tracker</p>
-                <p className="hidden sm:flex text-sm text-gray-500 items-center">
+                <p className="text-sm sm:text-lg font-semibold text-gray-700 dark:text-gray-200 truncate">Eltwise Performance Tracker</p>
+                <p className="hidden sm:flex text-sm text-gray-500 dark:text-gray-400 items-center">
                   <TrendingUp className="h-4 w-4 mr-1" />
                   Real-time operation performance monitoring
                 </p>
@@ -238,10 +263,18 @@ function App() {
             <div className="flex items-center gap-2 sm:gap-4 lg:gap-6">
               {lastRefresh && (
                 <div className="hidden md:block text-right">
-                  <div className="text-sm font-medium text-gray-700">Last Updated</div>
-                  <div className="text-xs text-gray-500">{lastRefresh.toLocaleTimeString()}</div>
+                  <div className="text-sm font-medium text-gray-700 dark:text-gray-300">Last Updated</div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400">{lastRefresh.toLocaleTimeString()}</div>
                 </div>
               )}
+              <button
+                onClick={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
+                className="btn-secondary inline-flex items-center justify-center !px-2"
+                aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+                title={theme === 'dark' ? 'Light mode' : 'Dark mode'}
+              >
+                {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+              </button>
               {atHome && (
                 <button
                   onClick={() => setIsAdminOpen(true)}
@@ -287,8 +320,8 @@ function App() {
         {/* Overview Section */}
         <section className="fade-in">
           <div className="mb-6">
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">Performance Overview</h2>
-            <p className="text-gray-600">Key metrics and trends for TTNN eltwise operations</p>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">Performance Overview</h2>
+            <p className="text-gray-600 dark:text-gray-400">Key metrics and trends for TTNN eltwise operations</p>
           </div>
           <OverviewCards summaryStats={summaryStats} />
         </section>
@@ -296,8 +329,8 @@ function App() {
         {/* Performance Table Section */}
         <section className="slide-up">
           <div className="mb-6">
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">Detailed Performance Analysis</h2>
-            <p className="text-gray-600">Day-by-day performance comparison across all operations</p>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">Detailed Performance Analysis</h2>
+            <p className="text-gray-600 dark:text-gray-400">Day-by-day performance comparison across all operations</p>
           </div>
                      <div className="glass-card">
              <PerformanceTable 
@@ -314,17 +347,17 @@ function App() {
       </main>
 
       {/* Footer */}
-      <footer className="mt-16 bg-white/50 backdrop-blur-sm border-t border-white/20">
+      <footer className="mt-16 bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm border-t border-white/20 dark:border-slate-700/40">
         <div className="max-w-[1536px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-center sm:text-left">
-            <div className="text-sm text-gray-500">
+            <div className="text-sm text-gray-500 dark:text-gray-400">
               © {new Date().getFullYear()} Aswin. Thanks to the TT-Metal community for their amazing work.
             </div>
-            <div className="flex items-center justify-center sm:justify-end flex-wrap gap-x-3 gap-y-1 text-sm text-gray-500">
+            <div className="flex items-center justify-center sm:justify-end flex-wrap gap-x-3 gap-y-1 text-sm text-gray-500 dark:text-gray-400">
               <button
                 type="button"
                 onClick={() => setIsSubscribeOpen(true)}
-                className="inline-flex items-center gap-1.5 hover:text-gray-900 transition-colors"
+                className="inline-flex items-center gap-1.5 hover:text-gray-900 dark:hover:text-white transition-colors"
                 aria-label="Subscribe to performance alerts"
               >
                 <Bell className="h-4 w-4" />
@@ -335,7 +368,7 @@ function App() {
                 href="https://github.com/Aswincloud/ttnn-performance-dashboard"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 hover:text-gray-900 transition-colors"
+                className="inline-flex items-center gap-1.5 hover:text-gray-900 dark:hover:text-white transition-colors"
                 aria-label="View source on GitHub"
               >
                 <Github className="h-4 w-4" />
@@ -346,7 +379,7 @@ function App() {
                 href="https://github.com/Aswincloud/ttnn-performance-dashboard/issues/new/choose"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 hover:text-gray-900 transition-colors"
+                className="inline-flex items-center gap-1.5 hover:text-gray-900 dark:hover:text-white transition-colors"
                 aria-label="Report a bug on GitHub"
               >
                 <Bug className="h-4 w-4" />
@@ -357,7 +390,7 @@ function App() {
                 href="https://github.com/Aswincloud/ttnn-performance-dashboard/blob/main/CONTRIBUTING.md"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 hover:text-gray-900 transition-colors"
+                className="inline-flex items-center gap-1.5 hover:text-gray-900 dark:hover:text-white transition-colors"
                 aria-label="How to contribute"
               >
                 <GitPullRequest className="h-4 w-4" />

@@ -690,12 +690,12 @@ const PerformanceTable = ({ dailyData, loadingAll, onLoadAllData, hasMoreDays, t
   return (
     <div className="card">
       {latestDayDelta && (
-        <div className="mb-5 border border-gray-200 rounded-lg overflow-hidden">
-          <div className="px-4 py-2 bg-gray-50 border-b border-gray-200 flex items-center justify-between gap-2">
-            <div className="text-xs font-semibold text-gray-700 uppercase tracking-wide">
+        <div className="mb-5 border border-gray-200 dark:border-slate-700 rounded-lg overflow-hidden">
+          <div className="px-4 py-2 bg-gray-50 dark:bg-slate-900/60 border-b border-gray-200 dark:border-slate-700 flex items-center justify-between gap-2">
+            <div className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide">
               Latest day · {formatCompactDate(latestDayDelta.latestDate)}
             </div>
-            <div className="text-xs text-gray-500">vs. previous day · ≥{latestDayDelta.threshold}% change</div>
+            <div className="text-xs text-gray-500 dark:text-gray-400">vs. previous day · ≥{latestDayDelta.threshold}% change</div>
           </div>
           <div className="flex flex-col sm:flex-row">
             {latestDayDelta.topRegressions.length > 0 && (
@@ -762,7 +762,7 @@ const PerformanceTable = ({ dailyData, loadingAll, onLoadAllData, hasMoreDays, t
         {/* Row 1 — Title + meta + view mode toggle */}
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
           <div>
-            <h2 className="text-lg font-semibold text-gray-900 mb-1">Daily Eltwise Performance Comparison</h2>
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-1">Daily Eltwise Performance Comparison</h2>
             <p className="text-sm text-gray-500">
               {filteredAndSortedData.length} operations
               {selectedCategories.length > 0 && ` (${selectedCategories.join(', ')} categories)`} • {displayedDateColumns.length}{!showAllColumns && displayedDateColumns.length < dateColumns.length ? ` of ${dateColumns.length}` : ''} days shown
@@ -789,13 +789,13 @@ const PerformanceTable = ({ dailyData, loadingAll, onLoadAllData, hasMoreDays, t
             </p>
           </div>
 
-          <div className={`${showMobileFilters ? 'inline-flex' : 'hidden'} md:inline-flex border border-gray-300 rounded-lg overflow-hidden h-10 shrink-0 self-start`}>
+          <div className={`${showMobileFilters ? 'inline-flex' : 'hidden'} md:inline-flex border border-gray-300 dark:border-slate-600 rounded-lg overflow-hidden h-10 shrink-0 self-start`}>
             <button
               onClick={() => handleViewModeChange('table')}
-              className={`px-4 py-2 text-sm font-medium transition-all duration-300 ease-in-out border-r border-gray-300 ${
+              className={`px-4 py-2 text-sm font-medium transition-all duration-300 ease-in-out border-r border-gray-300 dark:border-slate-600 ${
                 viewMode === 'table'
                   ? 'bg-blue-600 text-white border-blue-600'
-                  : 'bg-white text-gray-700 hover:bg-gray-50'
+                  : 'bg-white dark:bg-slate-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-600'
               }`}
             >
               Table
@@ -805,7 +805,7 @@ const PerformanceTable = ({ dailyData, loadingAll, onLoadAllData, hasMoreDays, t
               className={`px-4 py-2 text-sm font-medium transition-all duration-300 ease-in-out ${
                 viewMode === 'chart'
                   ? 'bg-blue-600 text-white'
-                  : 'bg-white text-gray-700 hover:bg-gray-50'
+                  : 'bg-white dark:bg-slate-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-600'
               }`}
             >
               Charts
@@ -826,13 +826,13 @@ const PerformanceTable = ({ dailyData, loadingAll, onLoadAllData, hasMoreDays, t
                   placeholder="Search operations..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent w-full h-10"
+                  className="pl-10 pr-4 py-2 border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent w-full h-10"
                 />
               </div>
               <button
                 type="button"
                 onClick={() => setShowMobileFilters((v) => !v)}
-                className="md:hidden inline-flex items-center gap-1 px-3 h-10 border border-gray-300 rounded-lg bg-white text-sm font-medium text-gray-700 shrink-0"
+                className="md:hidden inline-flex items-center gap-1 px-3 h-10 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-sm font-medium text-gray-700 dark:text-gray-200 shrink-0"
                 aria-expanded={showMobileFilters}
                 aria-label="Toggle more options"
               >
@@ -841,13 +841,13 @@ const PerformanceTable = ({ dailyData, loadingAll, onLoadAllData, hasMoreDays, t
               </button>
             </div>
 
-            <div className={`${showMobileFilters ? 'flex' : 'hidden'} md:flex items-center gap-2 border border-gray-300 rounded-lg px-3 py-2 bg-white h-10`}>
-              <span className="text-xs font-medium text-gray-700 whitespace-nowrap">Date Range:</span>
+            <div className={`${showMobileFilters ? 'flex' : 'hidden'} md:flex items-center gap-2 border border-gray-300 dark:border-slate-600 rounded-lg px-3 py-2 bg-white dark:bg-slate-700 h-10`}>
+              <span className="text-xs font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap">Date Range:</span>
               <input
                 type="date"
                 value={dateRange.start}
                 onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
-                className="text-xs border-0 focus:ring-0 p-0 h-6 flex-1 min-w-0"
+                className="text-xs border-0 focus:ring-0 p-0 h-6 flex-1 min-w-0 bg-transparent text-gray-900 dark:text-gray-200 dark:[color-scheme:dark]"
                 placeholder="Start"
               />
               <span className="text-gray-400">—</span>
@@ -855,7 +855,7 @@ const PerformanceTable = ({ dailyData, loadingAll, onLoadAllData, hasMoreDays, t
                 type="date"
                 value={dateRange.end}
                 onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
-                className="text-xs border-0 focus:ring-0 p-0 h-6 flex-1 min-w-0"
+                className="text-xs border-0 focus:ring-0 p-0 h-6 flex-1 min-w-0 bg-transparent text-gray-900 dark:text-gray-200 dark:[color-scheme:dark]"
                 placeholder="End"
               />
               {(dateRange.start || dateRange.end) && (
@@ -881,7 +881,7 @@ const PerformanceTable = ({ dailyData, loadingAll, onLoadAllData, hasMoreDays, t
                   className={`flex-1 px-3 py-2 text-sm font-medium transition-all duration-300 ease-in-out ${
                     selectedUnit === unit
                       ? 'bg-blue-600 text-white'
-                      : 'bg-white text-gray-700 hover:bg-gray-50'
+                      : 'bg-white dark:bg-slate-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-600'
                   }`}
                 >
                   {unit}
@@ -929,7 +929,7 @@ const PerformanceTable = ({ dailyData, loadingAll, onLoadAllData, hasMoreDays, t
             <div className="relative" ref={filterRef}>
               <button
                 onClick={() => setShowFilters(!showFilters)}
-                className="flex items-center justify-between w-full px-4 py-2 border border-gray-300 rounded-lg bg-white hover:bg-gray-50 text-sm font-medium text-gray-700 h-10"
+                className="flex items-center justify-between w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 hover:bg-gray-50 dark:hover:bg-slate-600 text-sm font-medium text-gray-700 h-10"
               >
                 <span className="inline-flex items-center">
                   <Filter className="h-4 w-4 mr-2" />
@@ -944,7 +944,7 @@ const PerformanceTable = ({ dailyData, loadingAll, onLoadAllData, hasMoreDays, t
               </button>
 
               {showFilters && (
-                <div className="absolute top-full mt-2 right-0 z-50 bg-white border border-gray-300 rounded-lg shadow-lg p-4 min-w-96">
+                <div className="absolute top-full mt-2 right-0 z-50 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 rounded-lg shadow-lg p-4 min-w-96">
                   <div className="text-sm font-medium text-gray-700 mb-3">Select Operation Categories:</div>
 
                   <div className="space-y-4">
@@ -1007,7 +1007,7 @@ const PerformanceTable = ({ dailyData, loadingAll, onLoadAllData, hasMoreDays, t
             <div className="relative" ref={exportRef}>
               <button
                 onClick={() => setShowExportMenu(!showExportMenu)}
-                className="flex items-center justify-between w-full px-4 py-2 border border-gray-300 rounded-lg bg-white hover:bg-gray-50 text-sm font-medium text-gray-700 h-10"
+                className="flex items-center justify-between w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 hover:bg-gray-50 dark:hover:bg-slate-600 text-sm font-medium text-gray-700 h-10"
                 title="Export as CSV"
               >
                 <span className="inline-flex items-center">
@@ -1018,7 +1018,7 @@ const PerformanceTable = ({ dailyData, loadingAll, onLoadAllData, hasMoreDays, t
               </button>
 
               {showExportMenu && (
-                <div className="absolute top-full mt-2 right-0 z-50 bg-white border border-gray-300 rounded-lg shadow-lg py-2 min-w-64">
+                <div className="absolute top-full mt-2 right-0 z-50 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 rounded-lg shadow-lg py-2 min-w-64">
                   <div className="px-4 py-2 text-xs text-gray-500 border-b border-gray-200">
                     Export Options
                   </div>
@@ -1065,7 +1065,7 @@ const PerformanceTable = ({ dailyData, loadingAll, onLoadAllData, hasMoreDays, t
                 className={`flex-1 px-3 py-2 text-sm font-medium transition-all duration-300 ease-in-out flex items-center justify-center whitespace-nowrap ${
                   performanceSort === 'none'
                     ? 'bg-blue-600 text-white'
-                    : 'bg-white text-gray-700 hover:bg-gray-50'
+                    : 'bg-white dark:bg-slate-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-600'
                 }`}
               >
                 None
@@ -1075,7 +1075,7 @@ const PerformanceTable = ({ dailyData, loadingAll, onLoadAllData, hasMoreDays, t
                 className={`flex-1 px-3 py-2 text-sm font-medium transition-all duration-300 ease-in-out flex items-center justify-center whitespace-nowrap border-l border-gray-300 ${
                   performanceSort === 'most-improved'
                     ? 'bg-green-600 text-white'
-                    : 'bg-white text-gray-700 hover:bg-gray-50'
+                    : 'bg-white dark:bg-slate-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-600'
                 }`}
               >
                 Improved
@@ -1085,7 +1085,7 @@ const PerformanceTable = ({ dailyData, loadingAll, onLoadAllData, hasMoreDays, t
                 className={`flex-1 px-3 py-2 text-sm font-medium transition-all duration-300 ease-in-out flex items-center justify-center whitespace-nowrap border-l border-gray-300 ${
                   performanceSort === 'most-degraded'
                     ? 'bg-red-600 text-white'
-                    : 'bg-white text-gray-700 hover:bg-gray-50'
+                    : 'bg-white dark:bg-slate-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-600'
                 }`}
               >
                 Degraded
@@ -1168,18 +1168,18 @@ const PerformanceTable = ({ dailyData, loadingAll, onLoadAllData, hasMoreDays, t
                   {operations.map((operation, rowIdx) => (
                     <tr
                       key={operation.operation_name}
-                      className={`${rowIdx % 2 === 0 ? 'bg-white' : 'bg-slate-50'} hover:bg-blue-50 transition-colors duration-150 group h-14`}
+                      className={`${rowIdx % 2 === 0 ? 'bg-white' : 'bg-slate-50'} hover:bg-blue-50 dark:hover:bg-slate-700/50 transition-colors duration-150 group h-14`}
                     >
-                      <td className="table-cell-sticky table-sticky-left-0 bg-white group-hover:bg-blue-50 border-r border-gray-200 transition-colors duration-150 py-1 px-3">
+                      <td className="table-cell-sticky table-sticky-left-0 bg-white dark:bg-slate-800 group-hover:bg-blue-50 dark:group-hover:bg-slate-700 border-r border-gray-200 transition-colors duration-150 py-1 px-3">
                         <div className="flex flex-col items-center gap-1">
-                          <span className="font-medium text-gray-900 text-sm truncate max-w-full">{operation.operation_name}</span>
+                          <span className="font-medium text-gray-900 dark:text-gray-100 text-sm truncate max-w-full">{operation.operation_name}</span>
                           <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium ${getCategoryColor(getOperationCategory(operation.operation_name))}`}>
                             {getOperationCategory(operation.operation_name)}
                           </span>
                         </div>
                       </td>
                       <td
-                        className="hidden md:table-cell table-cell-sticky table-sticky-left-180 bg-white group-hover:bg-blue-50 border-r border-gray-200 transition-colors duration-150 py-1 px-2 cursor-zoom-in"
+                        className="hidden md:table-cell table-cell-sticky table-sticky-left-180 bg-white dark:bg-slate-800 group-hover:bg-blue-50 dark:group-hover:bg-slate-700 border-r border-gray-200 transition-colors duration-150 py-1 px-2 cursor-zoom-in"
                         onClick={() => setChartModalOp(operation)}
                         role="button"
                         tabIndex={0}
@@ -1239,18 +1239,18 @@ const PerformanceTable = ({ dailyData, loadingAll, onLoadAllData, hasMoreDays, t
               filteredAndSortedData.map((operation, index) => (
                 <tr
                   key={operation.operation_name}
-                  className={`${index % 2 === 0 ? 'bg-white' : 'bg-slate-50'} hover:bg-blue-50 transition-colors duration-150 group h-14`}
+                  className={`${index % 2 === 0 ? 'bg-white dark:bg-slate-800' : 'bg-slate-50 dark:bg-slate-800/60'} hover:bg-blue-50 dark:hover:bg-slate-700/50 transition-colors duration-150 group h-14`}
                 >
-                  <td className="table-cell-sticky table-sticky-left-0 bg-white group-hover:bg-blue-50 border-r border-gray-200 transition-colors duration-150 py-1 px-3">
+                  <td className="table-cell-sticky table-sticky-left-0 bg-white dark:bg-slate-800 group-hover:bg-blue-50 dark:group-hover:bg-slate-700 border-r border-gray-200 transition-colors duration-150 py-1 px-3">
                     <div className="flex flex-col items-center gap-1">
-                      <span className="font-medium text-gray-900 text-sm truncate max-w-full">{operation.operation_name}</span>
+                      <span className="font-medium text-gray-900 dark:text-gray-100 text-sm truncate max-w-full">{operation.operation_name}</span>
                       <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium ${getCategoryColor(getOperationCategory(operation.operation_name))}`}>
                         {getOperationCategory(operation.operation_name)}
                       </span>
                     </div>
                   </td>
                   <td
-                    className="hidden md:table-cell table-cell-sticky table-sticky-left-180 bg-white group-hover:bg-blue-50 border-r border-gray-200 transition-colors duration-150 py-1 px-2 cursor-zoom-in"
+                    className="hidden md:table-cell table-cell-sticky table-sticky-left-180 bg-white dark:bg-slate-800 group-hover:bg-blue-50 dark:group-hover:bg-slate-700 border-r border-gray-200 transition-colors duration-150 py-1 px-2 cursor-zoom-in"
                     onClick={() => setChartModalOp(operation)}
                     role="button"
                     tabIndex={0}

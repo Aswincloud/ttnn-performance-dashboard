@@ -1,5 +1,10 @@
 @import "tailwindcss";
 
+/* Enable class-based dark mode (Tailwind v4). The `dark:` variant applies when a
+   `.dark` class is present on an ancestor (we put it on <html>). This is what
+   lets a header toggle flip the theme without a full media-query lock-in. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @layer base {
   * {
     @apply border-gray-200;
@@ -16,6 +21,12 @@
     /* Smoother glyph rendering at small UI sizes. */
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Dark page background: a deep slate gradient instead of the light blue one. */
+  .dark body {
+    @apply text-gray-100;
+    background: linear-gradient(135deg, #0f172a 0%, #111827 50%, #1e1b4b 100%);
   }
 
   /* Lock numeric columns to fixed-width digits so values line up
@@ -174,8 +185,69 @@
      background-size: 200% 100%;
    }
 
+   .dark .skeleton-shimmer {
+     background: linear-gradient(90deg, rgba(51, 65, 85, 0.5) 0%, rgba(71, 85, 105, 0.8) 50%, rgba(51, 65, 85, 0.5) 100%);
+     background-size: 200% 100%;
+   }
+
    @keyframes skeletonShimmer {
      0% { background-position: 200% 0; }
      100% { background-position: -200% 0; }
    }
+
+  /* ----------------------------------------------------------------------
+     Dark theme overrides for the custom component classes. Kept together so
+     the dark surface palette lives in one place rather than scattered across
+     components. Utility-class surfaces (bg-white / text-gray-900 on plain
+     divs) get inline `dark:` variants in the JSX instead.
+     ---------------------------------------------------------------------- */
+  .dark .glass-card {
+    background: linear-gradient(135deg, rgba(30, 41, 59, 0.85), rgba(30, 41, 59, 0.65));
+    border-color: rgba(148, 163, 184, 0.15);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  }
+
+  .dark .card {
+    @apply bg-slate-800 border-slate-700 text-gray-100;
+  }
+
+  .dark .btn-secondary {
+    @apply bg-slate-700/80 hover:bg-slate-700 text-gray-200 border-slate-600 hover:border-slate-500;
+  }
+
+  .dark .table-header {
+    @apply bg-slate-800 text-gray-300 border-slate-600;
+  }
+
+  .dark .table-cell {
+    @apply border-slate-700 text-gray-100;
+  }
+
+  .dark .table-cell-sticky {
+    @apply border-slate-700 text-gray-100 bg-slate-800;
+  }
+
+  .dark .header-gradient {
+    background: linear-gradient(135deg,
+      rgba(30, 41, 59, 0.7) 0%,
+      rgba(49, 46, 129, 0.6) 50%,
+      rgba(76, 29, 149, 0.5) 100%);
+    border-bottom-color: rgba(148, 163, 184, 0.15);
+  }
+
+  /* The performance tint chips already use dark text on a light tint, which
+     reads as a bright chip that pops on the dark page — keep the fills but
+     firm up the borders so chip edges stay visible against dark rows. */
+  .dark .bg-green-25  { border-color: rgba(34, 197, 94, 0.40); }
+  .dark .bg-green-50  { border-color: rgba(34, 197, 94, 0.45); }
+  .dark .bg-green-100 { border-color: rgba(34, 197, 94, 0.50); }
+  .dark .bg-green-150 { border-color: rgba(34, 197, 94, 0.55); }
+  .dark .bg-green-200 { border-color: rgba(34, 197, 94, 0.60); }
+  .dark .bg-green-300 { border-color: rgba(34, 197, 94, 0.65); }
+  .dark .bg-red-25  { border-color: rgba(239, 68, 68, 0.40); }
+  .dark .bg-red-50  { border-color: rgba(239, 68, 68, 0.45); }
+  .dark .bg-red-100 { border-color: rgba(239, 68, 68, 0.50); }
+  .dark .bg-red-150 { border-color: rgba(239, 68, 68, 0.55); }
+  .dark .bg-red-200 { border-color: rgba(239, 68, 68, 0.60); }
+  .dark .bg-red-300 { border-color: rgba(239, 68, 68, 0.65); }
 } 
