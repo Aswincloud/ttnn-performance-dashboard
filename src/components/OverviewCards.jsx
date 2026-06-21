@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { GitBranch, Zap, Activity, Cpu, Settings, Database, Info, Copy, Check, ExternalLink } from 'lucide-react';
 
-// Repo whose history holds the benchmarked commits (the perf data is pushed
-// here; measurements run from this repo's checkout).
-const COMMIT_BASE_URL = 'https://github.com/Aswincloud/ttnn-performance-dashboard/commit/';
+// git_commit_id is the tt-metal commit that was benchmarked — perf_measurement_script.py
+// runs `git rev-parse HEAD` from the tt-metal checkout (TT_METAL_HOME), not this repo.
+// So the commit link must point at the tt-metal repo, where the SHA actually resolves.
+const COMMIT_BASE_URL = 'https://github.com/tenstorrent/tt-metal/commit/';
 
 // Show the measurement date as an unambiguous YYYY-MM-DD by slicing it straight
 // from the ISO string (e.g. "2026-06-21T02:03:44.546584" -> "2026-06-21").
