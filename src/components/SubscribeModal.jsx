@@ -61,7 +61,7 @@ const SubscribeModal = ({ isOpen, onClose }) => {
   };
 
   const inputClass =
-    'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm h-10';
+    'w-full px-3 py-2 border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm h-10';
 
   return (
     <div
@@ -73,7 +73,7 @@ const SubscribeModal = ({ isOpen, onClose }) => {
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between mb-5 pb-4 border-b border-gray-200">
+        <div className="flex items-center justify-between mb-5 pb-4 border-b border-gray-200 dark:border-slate-700">
           <div className="flex items-center">
             <div className="relative">
               <div className="absolute inset-0 bg-blue-600 rounded-xl blur-lg opacity-30"></div>
@@ -85,22 +85,22 @@ const SubscribeModal = ({ isOpen, onClose }) => {
               <h2 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
                 Performance Alerts
               </h2>
-              <p className="text-sm text-gray-600">Get emailed when ops cross your thresholds</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Get emailed when ops cross your thresholds</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors duration-200"
+            className="p-2 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg transition-colors duration-200"
             aria-label="Close"
           >
-            <X className="h-6 w-6 text-gray-500" />
+            <X className="h-6 w-6 text-gray-500 dark:text-gray-400" />
           </button>
         </div>
 
         {status === 'success' ? (
           <div className="text-center py-6">
             <CheckCircle2 className="h-12 w-12 text-green-500 mx-auto mb-3" />
-            <p className="text-gray-800 font-medium">{message}</p>
+            <p className="text-gray-800 dark:text-gray-100 font-medium">{message}</p>
             <button onClick={onClose} className="btn-secondary mt-5 inline-flex">
               Close
             </button>
@@ -108,7 +108,7 @@ const SubscribeModal = ({ isOpen, onClose }) => {
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label htmlFor="alert-email" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="alert-email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Email
               </label>
               <input
@@ -124,7 +124,7 @@ const SubscribeModal = ({ isOpen, onClose }) => {
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label htmlFor="improve-pct" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="improve-pct" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   <TrendingUp className="inline h-4 w-4 text-green-600 mr-1" />
                   Improvement %
                 </label>
@@ -140,7 +140,7 @@ const SubscribeModal = ({ isOpen, onClose }) => {
                 />
               </div>
               <div>
-                <label htmlFor="degrade-pct" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="degrade-pct" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   <TrendingDown className="inline h-4 w-4 text-red-600 mr-1" />
                   Degradation %
                 </label>
@@ -157,7 +157,7 @@ const SubscribeModal = ({ isOpen, onClose }) => {
               </div>
             </div>
 
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-gray-500 dark:text-gray-400">
               Set either or both. You&apos;ll be alerted when any operation gets faster by your
               improvement % or slower by your degradation %, compared to the previous day. A
               confirmation email is sent first — you only get alerts after you confirm.

@@ -86,7 +86,7 @@ const CatalogModal = ({ isOpen, onClose }) => {
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-200 flex-shrink-0">
+        <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-200 dark:border-slate-700 flex-shrink-0">
           <div className="flex items-center">
             <div className="relative">
               <div className="absolute inset-0 bg-blue-600 rounded-xl blur-lg opacity-30"></div>
@@ -98,16 +98,16 @@ const CatalogModal = ({ isOpen, onClose }) => {
               <h2 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
                 TTNN Operations Catalog
               </h2>
-              <p className="text-gray-600">
+              <p className="text-gray-600 dark:text-gray-400">
                 {catalogData.summary.totalOperations} operations • {catalogData.summary.testCoverage}% test coverage
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors duration-200"
+            className="p-2 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg transition-colors duration-200"
           >
-            <X className="h-6 w-6 text-gray-500" />
+            <X className="h-6 w-6 text-gray-500 dark:text-gray-400" />
           </button>
         </div>
 
@@ -120,7 +120,7 @@ const CatalogModal = ({ isOpen, onClose }) => {
               placeholder="Search operations..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm w-full"
+              className="pl-10 pr-4 py-2 border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm w-full"
             />
           </div>
           <div className="relative">
@@ -128,7 +128,7 @@ const CatalogModal = ({ isOpen, onClose }) => {
             <select
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
-              className="pl-10 pr-8 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm appearance-none bg-white"
+              className="pl-10 pr-8 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm appearance-none bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100"
             >
               <option value="all">All Categories</option>
               {Object.entries(catalogData.categories).map(([key, category]) => (
@@ -150,20 +150,20 @@ const CatalogModal = ({ isOpen, onClose }) => {
                   <div className="flex items-center mb-4">
                     <div className={`w-4 h-4 rounded-full bg-gradient-to-r ${category.color} mr-3`}></div>
                     <div>
-                      <h3 className="text-lg font-semibold text-gray-900">{category.name}</h3>
-                      <p className="text-sm text-gray-500">{category.count} operations</p>
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{category.name}</h3>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">{category.count} operations</p>
                     </div>
                   </div>
                   
-                  <p className="text-gray-600 mb-4">{category.description}</p>
+                  <p className="text-gray-600 dark:text-gray-300 mb-4">{category.description}</p>
                   
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium text-gray-700">Operations:</span>
-                      <span className="text-xs text-gray-500">{filtered.length} shown</span>
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Operations:</span>
+                      <span className="text-xs text-gray-500 dark:text-gray-400">{filtered.length} shown</span>
                     </div>
                     
-                    <div className="bg-gray-50 rounded-lg p-3 max-h-60 overflow-y-auto">
+                    <div className="bg-gray-50 dark:bg-slate-900/50 rounded-lg p-3 max-h-60 overflow-y-auto">
                       <div className="flex flex-wrap gap-1">
                         {filtered.map((operation) => (
                           <span
@@ -171,7 +171,7 @@ const CatalogModal = ({ isOpen, onClose }) => {
                             className={`inline-flex items-center px-2 py-1 rounded text-xs font-mono transition-colors duration-200 ${
                               catalogData.highPriority.includes(operation)
                                 ? 'bg-blue-100 text-blue-800 border border-blue-200'
-                                : 'bg-gray-200 text-gray-700'
+                                : 'bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-gray-200'
                             }`}
                           >
                             {catalogData.highPriority.includes(operation) && (
@@ -190,8 +190,8 @@ const CatalogModal = ({ isOpen, onClose }) => {
         </div>
 
         {/* Footer - Always visible at bottom */}
-        <div className="mt-6 pt-4 border-t border-gray-200 text-center flex-shrink-0">
-          <div className="flex items-center justify-center space-x-6 text-sm text-gray-500">
+        <div className="mt-6 pt-4 border-t border-gray-200 dark:border-slate-700 text-center flex-shrink-0">
+          <div className="flex items-center justify-center space-x-6 text-sm text-gray-500 dark:text-gray-400">
             <div className="flex items-center">
               <Zap className="h-4 w-4 mr-1 text-blue-500" />
               <span>High Priority Operations</span>
