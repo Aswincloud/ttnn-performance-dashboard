@@ -235,9 +235,35 @@
     border-bottom-color: rgba(148, 163, 184, 0.15);
   }
 
-  /* The performance tint chips already use dark text on a light tint, which
-     reads as a bright chip that pops on the dark page — keep the fills but
-     firm up the borders so chip edges stay visible against dark rows. */
+  /* The performance tint chips keep their LIGHT fills in dark mode (a bright
+     chip that pops on the dark page). Their text must therefore stay dark — but
+     `.dark .table-cell { text-gray-100 }` above would cascade light text into
+     the chip, washing the value out (light-on-light). The colored chips set
+     their own text-green-900/red-700 etc.; this guarantees the NEUTRAL chip
+     (bg-white, ±2% case, which sets no text color) also gets readable dark text
+     instead of inheriting the light table-cell color. */
+  .dark .performance-cell {
+    color: #111827; /* gray-900 — readable on every light chip tint */
+  }
+  /* Re-assert the colored chips' own (already-dark) text so the rule above
+     doesn't flatten the green/red tint distinction. */
+  .dark .performance-cell.text-green-600 { color: #16a34a; }
+  .dark .performance-cell.text-green-700 { color: #15803d; }
+  .dark .performance-cell.text-green-800 { color: #166534; }
+  .dark .performance-cell.text-green-900 { color: #14532d; }
+  .dark .performance-cell.text-red-600 { color: #dc2626; }
+  .dark .performance-cell.text-red-700 { color: #b91c1c; }
+  .dark .performance-cell.text-red-800 { color: #991b1b; }
+  .dark .performance-cell.text-red-900 { color: #7f1d1d; }
+
+  /* The neutral ±2% chip is bare bg-white with no text class — give it a dark
+     slate so a white chip with dark text doesn't glare on the dark page. */
+  .dark .performance-cell:not([class*="text-"]) {
+    background-color: #e2e8f0; /* slate-200: still light enough for dark text, less stark than pure white */
+  }
+
+  /* The performance tint chips keep the fills; firm up the borders so chip
+     edges stay visible against dark rows. */
   .dark .bg-green-25  { border-color: rgba(34, 197, 94, 0.40); }
   .dark .bg-green-50  { border-color: rgba(34, 197, 94, 0.45); }
   .dark .bg-green-100 { border-color: rgba(34, 197, 94, 0.50); }

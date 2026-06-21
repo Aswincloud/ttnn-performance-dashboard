@@ -36,8 +36,8 @@ const LEGEND_DEGRADE = [
 ];
 
 const PerformanceLegend = () => (
-  <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-gray-500 px-1 pb-3">
-    <span className="font-medium text-green-700">Faster</span>
+  <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-gray-500 dark:text-gray-400 px-1 pb-3">
+    <span className="font-medium text-green-700 dark:text-green-400">Faster</span>
     <div className="flex items-center">
       {LEGEND_IMPROVE.map((s) => (
         <span
@@ -63,7 +63,7 @@ const PerformanceLegend = () => (
         </span>
       ))}
     </div>
-    <span className="font-medium text-red-700">Slower</span>
+    <span className="font-medium text-red-700 dark:text-red-400">Slower</span>
     <span className="text-gray-400">· vs previous day</span>
   </div>
 );
@@ -640,7 +640,7 @@ const PerformanceTable = ({ dailyData, loadingAll, onLoadAllData, hasMoreDays, t
         <div className="text-center py-12">
           <BarChart3 className="h-12 w-12 text-gray-400 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">No Performance Data</h3>
-          <p className="text-gray-500">Performance data will appear here once measurements are available.</p>
+          <p className="text-gray-500 dark:text-gray-400">Performance data will appear here once measurements are available.</p>
         </div>
       </div>
     );
@@ -715,7 +715,7 @@ const PerformanceTable = ({ dailyData, loadingAll, onLoadAllData, hasMoreDays, t
                       className="font-mono text-red-700 hover:text-red-900 hover:underline cursor-pointer"
                       title="Open trend chart"
                     >
-                      {r.name} <span className="text-red-600">+{r.pct.toFixed(1)}%</span>
+                      {r.name} <span className="text-red-600 dark:text-red-400">+{r.pct.toFixed(1)}%</span>
                     </button>
                   ))}
                   {latestDayDelta.regressionCount > latestDayDelta.topRegressions.length && (
@@ -743,7 +743,7 @@ const PerformanceTable = ({ dailyData, loadingAll, onLoadAllData, hasMoreDays, t
                       className="font-mono text-green-700 hover:text-green-900 hover:underline cursor-pointer"
                       title="Open trend chart"
                     >
-                      {i.name} <span className="text-green-600">{i.pct.toFixed(1)}%</span>
+                      {i.name} <span className="text-green-600 dark:text-green-400">{i.pct.toFixed(1)}%</span>
                     </button>
                   ))}
                   {latestDayDelta.improvementCount > latestDayDelta.topImprovements.length && (
@@ -763,23 +763,23 @@ const PerformanceTable = ({ dailyData, loadingAll, onLoadAllData, hasMoreDays, t
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
           <div>
             <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-1">Daily Eltwise Performance Comparison</h2>
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-gray-500 dark:text-gray-400">
               {filteredAndSortedData.length} operations
               {selectedCategories.length > 0 && ` (${selectedCategories.join(', ')} categories)`} • {displayedDateColumns.length}{!showAllColumns && displayedDateColumns.length < dateColumns.length ? ` of ${dateColumns.length}` : ''} days shown
               {hasMoreDays && (
                 <>
-                  <span className="ml-2 text-gray-700 font-medium">
+                  <span className="ml-2 text-gray-700 dark:text-gray-300 font-medium">
                     ({currentlyLoaded} of {totalAvailable} days loaded)
                   </span>
                   {loadingAll ? (
-                    <span className="ml-2 inline-flex items-center gap-1 text-blue-600">
+                    <span className="ml-2 inline-flex items-center gap-1 text-blue-600 dark:text-blue-400">
                       <Loader2 className="h-3 w-3 animate-spin" />
                       Loading...
                     </span>
                   ) : (
                     <button
                       onClick={onLoadAllData}
-                      className="ml-2 text-blue-600 hover:text-blue-700 underline cursor-pointer font-normal"
+                      className="ml-2 text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 underline cursor-pointer font-normal"
                     >
                       Load all {totalAvailable - currentlyLoaded} days
                     </button>
@@ -817,7 +817,7 @@ const PerformanceTable = ({ dailyData, loadingAll, onLoadAllData, hasMoreDays, t
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-[1fr_1.5fr_1fr_1fr] gap-3">
           {/* Col 1 — Filter */}
           <div className="flex flex-col gap-2">
-            <div className="hidden md:block text-xs font-semibold text-gray-500 uppercase tracking-wide">Filter</div>
+            <div className="hidden md:block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Filter</div>
             <div className="flex items-center gap-2">
               <div className="relative flex items-center flex-1">
                 <Search className="absolute left-3 h-4 w-4 text-gray-400 pointer-events-none z-10" />
@@ -861,7 +861,7 @@ const PerformanceTable = ({ dailyData, loadingAll, onLoadAllData, hasMoreDays, t
               {(dateRange.start || dateRange.end) && (
                 <button
                   onClick={() => setDateRange({ start: '', end: '' })}
-                  className="text-xs text-gray-500 hover:text-gray-700 shrink-0"
+                  className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 shrink-0"
                   title="Clear date range"
                 >
                   ✕
@@ -872,7 +872,7 @@ const PerformanceTable = ({ dailyData, loadingAll, onLoadAllData, hasMoreDays, t
 
           {/* Col 2 — Display */}
           <div className={`${showMobileFilters ? 'flex' : 'hidden'} md:flex flex-col gap-2`}>
-            <div className="hidden md:block text-xs font-semibold text-gray-500 uppercase tracking-wide">Display</div>
+            <div className="hidden md:block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Display</div>
             <div className="flex border border-gray-300 rounded-lg overflow-hidden h-10">
               {['ns', 'μs', 'ms', 's'].map((unit) => (
                 <button
@@ -898,12 +898,12 @@ const PerformanceTable = ({ dailyData, loadingAll, onLoadAllData, hasMoreDays, t
                   onChange={(e) => setShowAllColumns(e.target.checked)}
                   className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 shrink-0"
                 />
-                <span className="flex items-center text-sm font-medium text-gray-700 whitespace-nowrap">
+                <span className="flex items-center text-sm font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap">
                   {showAllColumns ? <Eye className="h-4 w-4 mr-1" /> : <EyeOff className="h-4 w-4 mr-1" />}
                   Show All Days
                 </span>
                 {!showAllColumns && significantColumns.length < dateColumns.length && (
-                  <span className="text-xs text-gray-500 whitespace-nowrap">
+                  <span className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
                     ({dateColumns.length - significantColumns.length} hidden)
                   </span>
                 )}
@@ -916,7 +916,7 @@ const PerformanceTable = ({ dailyData, loadingAll, onLoadAllData, hasMoreDays, t
                   onChange={(e) => setGroupByCategory(e.target.checked)}
                   className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 shrink-0"
                 />
-                <span className="text-sm font-medium text-gray-700 whitespace-nowrap">
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap">
                   Group by Category
                 </span>
               </label>
@@ -925,11 +925,11 @@ const PerformanceTable = ({ dailyData, loadingAll, onLoadAllData, hasMoreDays, t
 
           {/* Col 3 — Actions */}
           <div className={`${showMobileFilters ? 'flex' : 'hidden'} md:flex flex-col gap-2`}>
-            <div className="hidden md:block text-xs font-semibold text-gray-500 uppercase tracking-wide">Actions</div>
+            <div className="hidden md:block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Actions</div>
             <div className="relative" ref={filterRef}>
               <button
                 onClick={() => setShowFilters(!showFilters)}
-                className="flex items-center justify-between w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 hover:bg-gray-50 dark:hover:bg-slate-600 text-sm font-medium text-gray-700 h-10"
+                className="flex items-center justify-between w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 hover:bg-gray-50 dark:hover:bg-slate-600 text-sm font-medium text-gray-700 dark:text-gray-200 h-10"
               >
                 <span className="inline-flex items-center">
                   <Filter className="h-4 w-4 mr-2" />
@@ -945,12 +945,12 @@ const PerformanceTable = ({ dailyData, loadingAll, onLoadAllData, hasMoreDays, t
 
               {showFilters && (
                 <div className="absolute top-full mt-2 right-0 z-50 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 rounded-lg shadow-lg p-4 min-w-96">
-                  <div className="text-sm font-medium text-gray-700 mb-3">Select Operation Categories:</div>
+                  <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Select Operation Categories:</div>
 
                   <div className="space-y-4">
                     {/* Forward Operations */}
                     <div>
-                      <div className="text-xs font-medium text-gray-500 mb-2 uppercase tracking-wide">Forward Operations</div>
+                      <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wide">Forward Operations</div>
                       <div className="grid grid-cols-2 gap-2">
                         {['Unary', 'Unary Inplace', 'Binary Arithmetic', 'Binary Comparison', 'Binary Logical', 'Binary Inplace', 'Ternary', 'Reduction', 'Complex'].map((category) => (
                           <label key={category} className="flex items-center space-x-2 text-sm">
@@ -970,7 +970,7 @@ const PerformanceTable = ({ dailyData, loadingAll, onLoadAllData, hasMoreDays, t
 
                     {/* Backward Operations */}
                     <div>
-                      <div className="text-xs font-medium text-gray-500 mb-2 uppercase tracking-wide">Backward Operations</div>
+                      <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wide">Backward Operations</div>
                       <div className="grid grid-cols-2 gap-2">
                         {['Unary Backward', 'Binary Backward', 'Ternary Backward', 'Reduction Backward'].map((category) => (
                           <label key={category} className="flex items-center space-x-2 text-sm">
@@ -991,7 +991,7 @@ const PerformanceTable = ({ dailyData, loadingAll, onLoadAllData, hasMoreDays, t
 
                   {selectedCategories.length > 0 && (
                     <div className="mt-4 pt-3 border-t border-gray-200 flex items-center justify-between">
-                      <span className="text-sm text-gray-600">{selectedCategories.length} categories selected</span>
+                      <span className="text-sm text-gray-600 dark:text-gray-300">{selectedCategories.length} categories selected</span>
                       <button
                         onClick={() => setSelectedCategories([])}
                         className="text-sm text-blue-600 hover:text-blue-700 font-medium"
@@ -1007,7 +1007,7 @@ const PerformanceTable = ({ dailyData, loadingAll, onLoadAllData, hasMoreDays, t
             <div className="relative" ref={exportRef}>
               <button
                 onClick={() => setShowExportMenu(!showExportMenu)}
-                className="flex items-center justify-between w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 hover:bg-gray-50 dark:hover:bg-slate-600 text-sm font-medium text-gray-700 h-10"
+                className="flex items-center justify-between w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 hover:bg-gray-50 dark:hover:bg-slate-600 text-sm font-medium text-gray-700 dark:text-gray-200 h-10"
                 title="Export as CSV"
               >
                 <span className="inline-flex items-center">
@@ -1019,31 +1019,31 @@ const PerformanceTable = ({ dailyData, loadingAll, onLoadAllData, hasMoreDays, t
 
               {showExportMenu && (
                 <div className="absolute top-full mt-2 right-0 z-50 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 rounded-lg shadow-lg py-2 min-w-64">
-                  <div className="px-4 py-2 text-xs text-gray-500 border-b border-gray-200">
+                  <div className="px-4 py-2 text-xs text-gray-500 dark:text-gray-400 border-b border-slate-600">
                     Export Options
                   </div>
                   <button
                     onClick={() => exportAsCSV('current')}
-                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center justify-between"
+                    className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-700 flex items-center justify-between"
                   >
                     <span>Current View</span>
-                    <span className="text-xs text-gray-500">
+                    <span className="text-xs text-gray-500 dark:text-gray-400">
                       {displayedDateColumns.length} day{displayedDateColumns.length !== 1 ? 's' : ''}
                     </span>
                   </button>
                   <button
                     onClick={() => exportAsCSV('latest')}
-                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                    className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-700"
                   >
                     Latest Day Only
                   </button>
                   <button
                     onClick={() => exportAsCSV('all')}
-                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                    className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-700"
                   >
                     <div className="flex items-center justify-between">
                       <span>All Loaded Days</span>
-                      <span className="text-xs text-gray-500">
+                      <span className="text-xs text-gray-500 dark:text-gray-400">
                         {allDateColumns.length} day{allDateColumns.length !== 1 ? 's' : ''}
                       </span>
                     </div>
@@ -1058,7 +1058,7 @@ const PerformanceTable = ({ dailyData, loadingAll, onLoadAllData, hasMoreDays, t
 
           {/* Col 4 — Sort */}
           <div className={`${showMobileFilters ? 'flex' : 'hidden'} md:flex flex-col gap-2`}>
-            <div className="hidden md:block text-xs font-semibold text-gray-500 uppercase tracking-wide">Sort</div>
+            <div className="hidden md:block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Sort</div>
             <div className="flex border border-gray-300 rounded-lg overflow-hidden h-10">
               <button
                 onClick={() => handlePerformanceSort('none')}
@@ -1091,14 +1091,14 @@ const PerformanceTable = ({ dailyData, loadingAll, onLoadAllData, hasMoreDays, t
                 Degraded
               </button>
             </div>
-            <span className="text-xs text-gray-500">Based on latest column</span>
+            <span className="text-xs text-gray-500 dark:text-gray-400">Based on latest column</span>
           </div>
         </div>
       </div>
 
       {/* Lower is better indicator - right above table */}
       <div className="flex justify-end mb-2">
-        <span className="inline-flex items-center gap-1 text-xs font-medium text-gray-600 bg-gray-50 px-3 py-1 rounded border border-gray-200">
+        <span className="inline-flex items-center gap-1 text-xs font-medium text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-slate-700 px-3 py-1 rounded border border-gray-200 dark:border-slate-600">
           <TrendingUp className="h-3.5 w-3.5 text-green-600" />
           Lower is better
         </span>
@@ -1145,7 +1145,7 @@ const PerformanceTable = ({ dailyData, loadingAll, onLoadAllData, hasMoreDays, t
                 <SortableHeader key={dateObj.date} sortKey={dateObj.date} className="min-w-24 text-center">
                   <div className="flex flex-col items-center leading-tight">
                     <span title={dateObj.date}>{formatCompactDate(dateObj.date)}</span>
-                    <span className="text-xs text-blue-600 font-mono">{dateObj.commitId}</span>
+                    <span className="text-xs text-blue-600 dark:text-blue-400 font-mono">{dateObj.commitId}</span>
                     {index === displayedDateColumns.length - 1 && (
                       <span className="text-[10px] text-green-600 font-semibold">Latest</span>
                     )}
@@ -1159,7 +1159,7 @@ const PerformanceTable = ({ dailyData, loadingAll, onLoadAllData, hasMoreDays, t
               Object.entries(groupedData).map(([category, operations]) => (
                 <React.Fragment key={category}>
                   <tr className="bg-gray-100 border-t-2 border-gray-300">
-                    <td colSpan={2 + displayedDateColumns.length} className="py-2 px-4 font-semibold text-gray-700 text-left">
+                    <td colSpan={2 + displayedDateColumns.length} className="py-2 px-4 font-semibold text-gray-700 dark:text-gray-200 text-left">
                       <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getCategoryColor(category)}`}>
                         {category} ({operations.length})
                       </span>
@@ -1209,7 +1209,7 @@ const PerformanceTable = ({ dailyData, loadingAll, onLoadAllData, hasMoreDays, t
                                 </span>
                                 {change && change.trend !== 'stable' && (
                                   <div className={`flex items-center text-xs ${
-                                    change.trend === 'better' ? 'text-green-600' : 'text-red-600'
+                                    change.trend === 'better' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
                                   }`}>
                                     {change.trend === 'better' ? (
                                       <TrendingUp className="h-3 w-3 mr-1" />
@@ -1284,7 +1284,7 @@ const PerformanceTable = ({ dailyData, loadingAll, onLoadAllData, hasMoreDays, t
                            {/* Show day-to-day trend arrow */}
                            {change && change.trend !== 'stable' && (
                              <div className={`flex items-center text-xs ${
-                               change.trend === 'better' ? 'text-green-600' : 'text-red-600'
+                               change.trend === 'better' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
                              }`}>
                                {change.trend === 'better' ? (
                                  <TrendingUp className="h-3 w-3 mr-1" />
@@ -1318,12 +1318,12 @@ const PerformanceTable = ({ dailyData, loadingAll, onLoadAllData, hasMoreDays, t
       {filteredAndSortedData.length === 0 && viewMode === 'table' && (
         <div className="text-center py-8">
           <Search className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-          <p className="text-gray-500">No operations match your search criteria.</p>
+          <p className="text-gray-500 dark:text-gray-400">No operations match your search criteria.</p>
         </div>
       )}
 
        <div className="mt-4 border-t pt-4 space-y-3">
-         <div className="flex flex-wrap items-center justify-between gap-y-2 text-xs text-gray-500">
+         <div className="flex flex-wrap items-center justify-between gap-y-2 text-xs text-gray-500 dark:text-gray-400">
            <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
              <div className="flex items-center">
                <TrendingUp className="h-3 w-3 text-green-600 mr-1" />
@@ -1343,7 +1343,7 @@ const PerformanceTable = ({ dailyData, loadingAll, onLoadAllData, hasMoreDays, t
            </div>
          </div>
          
-         <div className="flex flex-wrap items-center gap-y-2 text-xs text-gray-500">
+         <div className="flex flex-wrap items-center gap-y-2 text-xs text-gray-500 dark:text-gray-400">
            <span className="mr-3">Performance colors (relative to previous day):</span>
            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
              <div className="flex items-center">
@@ -1377,7 +1377,7 @@ const PerformanceTable = ({ dailyData, loadingAll, onLoadAllData, hasMoreDays, t
            </div>
          </div>
          
-         <div className="space-y-2 text-xs text-gray-500">
+         <div className="space-y-2 text-xs text-gray-500 dark:text-gray-400">
            <div className="flex items-center">
              <span className="mr-3 font-medium">Forward Operations:</span>
              <div className="flex flex-wrap items-center gap-2">
@@ -1465,7 +1465,7 @@ const PerformanceTable = ({ dailyData, loadingAll, onLoadAllData, hasMoreDays, t
                  </div>
                  <button
                    onClick={() => setChartModalOp(null)}
-                   className="text-gray-400 hover:text-gray-600 transition-colors shrink-0 ml-3"
+                   className="text-gray-400 hover:text-gray-600 dark:text-gray-300 transition-colors shrink-0 ml-3"
                    aria-label="Close chart"
                  >
                    <X className="h-5 w-5" />
@@ -1477,7 +1477,7 @@ const PerformanceTable = ({ dailyData, loadingAll, onLoadAllData, hasMoreDays, t
                      <TrendLineChart data={modalChartData} unit={selectedUnit} height={400} />
                    </Suspense>
                  ) : (
-                   <div className="h-[400px] flex items-center justify-center text-sm text-gray-500">
+                   <div className="h-[400px] flex items-center justify-center text-sm text-gray-500 dark:text-gray-400">
                      Not enough data points to chart this operation.
                    </div>
                  )}
