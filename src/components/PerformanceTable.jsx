@@ -49,7 +49,7 @@ const PerformanceLegend = () => (
         </span>
       ))}
     </div>
-    <span className="inline-flex items-center justify-center h-4 min-w-[2.5rem] px-1 text-[10px] text-gray-400 bg-white border border-gray-200 rounded">
+    <span className="inline-flex items-center justify-center h-4 min-w-[2.5rem] px-1 text-[10px] text-gray-400 bg-white dark:bg-slate-700 dark:text-slate-300 border border-gray-200 dark:border-slate-600 rounded">
       ±2%
     </span>
     <div className="flex items-center">
@@ -603,7 +603,7 @@ const PerformanceTable = ({ dailyData, loadingAll, onLoadAllData, hasMoreDays, t
 
   const SortableHeader = ({ children, sortKey, className = "" }) => (
     <th 
-      className={`table-header cursor-pointer hover:bg-gray-100 ${className}`}
+      className={`table-header cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-700 ${className}`}
       onClick={() => handleSort(sortKey)}
     >
       <div className="flex items-center justify-center relative">
@@ -889,8 +889,8 @@ const PerformanceTable = ({ dailyData, loadingAll, onLoadAllData, hasMoreDays, t
               ))}
             </div>
 
-            <div className="flex border border-gray-300 rounded-lg overflow-hidden bg-white h-10">
-              <label htmlFor="showAllColumns" className="flex-1 flex items-center gap-2 px-3 hover:bg-gray-50 cursor-pointer">
+            <div className="flex border border-gray-300 dark:border-slate-600 rounded-lg overflow-hidden bg-white dark:bg-slate-700 h-10">
+              <label htmlFor="showAllColumns" className="flex-1 flex items-center gap-2 px-3 hover:bg-gray-50 dark:hover:bg-slate-600 cursor-pointer">
                 <input
                   type="checkbox"
                   id="showAllColumns"
@@ -908,7 +908,7 @@ const PerformanceTable = ({ dailyData, loadingAll, onLoadAllData, hasMoreDays, t
                   </span>
                 )}
               </label>
-              <label htmlFor="groupByCategory" className="flex-1 flex items-center gap-2 px-3 hover:bg-gray-50 cursor-pointer border-l border-gray-300 min-w-0">
+              <label htmlFor="groupByCategory" className="flex-1 flex items-center gap-2 px-3 hover:bg-gray-50 dark:hover:bg-slate-600 cursor-pointer border-l border-gray-300 dark:border-slate-600 min-w-0">
                 <input
                   type="checkbox"
                   id="groupByCategory"
@@ -1116,9 +1116,9 @@ const PerformanceTable = ({ dailyData, loadingAll, onLoadAllData, hasMoreDays, t
             })).filter(d => d.value !== null);
 
             return (
-              <div key={operation.operation_name} className="bg-white border border-gray-200 rounded-lg p-4">
+              <div key={operation.operation_name} className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg p-4">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-semibold text-gray-900">{operation.operation_name}</h3>
+                  <h3 className="font-semibold text-gray-900 dark:text-gray-100">{operation.operation_name}</h3>
                   <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getCategoryColor(getOperationCategory(operation.operation_name))}`}>
                     {getOperationCategory(operation.operation_name)}
                   </span>
@@ -1137,10 +1137,10 @@ const PerformanceTable = ({ dailyData, loadingAll, onLoadAllData, hasMoreDays, t
           <table className="min-w-full relative" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
           <thead className="table-thead-sticky">
             <tr>
-              <SortableHeader sortKey="operation_name" className="table-sticky-left-0 bg-gray-50 text-center border-r border-gray-200 px-4 z-50">
+              <SortableHeader sortKey="operation_name" className="table-sticky-left-0 bg-gray-50 dark:bg-slate-800 text-center border-r border-gray-200 dark:border-slate-700 px-4 z-50">
                 Operation
               </SortableHeader>
-              <th className="hidden md:table-cell table-header text-center table-sticky-left-180 bg-gray-50 border-r border-gray-200 px-3 z-50 whitespace-nowrap">Trend</th>
+              <th className="hidden md:table-cell table-header text-center table-sticky-left-180 bg-gray-50 dark:bg-slate-800 border-r border-gray-200 dark:border-slate-700 px-3 z-50 whitespace-nowrap">Trend</th>
               {displayedDateColumns.map((dateObj, index) => (
                 <SortableHeader key={dateObj.date} sortKey={dateObj.date} className="min-w-24 text-center">
                   <div className="flex flex-col items-center leading-tight">
@@ -1170,7 +1170,7 @@ const PerformanceTable = ({ dailyData, loadingAll, onLoadAllData, hasMoreDays, t
                       key={operation.operation_name}
                       className={`${rowIdx % 2 === 0 ? 'bg-white' : 'bg-slate-50'} hover:bg-blue-50 dark:hover:bg-slate-700/50 transition-colors duration-150 group h-14`}
                     >
-                      <td className="table-cell-sticky table-sticky-left-0 bg-white dark:bg-slate-800 group-hover:bg-blue-50 dark:group-hover:bg-slate-700 border-r border-gray-200 transition-colors duration-150 py-1 px-3">
+                      <td className="table-cell-sticky table-sticky-left-0 bg-white dark:bg-slate-800 group-hover:bg-blue-50 dark:group-hover:bg-slate-700 border-r border-gray-200 dark:border-slate-700 transition-colors duration-150 py-1 px-3">
                         <div className="flex flex-col items-center gap-1">
                           <span className="font-medium text-gray-900 dark:text-gray-100 text-sm truncate max-w-full">{operation.operation_name}</span>
                           <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium ${getCategoryColor(getOperationCategory(operation.operation_name))}`}>
@@ -1241,7 +1241,7 @@ const PerformanceTable = ({ dailyData, loadingAll, onLoadAllData, hasMoreDays, t
                   key={operation.operation_name}
                   className={`${index % 2 === 0 ? 'bg-white dark:bg-slate-800' : 'bg-slate-50 dark:bg-slate-800/60'} hover:bg-blue-50 dark:hover:bg-slate-700/50 transition-colors duration-150 group h-14`}
                 >
-                  <td className="table-cell-sticky table-sticky-left-0 bg-white dark:bg-slate-800 group-hover:bg-blue-50 dark:group-hover:bg-slate-700 border-r border-gray-200 transition-colors duration-150 py-1 px-3">
+                  <td className="table-cell-sticky table-sticky-left-0 bg-white dark:bg-slate-800 group-hover:bg-blue-50 dark:group-hover:bg-slate-700 border-r border-gray-200 dark:border-slate-700 transition-colors duration-150 py-1 px-3">
                     <div className="flex flex-col items-center gap-1">
                       <span className="font-medium text-gray-900 dark:text-gray-100 text-sm truncate max-w-full">{operation.operation_name}</span>
                       <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium ${getCategoryColor(getOperationCategory(operation.operation_name))}`}>
@@ -1322,7 +1322,7 @@ const PerformanceTable = ({ dailyData, loadingAll, onLoadAllData, hasMoreDays, t
         </div>
       )}
 
-       <div className="mt-4 border-t pt-4 space-y-3">
+       <div className="mt-4 border-t border-gray-200 dark:border-slate-700 pt-4 space-y-3">
          <div className="flex flex-wrap items-center justify-between gap-y-2 text-xs text-gray-500 dark:text-gray-400">
            <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
              <div className="flex items-center">
@@ -1359,7 +1359,7 @@ const PerformanceTable = ({ dailyData, loadingAll, onLoadAllData, hasMoreDays, t
                <span>3-8% faster</span>
              </div>
              <div className="flex items-center">
-               <div className="w-4 h-3 bg-white border border-gray-200 rounded mr-1"></div>
+               <div className="w-4 h-3 bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded mr-1"></div>
                <span>±3% (stable)</span>
              </div>
              <div className="flex items-center">
