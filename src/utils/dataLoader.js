@@ -85,7 +85,10 @@ export function calculateSummaryStats(data) {
     fastestOperation: fastestOperation?.operation_name || 'N/A',
     slowestOperation: slowestOperation?.operation_name || 'N/A',
     lastUpdated: metadata.measurement_date,
-    gitCommit: metadata.git_commit_id?.substring(0, 8) || 'N/A'
+    gitCommit: metadata.git_commit_id?.substring(0, 8) || 'N/A',
+    // Full SHA kept so the UI can link/copy the real commit, not just the
+    // truncated display value.
+    gitCommitFull: metadata.git_commit_id || null
   };
 }
 

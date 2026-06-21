@@ -1,7 +1,34 @@
-import React from 'react';
-import { GitBranch, Zap, Activity, Cpu, Settings, Database, Info } from 'lucide-react';
+import React, { useState } from 'react';
+import { GitBranch, Zap, Activity, Cpu, Settings, Database, Info, Copy, Check, ExternalLink } from 'lucide-react';
+
+// Repo whose history holds the benchmarked commits (the perf data is pushed
+// here; measurements run from this repo's checkout).
+const COMMIT_BASE_URL = 'https://github.com/Aswincloud/ttnn-performance-dashboard/commit/';
+
+// Show the measurement date as an unambiguous YYYY-MM-DD by slicing it straight
+// from the ISO string (e.g. "2026-06-21T02:03:44.546584" -> "2026-06-21").
+// Avoids locale-specific formats like 6/21/2026, and stays correct even if the
+// field ever becomes date-only (where `new Date(...)` would parse as UTC
+// midnight and could render a day earlier for western viewers).
+function formatDateKey(isoString) {
+  if (typeof isoString !== 'string') return '';
+  return isoString.slice(0, 10);
+}
 
 const TestConfigBanner = ({ summaryStats }) => {
+  const [copied, setCopied] = useState(false);
+
+  const copyCommit = async (sha) => {
+    try {
+      await navigator.clipboard.writeText(sha);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // Clipboard can be blocked (insecure context / permissions). Fail quietly —
+      // the commit is still visible and the link still works.
+    }
+  };
+
   return (
     <div className="glass-card mb-8 border-l-4 border-blue-500">
       <div className="flex items-center justify-between flex-wrap gap-4">
@@ -64,10 +91,38 @@ const TestConfigBanner = ({ summaryStats }) => {
                 <GitBranch className="h-4 w-4 text-gray-500 shrink-0" />
                 <div className="min-w-0">
                   <p className="text-xs text-gray-500">Latest Commit</p>
-                  <p className="text-sm font-semibold text-gray-900 font-mono truncate">
-                    {summaryStats.gitCommit}
-                    <span className="text-xs text-gray-500 ml-1">
-                      ({new Date(summaryStats.lastUpdated).toLocaleDateString()})
+                  <p className="text-sm font-semibold text-gray-900 font-mono flex items-center gap-1.5">
+                    {summaryStats.gitCommitFull ? (
+                      <>
+                        <a
+                          href={COMMIT_BASE_URL + summaryStats.gitCommitFull}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 hover:underline"
+                          title="View this commit on GitHub"
+                        >
+                          {summaryStats.gitCommit}
+                          <ExternalLink className="h-3 w-3" aria-hidden="true" />
+                        </a>
+                        <button
+                          type="button"
+                          onClick={() => copyCommit(summaryStats.gitCommitFull)}
+                          className="text-gray-400 hover:text-gray-700 transition-colors"
+                          title="Copy full commit SHA"
+                          aria-label={copied ? 'Commit SHA copied' : 'Copy full commit SHA'}
+                        >
+                          {copied ? (
+                            <Check className="h-3.5 w-3.5 text-green-600" aria-hidden="true" />
+                          ) : (
+                            <Copy className="h-3.5 w-3.5" aria-hidden="true" />
+                          )}
+                        </button>
+                      </>
+                    ) : (
+                      <span className="text-gray-900">{summaryStats.gitCommit}</span>
+                    )}
+                    <span className="text-xs text-gray-500">
+                      ({formatDateKey(summaryStats.lastUpdated)})
                     </span>
                   </p>
                 </div>
