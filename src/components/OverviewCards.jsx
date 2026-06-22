@@ -92,7 +92,7 @@ const TestConfigBanner = ({ summaryStats }) => {
                 <GitBranch className="h-4 w-4 text-gray-400 dark:text-gray-500 shrink-0" />
                 <div className="min-w-0">
                   <p className="text-xs text-gray-500 dark:text-gray-400">Latest Commit</p>
-                  <p className="text-sm font-semibold text-gray-900 font-mono flex items-center gap-1.5">
+                  <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 font-mono flex items-center gap-1.5">
                     {summaryStats.gitCommitFull ? (
                       <>
                         <a

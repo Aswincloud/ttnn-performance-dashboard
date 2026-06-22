@@ -276,4 +276,18 @@
   .dark .bg-red-150 { border-color: rgba(239, 68, 68, 0.55); }
   .dark .bg-red-200 { border-color: rgba(239, 68, 68, 0.60); }
   .dark .bg-red-300 { border-color: rgba(239, 68, 68, 0.65); }
+
+  /* Recharts injects the hover tooltip with inline light styles (white bg,
+     #ccc border, dark text). Override with !important so it reads as a dark
+     surface in dark mode — used by both the trend cards and the chart modal. */
+  .dark .recharts-default-tooltip {
+    background-color: #1e293b !important;   /* slate-800 */
+    border-color: #475569 !important;       /* slate-600 */
+    border-radius: 0.5rem;
+    color: #e2e8f0 !important;              /* slate-200 */
+  }
+  .dark .recharts-default-tooltip .recharts-tooltip-label,
+  .dark .recharts-default-tooltip .recharts-tooltip-item {
+    color: #e2e8f0 !important;
+  }
 } 
