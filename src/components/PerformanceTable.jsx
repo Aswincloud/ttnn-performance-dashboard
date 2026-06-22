@@ -699,8 +699,8 @@ const PerformanceTable = ({ dailyData, loadingAll, onLoadAllData, hasMoreDays, t
           </div>
           <div className="flex flex-col sm:flex-row">
             {latestDayDelta.topRegressions.length > 0 && (
-              <div className={`flex-1 px-4 py-3 bg-red-50/40 ${latestDayDelta.topImprovements.length > 0 ? 'border-b sm:border-b-0 sm:border-r border-red-100' : ''}`}>
-                <div className="flex items-center gap-1.5 text-xs font-medium text-red-700 mb-1.5">
+              <div className={`flex-1 px-4 py-3 bg-red-50/40 dark:bg-red-950/30 ${latestDayDelta.topImprovements.length > 0 ? 'border-b sm:border-b-0 sm:border-r border-red-100 dark:border-slate-700' : ''}`}>
+                <div className="flex items-center gap-1.5 text-xs font-medium text-red-700 dark:text-red-400 mb-1.5">
                   <TrendingDown className="h-3.5 w-3.5" />
                   {latestDayDelta.regressionCount} regression{latestDayDelta.regressionCount !== 1 ? 's' : ''}
                 </div>
@@ -712,14 +712,14 @@ const PerformanceTable = ({ dailyData, loadingAll, onLoadAllData, hasMoreDays, t
                         const op = processedData.find(o => o.operation_name === r.name);
                         if (op) setChartModalOp(op);
                       }}
-                      className="font-mono text-red-700 hover:text-red-900 hover:underline cursor-pointer"
+                      className="font-mono text-red-700 dark:text-red-300 hover:text-red-900 dark:hover:text-red-200 hover:underline cursor-pointer"
                       title="Open trend chart"
                     >
                       {r.name} <span className="text-red-600 dark:text-red-400">+{r.pct.toFixed(1)}%</span>
                     </button>
                   ))}
                   {latestDayDelta.regressionCount > latestDayDelta.topRegressions.length && (
-                    <span className="text-xs text-red-600/70">
+                    <span className="text-xs text-red-600/70 dark:text-red-400/70">
                       +{latestDayDelta.regressionCount - latestDayDelta.topRegressions.length} more
                     </span>
                   )}
@@ -727,8 +727,8 @@ const PerformanceTable = ({ dailyData, loadingAll, onLoadAllData, hasMoreDays, t
               </div>
             )}
             {latestDayDelta.topImprovements.length > 0 && (
-              <div className="flex-1 px-4 py-3 bg-green-50/40">
-                <div className="flex items-center gap-1.5 text-xs font-medium text-green-700 mb-1.5">
+              <div className="flex-1 px-4 py-3 bg-green-50/40 dark:bg-green-950/30">
+                <div className="flex items-center gap-1.5 text-xs font-medium text-green-700 dark:text-green-400 mb-1.5">
                   <TrendingUp className="h-3.5 w-3.5" />
                   {latestDayDelta.improvementCount} improvement{latestDayDelta.improvementCount !== 1 ? 's' : ''}
                 </div>
@@ -740,14 +740,14 @@ const PerformanceTable = ({ dailyData, loadingAll, onLoadAllData, hasMoreDays, t
                         const op = processedData.find(o => o.operation_name === i.name);
                         if (op) setChartModalOp(op);
                       }}
-                      className="font-mono text-green-700 hover:text-green-900 hover:underline cursor-pointer"
+                      className="font-mono text-green-700 dark:text-green-300 hover:text-green-900 dark:hover:text-green-200 hover:underline cursor-pointer"
                       title="Open trend chart"
                     >
                       {i.name} <span className="text-green-600 dark:text-green-400">{i.pct.toFixed(1)}%</span>
                     </button>
                   ))}
                   {latestDayDelta.improvementCount > latestDayDelta.topImprovements.length && (
-                    <span className="text-xs text-green-600/70">
+                    <span className="text-xs text-green-600/70 dark:text-green-400/70">
                       +{latestDayDelta.improvementCount - latestDayDelta.topImprovements.length} more
                     </span>
                   )}
