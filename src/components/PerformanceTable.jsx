@@ -49,7 +49,7 @@ const PerformanceLegend = () => (
         </span>
       ))}
     </div>
-    <span className="inline-flex items-center justify-center h-4 min-w-[2.5rem] px-1 text-[10px] text-gray-400 bg-white dark:bg-slate-700 dark:text-slate-300 border border-gray-200 dark:border-slate-600 rounded">
+    <span className="inline-flex items-center justify-center h-4 min-w-[2.5rem] px-1 text-[10px] text-gray-500 bg-white dark:bg-slate-700 dark:text-slate-300 border border-gray-200 dark:border-slate-600 rounded">
       ±2%
     </span>
     <div className="flex items-center">
@@ -64,7 +64,7 @@ const PerformanceLegend = () => (
       ))}
     </div>
     <span className="font-medium text-red-700 dark:text-red-400">Slower</span>
-    <span className="text-gray-400">· vs previous day</span>
+    <span className="text-gray-500 dark:text-gray-400">· vs previous day</span>
   </div>
 );
 
@@ -94,7 +94,7 @@ const usePersistedState = (key, initialValue) => {
 
 const RowSparkline = ({ values, width = 80, height = 22, maxPoints = 30 }) => {
   if (!values || values.length < 2) {
-    return <span className="text-xs text-gray-300">—</span>;
+    return <span className="text-xs text-gray-500 dark:text-gray-400">—</span>;
   }
 
   // Cap to most recent N points so the line stays readable when the user
@@ -233,13 +233,13 @@ const PerformanceTable = ({ dailyData, loadingAll, onLoadAllData, hasMoreDays, t
     if (changePercent <= -15) return 'bg-green-150 text-green-800';      // 15-20% improvement  
     if (changePercent <= -10) return 'bg-green-100 text-green-800';      // 10-15% improvement
     if (changePercent <= -5) return 'bg-green-50 text-green-700';        // 5-10% improvement
-    if (changePercent <= -2) return 'bg-green-25 text-green-600';        // 2-5% improvement
+    if (changePercent <= -2) return 'bg-green-25 text-green-700';        // 2-5% improvement (700 for AA contrast on the lightest tint)
     
     // Performance stable (within ±2%)
     if (changePercent >= -2 && changePercent <= 2) return 'bg-white';
     
     // Performance degraded (slower = positive change)
-    if (changePercent <= 5) return 'bg-red-25 text-red-600';             // 2-5% degradation
+    if (changePercent <= 5) return 'bg-red-25 text-red-700';             // 2-5% degradation (700 for AA contrast on the lightest tint)
     if (changePercent <= 10) return 'bg-red-50 text-red-700';            // 5-10% degradation
     if (changePercent <= 15) return 'bg-red-100 text-red-800';           // 10-15% degradation
     if (changePercent <= 20) return 'bg-red-150 text-red-800';           // 15-20% degradation
@@ -719,7 +719,7 @@ const PerformanceTable = ({ dailyData, loadingAll, onLoadAllData, hasMoreDays, t
                     </button>
                   ))}
                   {latestDayDelta.regressionCount > latestDayDelta.topRegressions.length && (
-                    <span className="text-xs text-red-600/70 dark:text-red-400/70">
+                    <span className="text-xs text-red-700 dark:text-red-400">
                       +{latestDayDelta.regressionCount - latestDayDelta.topRegressions.length} more
                     </span>
                   )}
@@ -743,11 +743,11 @@ const PerformanceTable = ({ dailyData, loadingAll, onLoadAllData, hasMoreDays, t
                       className="font-mono text-green-700 dark:text-green-300 hover:text-green-900 dark:hover:text-green-200 hover:underline cursor-pointer"
                       title="Open trend chart"
                     >
-                      {i.name} <span className="text-green-600 dark:text-green-400">{i.pct.toFixed(1)}%</span>
+                      {i.name} <span className="text-green-700 dark:text-green-400">{i.pct.toFixed(1)}%</span>
                     </button>
                   ))}
                   {latestDayDelta.improvementCount > latestDayDelta.topImprovements.length && (
-                    <span className="text-xs text-green-600/70 dark:text-green-400/70">
+                    <span className="text-xs text-green-700 dark:text-green-400">
                       +{latestDayDelta.improvementCount - latestDayDelta.topImprovements.length} more
                     </span>
                   )}
@@ -850,7 +850,7 @@ const PerformanceTable = ({ dailyData, loadingAll, onLoadAllData, hasMoreDays, t
                 className="text-xs border-0 focus:ring-0 p-0 h-6 flex-1 min-w-0 bg-transparent text-gray-900 dark:text-gray-200 dark:[color-scheme:dark]"
                 placeholder="Start"
               />
-              <span className="text-gray-400">—</span>
+              <span className="text-gray-500 dark:text-gray-400">—</span>
               <input
                 type="date"
                 value={dateRange.end}
@@ -1147,7 +1147,7 @@ const PerformanceTable = ({ dailyData, loadingAll, onLoadAllData, hasMoreDays, t
                     <span title={dateObj.date}>{formatCompactDate(dateObj.date)}</span>
                     <span className="text-xs text-blue-600 dark:text-blue-400 font-mono">{dateObj.commitId}</span>
                     {index === displayedDateColumns.length - 1 && (
-                      <span className="text-[10px] text-green-600 font-semibold">Latest</span>
+                      <span className="text-[10px] text-green-700 font-semibold">Latest</span>
                     )}
                   </div>
                 </SortableHeader>
@@ -1209,7 +1209,7 @@ const PerformanceTable = ({ dailyData, loadingAll, onLoadAllData, hasMoreDays, t
                                 </span>
                                 {change && change.trend !== 'stable' && (
                                   <div className={`flex items-center text-xs ${
-                                    change.trend === 'better' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+                                    change.trend === 'better' ? 'text-green-700 dark:text-green-400' : 'text-red-600 dark:text-red-400'
                                   }`}>
                                     {change.trend === 'better' ? (
                                       <TrendingUp className="h-3 w-3 mr-1" />
@@ -1284,7 +1284,7 @@ const PerformanceTable = ({ dailyData, loadingAll, onLoadAllData, hasMoreDays, t
                            {/* Show day-to-day trend arrow */}
                            {change && change.trend !== 'stable' && (
                              <div className={`flex items-center text-xs ${
-                               change.trend === 'better' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+                               change.trend === 'better' ? 'text-green-700 dark:text-green-400' : 'text-red-600 dark:text-red-400'
                              }`}>
                                {change.trend === 'better' ? (
                                  <TrendingUp className="h-3 w-3 mr-1" />
