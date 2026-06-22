@@ -639,7 +639,7 @@ const PerformanceTable = ({ dailyData, loadingAll, onLoadAllData, hasMoreDays, t
       <div className="card">
         <div className="text-center py-12">
           <BarChart3 className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">No Performance Data</h3>
+          <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">No Performance Data</h3>
           <p className="text-gray-500 dark:text-gray-400">Performance data will appear here once measurements are available.</p>
         </div>
       </div>
@@ -1158,7 +1158,7 @@ const PerformanceTable = ({ dailyData, loadingAll, onLoadAllData, hasMoreDays, t
             {groupByCategory ? (
               Object.entries(groupedData).map(([category, operations]) => (
                 <React.Fragment key={category}>
-                  <tr className="bg-gray-100 border-t-2 border-gray-300">
+                  <tr className="bg-gray-100 dark:bg-slate-900/70 border-t-2 border-gray-300 dark:border-slate-600">
                     <td colSpan={2 + displayedDateColumns.length} className="py-2 px-4 font-semibold text-gray-700 dark:text-gray-200 text-left">
                       <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getCategoryColor(category)}`}>
                         {category} ({operations.length})
@@ -1168,7 +1168,7 @@ const PerformanceTable = ({ dailyData, loadingAll, onLoadAllData, hasMoreDays, t
                   {operations.map((operation, rowIdx) => (
                     <tr
                       key={operation.operation_name}
-                      className={`${rowIdx % 2 === 0 ? 'bg-white' : 'bg-slate-50'} hover:bg-blue-50 dark:hover:bg-slate-700/50 transition-colors duration-150 group h-14`}
+                      className={`${rowIdx % 2 === 0 ? 'bg-white dark:bg-slate-800' : 'bg-slate-50 dark:bg-slate-800/60'} hover:bg-blue-50 dark:hover:bg-slate-700/50 transition-colors duration-150 group h-14`}
                     >
                       <td className="table-cell-sticky table-sticky-left-0 bg-white dark:bg-slate-800 group-hover:bg-blue-50 dark:group-hover:bg-slate-700 border-r border-gray-200 dark:border-slate-700 transition-colors duration-150 py-1 px-3">
                         <div className="flex flex-col items-center gap-1">
@@ -1415,11 +1415,11 @@ const PerformanceTable = ({ dailyData, loadingAll, onLoadAllData, hasMoreDays, t
              <span className="mr-3 font-medium">Backward Operations:</span>
              <div className="flex flex-wrap items-center gap-2">
                <div className="flex items-center">
-                 <div className="w-3 h-3 bg-gray-100 rounded mr-1"></div>
+                 <div className="w-3 h-3 bg-gray-100 dark:bg-slate-500 rounded mr-1"></div>
                  <span>Unary BW</span>
                </div>
                <div className="flex items-center">
-                 <div className="w-3 h-3 bg-gray-200 rounded mr-1"></div>
+                 <div className="w-3 h-3 bg-gray-200 dark:bg-slate-400 rounded mr-1"></div>
                  <span>Binary BW</span>
                </div>
                <div className="flex items-center">
@@ -1453,19 +1453,19 @@ const PerformanceTable = ({ dailyData, loadingAll, onLoadAllData, hasMoreDays, t
              aria-label={`${chartModalOp.operation_name} performance trend`}
            >
              <div
-               className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[85vh] overflow-hidden flex flex-col"
+               className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-4xl w-full max-h-[85vh] overflow-hidden flex flex-col"
                onClick={(e) => e.stopPropagation()}
              >
-               <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+               <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-slate-700">
                  <div className="flex items-center gap-3 min-w-0">
-                   <h3 className="text-lg font-semibold text-gray-900 truncate">{chartModalOp.operation_name}</h3>
+                   <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 truncate">{chartModalOp.operation_name}</h3>
                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium shrink-0 ${getCategoryColor(getOperationCategory(chartModalOp.operation_name))}`}>
                      {getOperationCategory(chartModalOp.operation_name)}
                    </span>
                  </div>
                  <button
                    onClick={() => setChartModalOp(null)}
-                   className="text-gray-400 hover:text-gray-600 dark:text-gray-300 transition-colors shrink-0 ml-3"
+                   className="text-gray-400 hover:text-gray-600 dark:text-gray-400 dark:hover:text-gray-200 transition-colors shrink-0 ml-3"
                    aria-label="Close chart"
                  >
                    <X className="h-5 w-5" />
