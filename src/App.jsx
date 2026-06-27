@@ -279,13 +279,17 @@ function App() {
                 href="https://ttnn-ops-coverage.aswincloud.com/"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="btn-secondary inline-flex items-center"
-                aria-label="Open the TTNN Ops Coverage Matrix (opens in a new tab)"
+                className="btn-secondary inline-flex items-center relative !border-indigo-400 dark:!border-indigo-500 ring-1 ring-indigo-400/40 dark:ring-indigo-500/40 hover:ring-indigo-400/70"
+                aria-label="Open the TTNN Ops Coverage Matrix (new — opens in a new tab)"
                 title="TTNN Ops Coverage Matrix — pass/fail by dtype × layout × memory"
               >
-                <LayoutGrid className="h-4 w-4 sm:mr-2" />
+                <LayoutGrid className="h-4 w-4 sm:mr-2 text-indigo-500 dark:text-indigo-300" />
                 <span className="hidden sm:inline">Ops Coverage</span>
                 <ExternalLink className="hidden sm:inline h-3 w-3 ml-1.5 opacity-60" />
+                <span
+                  className="ribbon-new pointer-events-none absolute -top-2 -right-2 select-none rounded-full bg-indigo-600 px-1.5 py-0.5 text-[9px] font-bold uppercase leading-none tracking-wide text-white shadow-md ring-1 ring-white/70 dark:ring-slate-900"
+                  aria-hidden="true"
+                >New</span>
               </a>
               {atHome && (
                 <button

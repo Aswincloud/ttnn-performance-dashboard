@@ -195,6 +195,18 @@
      100% { background-position: -200% 0; }
    }
 
+   /* "New" ribbon on the Ops Coverage cross-link — gentle attention pulse. */
+   .ribbon-new {
+     animation: ribbonPulse 2.6s ease-in-out infinite;
+   }
+   @keyframes ribbonPulse {
+     0%, 100% { transform: scale(1); box-shadow: 0 1px 3px rgba(79, 70, 229, 0.5); }
+     50%      { transform: scale(1.08); box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.18); }
+   }
+   @media (prefers-reduced-motion: reduce) {
+     .ribbon-new { animation: none; }
+   }
+
   /* ----------------------------------------------------------------------
      Dark theme overrides for the custom component classes. Kept together so
      the dark surface palette lives in one place rather than scattered across
