@@ -5,6 +5,15 @@
    lets a header toggle flip the theme without a full media-query lock-in. */
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* Registered so the conic-gradient angle is animatable (a plain custom property
+   can't be transitioned/animated — it would snap 0→360 instead of flowing).
+   Must live at the top level, outside @layer, to register reliably. */
+@property --beam-angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
 @layer base {
   * {
     @apply border-gray-200;
@@ -205,6 +214,46 @@
    }
    @media (prefers-reduced-motion: reduce) {
      .ribbon-new { animation: none; }
+   }
+
+   /* Flowing "border beam": a bright segment of a conic-gradient that orbits the
+      element's border ring. Masked to the 2px ring with mask-composite:exclude so
+      we never need overflow-hidden (keeps the corner "New" ribbon un-clipped). */
+   .border-beam { position: relative; }
+   .border-beam::before {
+     content: "";
+     position: absolute;
+     inset: 0;
+     border-radius: inherit;
+     padding: 2px;                 /* = ring thickness */
+     background: conic-gradient(
+       from var(--beam-angle),
+       transparent 0deg,
+       transparent 250deg,
+       rgba(129, 140, 248, 0.35) 300deg,   /* indigo-400 trail */
+       rgba(165, 180, 252, 1) 340deg,      /* bright head */
+       rgba(129, 140, 248, 0.35) 360deg
+     );
+     /* show only the ring: fill mask minus content mask */
+     -webkit-mask:
+       linear-gradient(#000 0 0) content-box,
+       linear-gradient(#000 0 0);
+     -webkit-mask-composite: xor;
+     mask:
+       linear-gradient(#000 0 0) content-box,
+       linear-gradient(#000 0 0);
+     mask-composite: exclude;
+     animation: beamSpin 3s linear infinite;
+     pointer-events: none;
+     z-index: 0;
+   }
+   /* keep the button's own content above the beam layer */
+   .border-beam > * { position: relative; z-index: 1; }
+   @keyframes beamSpin {
+     to { --beam-angle: 360deg; }
+   }
+   @media (prefers-reduced-motion: reduce) {
+     .border-beam::before { animation: none; }
    }
 
   /* ----------------------------------------------------------------------

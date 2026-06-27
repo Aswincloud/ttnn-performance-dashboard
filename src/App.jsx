@@ -279,7 +279,7 @@ function App() {
                 href="https://ttnn-ops-coverage.aswincloud.com/"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="btn-secondary inline-flex items-center relative !border-indigo-400 dark:!border-indigo-500 ring-1 ring-indigo-400/40 dark:ring-indigo-500/40 hover:ring-indigo-400/70"
+                className="btn-secondary border-beam inline-flex items-center relative !border-indigo-400 dark:!border-indigo-500 ring-1 ring-indigo-400/40 dark:ring-indigo-500/40 hover:ring-indigo-400/70"
                 aria-label="Open the TTNN Ops Coverage Matrix (new — opens in a new tab)"
                 title="TTNN Ops Coverage Matrix — pass/fail by dtype × layout × memory"
               >
