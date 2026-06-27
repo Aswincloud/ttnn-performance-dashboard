@@ -278,7 +278,7 @@ function App() {
               <a
                 href="https://ttnn-ops-coverage.aswincloud.com/"
                 target="_blank"
-                rel="noopener"
+                rel="noopener noreferrer"
                 className="btn-secondary inline-flex items-center"
                 aria-label="Open the TTNN Ops Coverage Matrix (opens in a new tab)"
                 title="TTNN Ops Coverage Matrix — pass/fail by dtype × layout × memory"
