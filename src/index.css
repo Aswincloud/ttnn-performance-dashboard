@@ -216,25 +216,26 @@
      .ribbon-new { animation: none; }
    }
 
-   /* Flowing "border beam": a bright segment of a conic-gradient that orbits the
-      element's border ring. Masked to the 2px ring with mask-composite:exclude so
-      we never need overflow-hidden (keeps the corner "New" ribbon un-clipped). */
-   .border-beam { position: relative; }
-   .border-beam::before {
+   /* Flowing "border beam".  The glowing ring is built ENTIRELY from two stacked
+      pseudo-elements that share *identical* geometry (same inset / padding /
+      radius / mask), so the static ring and the orbiting light are pixel-aligned
+      by construction — there is no separate CSS border for the beam to drift
+      against (the earlier version layered a moving light inside a solid border +
+      a Tailwind ring, so the flow sat slightly inside the edge).
+        ::before = always-on dim ring   ::after = the bright head that sweeps it
+      Both are masked to a thin ring with mask-composite:exclude, so we never need
+      overflow-hidden and the corner "New" ribbon stays un-clipped. The button's
+      own border is removed (!border-0 in the JSX) so the beam IS the edge. */
+   .border-beam { position: relative; isolation: isolate; }
+   .border-beam::before,
+   .border-beam::after {
      content: "";
      position: absolute;
      inset: 0;
      border-radius: inherit;
-     padding: 2px;                 /* = ring thickness */
-     background: conic-gradient(
-       from var(--beam-angle),
-       transparent 0deg,
-       transparent 250deg,
-       rgba(129, 140, 248, 0.35) 300deg,   /* indigo-400 trail */
-       rgba(165, 180, 252, 1) 340deg,      /* bright head */
-       rgba(129, 140, 248, 0.35) 360deg
-     );
-     /* show only the ring: fill mask minus content mask */
+     padding: 1.75px;              /* = ring thickness */
+     pointer-events: none;
+     /* show only the ring: outer fill minus inner content box */
      -webkit-mask:
        linear-gradient(#000 0 0) content-box,
        linear-gradient(#000 0 0);
@@ -243,17 +244,47 @@
        linear-gradient(#000 0 0) content-box,
        linear-gradient(#000 0 0);
      mask-composite: exclude;
-     animation: beamSpin 3s linear infinite;
-     pointer-events: none;
+   }
+   /* static base ring — always visible, low-key indigo */
+   .border-beam::before {
+     background: rgba(129, 140, 248, 0.45);   /* indigo-400 */
      z-index: 0;
    }
-   /* keep the button's own content above the beam layer */
-   .border-beam > * { position: relative; z-index: 1; }
+   /* moving head — a bright comet that sweeps the very same ring */
+   .border-beam::after {
+     background: conic-gradient(
+       from var(--beam-angle),
+       transparent 0deg,
+       transparent 232deg,
+       rgba(165, 180, 252, 0.55) 312deg,    /* indigo-300 trail */
+       rgba(224, 231, 255, 1) 344deg,       /* hot white-indigo head */
+       transparent 360deg
+     );
+     animation: beamSpin 3s linear infinite;
+     z-index: 1;
+   }
+   /* keep the button's own content above both beam layers */
+   .border-beam > * { position: relative; z-index: 2; }
+
+   /* Soft breathing outer glow — kept on a separate property (box-shadow) so it
+      can NEVER affect the ring's alignment; it just makes the button feel alive.
+      Carries a faint drop-shadow too so the button still reads as elevated. */
+   .border-beam { animation: beamGlow 3s ease-in-out infinite; }
+   @keyframes beamGlow {
+     0%, 100% { box-shadow: 0 1px 3px rgba(0,0,0,.08), 0 0 8px 0 rgba(99,102,241,.22); }
+     50%      { box-shadow: 0 1px 3px rgba(0,0,0,.08), 0 0 18px 2px rgba(129,140,248,.42); }
+   }
+   /* hover = clearly interactive: brighten the ring + speed the comet up */
+   .border-beam:hover::before { background: rgba(129, 140, 248, 0.75); }
+   .border-beam:hover::after  { animation-duration: 1.7s; }
+
    @keyframes beamSpin {
      to { --beam-angle: 360deg; }
    }
    @media (prefers-reduced-motion: reduce) {
-     .border-beam::before { animation: none; }
+     .border-beam,
+     .border-beam::after { animation: none; }
+     .border-beam { box-shadow: 0 1px 3px rgba(0,0,0,.08), 0 0 10px 0 rgba(99,102,241,.3); }
    }
 
   /* ----------------------------------------------------------------------
