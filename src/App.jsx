@@ -260,7 +260,7 @@ function App() {
               </div>
             </div>
 
-            <div className="flex items-center gap-2 sm:gap-4 lg:gap-6">
+            <div className="flex items-center gap-2 sm:gap-3 lg:gap-4">
               {lastRefresh && (
                 <div className="hidden md:block text-right">
                   <div className="text-sm font-medium text-gray-700 dark:text-gray-300">Last Updated</div>
@@ -290,11 +290,11 @@ function App() {
               {atHome && (
                 <button
                   onClick={() => setIsAdminOpen(true)}
-                  className="btn-secondary inline-flex items-center"
+                  className="btn-secondary inline-flex items-center justify-center !px-2"
                   aria-label="View subscribers (admin)"
+                  title="Subscribers"
                 >
-                  <Users className="h-4 w-4 sm:mr-2" />
-                  <span className="hidden sm:inline">Subscribers</span>
+                  <Users className="h-4 w-4" />
                 </button>
               )}
               <button
@@ -310,8 +310,8 @@ function App() {
                 className="btn-secondary inline-flex items-center"
                 aria-label="Operations Catalog"
               >
-                <Book className="h-4 w-4 sm:mr-2" />
-                <span className="hidden sm:inline">Operations Catalog</span>
+                <Book className="h-4 w-4 xl:mr-2" />
+                <span className="hidden xl:inline">Operations Catalog</span>
               </button>
               <button
                 onClick={loadData}
