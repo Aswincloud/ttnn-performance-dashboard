@@ -271,8 +271,12 @@
       Carries a faint drop-shadow too so the button still reads as elevated. */
    .border-beam { animation: beamGlow 3s ease-in-out infinite; }
    @keyframes beamGlow {
-     0%, 100% { box-shadow: 0 1px 3px rgba(0,0,0,.08), 0 0 8px 0 rgba(99,102,241,.22); }
-     50%      { box-shadow: 0 1px 3px rgba(0,0,0,.08), 0 0 18px 2px rgba(129,140,248,.42); }
+     0%, 100% { box-shadow: 0 1px 3px rgba(0,0,0,.08),
+                            0 0 14px 1px rgba(99,102,241,.45),
+                            0 0 30px 4px rgba(129,140,248,.22); }
+     50%      { box-shadow: 0 1px 3px rgba(0,0,0,.08),
+                            0 0 26px 4px rgba(129,140,248,.75),
+                            0 0 52px 10px rgba(129,140,248,.4); }
    }
    /* hover = clearly interactive: brighten the ring + speed the comet up */
    .border-beam:hover::before { background: rgba(129, 140, 248, 0.75); }
@@ -284,7 +288,7 @@
    @media (prefers-reduced-motion: reduce) {
      .border-beam,
      .border-beam::after { animation: none; }
-     .border-beam { box-shadow: 0 1px 3px rgba(0,0,0,.08), 0 0 10px 0 rgba(99,102,241,.3); }
+     .border-beam { box-shadow: 0 1px 3px rgba(0,0,0,.08), 0 0 22px 3px rgba(129,140,248,.55), 0 0 44px 8px rgba(129,140,248,.3); }
    }
 
   /* ----------------------------------------------------------------------
