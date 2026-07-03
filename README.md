@@ -299,3 +299,4 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 [![GitHub forks](https://img.shields.io/github/forks/Aswincloud/ttnn-performance-dashboard?style=social)](https://github.com/Aswincloud/ttnn-performance-dashboard)
 
 </div> 
+<!-- merge-queue smoke test 2026-07-03 — throwaway, safe to revert -->
