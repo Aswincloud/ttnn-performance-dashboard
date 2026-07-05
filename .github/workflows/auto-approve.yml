@@ -6,6 +6,10 @@ on:
   pull_request_target:
     types: [opened, reopened, ready_for_review, synchronize]
 
+# This caller job needs no token of its own — the reusable workflow mints its
+# own App token and uses the org PAT. Pin to none for least privilege.
+permissions: {}
+
 concurrency:
   group: auto-approve-${{ github.event.pull_request.number }}
   cancel-in-progress: true
