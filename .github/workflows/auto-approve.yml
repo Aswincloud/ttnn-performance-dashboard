@@ -1,113 +1,16 @@
 name: Auto-approve admin PRs
 
-# Automatically approve a pull request when its author is a member of the
-# Aswincloud/admins team. It ONLY approves — it never merges, so you stay in
-# control of when to merge and can push more changes first. This workflow
-# re-fires on each push; whether that dismisses a prior approval depends on the
-# repo's stale-review-dismissal setting (off on this repo).
-#
-# Two identities, split by a hard GitHub constraint:
-#   - Membership read  -> "Aswincloud Bot" GitHub App (short-lived token minted
-#     per run; needs Members: Read). Replaces the old ORG_READ_TOKEN PAT.
-#   - The approval      -> WRITE_ACCESS_PAT, a real write-collaborator USER.
-#     This is REQUIRED: GitHub does not count an app/bot review toward a
-#     ruleset's required-approval count — only a user-with-write review does.
-#     (We proved this: the app's approval left reviewDecision=REVIEW_REQUIRED.)
-# Secrets: APP_ID, APP_PRIVATE_KEY (app) and WRITE_ACCESS_PAT (approver).
-#
-# pull_request_target runs in the BASE repo context (so the secrets are
-# available even for fork PRs). Safe here: the job never checks out or runs the
-# PR's code — it only calls the GitHub API.
-
+# Thin caller — the logic lives in the org-level reusable workflow so it's
+# defined once and reused everywhere. See Aswincloud/.github.
 on:
   pull_request_target:
     types: [opened, reopened, ready_for_review, synchronize]
 
-permissions: {} # the App token carries the perms; the built-in token needs none
-
-# One run per PR; a newer event supersedes an in-flight one.
 concurrency:
   group: auto-approve-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
   approve:
-    runs-on: ubuntu-latest
-    # Skip drafts — approve once it's a real review candidate.
-    if: github.event.pull_request.draft == false
-    steps:
-      # Mint a short-lived installation token for the Aswincloud Bot app.
-      # owner (no repositories:) => an org-level token that can read org teams
-      # AND act on this org's repos.
-      - name: Mint app token
-        id: app
-        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
-        with:
-          app-id: ${{ secrets.APP_ID }}
-          private-key: ${{ secrets.APP_PRIVATE_KEY }}
-          owner: ${{ github.repository_owner }}
-
-      # 1) Is the PR author an ACTIVE member of the admins team?
-      - name: Check admins-team membership
-        id: member
-        env:
-          GH_TOKEN: ${{ steps.app.outputs.token }}
-          AUTHOR: ${{ github.event.pull_request.user.login }}
-          ORG: Aswincloud
-          TEAM: admins
-        run: |
-          set -euo pipefail
-          state="$(gh api "orgs/${ORG}/teams/${TEAM}/memberships/${AUTHOR}" \
-                     --jq '.state' 2>/dev/null || true)"
-          if [ "${state}" = "active" ]; then
-            echo "✓ @${AUTHOR} is an active member of @${ORG}/${TEAM}."
-            echo "is_admin=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "↷ @${AUTHOR} is not an active member of @${ORG}/${TEAM} — nothing to do."
-            echo "is_admin=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      # 2) Approve the PR — only when the author is an admin.
-      #    This uses WRITE_ACCESS_PAT (a real write-collaborator USER), not the
-      #    app token, on purpose: GitHub does NOT count an app/bot review toward
-      #    a ruleset's required-approval count — only a review from a user with
-      #    write access satisfies it. The approval is all this step does; it
-      #    never merges, so you stay in control of WHEN it merges and can push
-      #    further changes first. This workflow re-fires on each push; whether a prior
-      #    approval is dismissed depends on the stale-review setting.
-      - name: Approve the PR
-        if: steps.member.outputs.is_admin == 'true'
-        env:
-          GH_TOKEN: ${{ secrets.WRITE_ACCESS_PAT }}
-          REPO: ${{ github.repository }}
-          PR: ${{ github.event.pull_request.number }}
-          AUTHOR: ${{ github.event.pull_request.user.login }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-          ORG: Aswincloud
-          TEAM: admins
-        run: |
-          set -euo pipefail
-
-          ME="$(gh api user --jq '.login')"
-
-          # Don't stack reviews: if this user already approved this exact commit,
-          # stop. (Re-runs on `synchronize` then become no-ops.)
-          already="$(gh api "repos/${REPO}/pulls/${PR}/reviews" --paginate \
-            --jq "[.[] | select(.user.login==\"${ME}\" and .state==\"APPROVED\" and .commit_id==\"${HEAD_SHA}\")] | length")"
-          if [ "${already}" -gt 0 ]; then
-            echo "↷ Already approved ${HEAD_SHA} as @${ME} — skipping."
-            exit 0
-          fi
-
-          # GitHub forbids approving your OWN PR, so if the token's user is the
-          # author, comment instead of failing.
-          if [ "${ME}" = "${AUTHOR}" ]; then
-            echo "↷ Token user (@${ME}) is the PR author — GitHub blocks self-approval; leaving a note."
-            gh pr comment "${PR}" --repo "${REPO}" \
-              --body "Auto-approve skipped: @${AUTHOR} is an admin, but the approver account is the author and GitHub doesn't allow approving your own PR." || true
-            exit 0
-          fi
-
-          gh pr review "${PR}" --repo "${REPO}" --approve \
-            --body "Auto-approved: @${AUTHOR} is a member of @${ORG}/${TEAM}."
-          echo "✓ Approved PR #${PR} as @${ME}."
+    uses: Aswincloud/.github/.github/workflows/auto-approve.yml@main
+    secrets: inherit
