@@ -17,4 +17,10 @@ concurrency:
 jobs:
   approve:
     uses: Aswincloud/.github/.github/workflows/auto-approve.yml@main
-    secrets: inherit
+    # Pass ONLY the three secrets the reusable workflow declares — not
+    # `secrets: inherit`, which would forward every org secret (Cloudflare,
+    # Resend, PATs, ...) into a workflow that has no business seeing them.
+    secrets:
+      APP_ID: ${{ secrets.APP_ID }}
+      APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}
+      WRITE_ACCESS_PAT: ${{ secrets.WRITE_ACCESS_PAT }}
