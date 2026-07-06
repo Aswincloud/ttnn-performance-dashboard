@@ -14,6 +14,15 @@ from datetime import datetime
 from pathlib import Path
 
 
+def _find_gh():
+    """Resolve the gh executable, falling back to ~/.local/bin for cron/non-login shells."""
+    gh = shutil.which("gh")
+    if gh:
+        return gh
+    local = os.path.expanduser("~/.local/bin/gh")
+    return local if os.path.exists(local) else "gh"
+
+
 class GitHubPerformanceUploader:
     def __init__(self, repo_url="git@github.com:Aswincloud/ttnn-performance-dashboard.git"):
         self.repo_url = repo_url
@@ -219,46 +228,81 @@ class GitHubPerformanceUploader:
             print(f"⚠️ Warning: Could not update index: {e}")
 
     def _commit_and_push(self):
-        """Commit changes and push to GitHub."""
-        try:
-            # Add all changes
-            cmd = ["git", "add", "."]
-            result = subprocess.run(cmd, cwd=self.dashboard_dir, capture_output=True, text=True)
+        """Commit changes and land them on main via an auto-merged pull request.
 
+        main is protected (PR required + status checks + merge queue), so a direct
+        push is rejected. Instead we push a branch, open a PR, and enable auto-merge
+        (the repo's auto-approve workflow satisfies the required review, and the
+        merge queue lands it once checks pass). Requires an authenticated `gh`.
+        """
+        try:
+            cwd = self.dashboard_dir
+
+            # Stage all changes
+            result = subprocess.run(["git", "add", "."], cwd=cwd, capture_output=True, text=True)
             if result.returncode != 0:
                 print(f"❌ Failed to add files: {result.stderr}")
                 return False
 
-            # Check if there are changes to commit
-            cmd = ["git", "status", "--porcelain"]
-            result = subprocess.run(cmd, cwd=self.dashboard_dir, capture_output=True, text=True)
-
+            # Nothing to commit?
+            result = subprocess.run(["git", "status", "--porcelain"], cwd=cwd, capture_output=True, text=True)
             if not result.stdout.strip():
                 print("ℹ️ No changes to commit")
                 return True
 
-            # Commit changes
-            commit_msg = f"Add performance results - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-            cmd = ["git", "commit", "-m", commit_msg]
-            result = subprocess.run(cmd, cwd=self.dashboard_dir, capture_output=True, text=True)
+            # Create a dated branch (main is protected against direct pushes)
+            branch = f"perf/{datetime.now().strftime('%Y-%m-%d-%H%M%S')}"
+            result = subprocess.run(["git", "checkout", "-b", branch], cwd=cwd, capture_output=True, text=True)
+            if result.returncode != 0:
+                print(f"❌ Failed to create branch: {result.stderr}")
+                return False
 
+            # Commit
+            commit_msg = f"Add performance results - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+            result = subprocess.run(["git", "commit", "-m", commit_msg], cwd=cwd, capture_output=True, text=True)
             if result.returncode != 0:
                 print(f"❌ Failed to commit: {result.stderr}")
                 return False
 
-            # Push changes
-            cmd = ["git", "push", "origin", "main"]
-            result = subprocess.run(cmd, cwd=self.dashboard_dir, capture_output=True, text=True)
-
+            # Push the branch (allowed; only main is protected)
+            result = subprocess.run(["git", "push", "-u", "origin", branch], cwd=cwd, capture_output=True, text=True)
             if result.returncode != 0:
-                print(f"❌ Failed to push: {result.stderr}")
+                print(f"❌ Failed to push branch: {result.stderr}")
                 return False
 
-            print(f"📤 Changes pushed to GitHub")
+            # Open a pull request
+            gh = _find_gh()
+            result = subprocess.run(
+                [gh, "pr", "create", "--base", "main", "--head", branch,
+                 "--title", commit_msg,
+                 "--body", "Automated daily performance results upload."],
+                cwd=cwd, capture_output=True, text=True)
+            if result.returncode != 0:
+                print(f"❌ Failed to create PR: {result.stderr}")
+                print("💡 The branch was pushed; open a PR manually if needed.")
+                return False
+            pr_url = result.stdout.strip()
+            print(f"🔀 Opened PR: {pr_url}")
+
+            # Enable auto-merge (squash). Fall back to an immediate merge if the
+            # repo does not have auto-merge enabled.
+            result = subprocess.run(
+                [gh, "pr", "merge", branch, "--squash", "--auto", "--delete-branch"],
+                cwd=cwd, capture_output=True, text=True)
+            if result.returncode != 0:
+                fallback = subprocess.run(
+                    [gh, "pr", "merge", branch, "--squash", "--delete-branch"],
+                    cwd=cwd, capture_output=True, text=True)
+                if fallback.returncode != 0:
+                    print(f"⚠️ Could not enable auto-merge: {result.stderr or fallback.stderr}")
+                    print(f"💡 PR is open for manual merge: {pr_url}")
+                    return True
+
+            print(f"📤 PR submitted with auto-merge enabled: {pr_url}")
             return True
 
         except Exception as e:
-            print(f"❌ Error during commit/push: {e}")
+            print(f"❌ Error during commit/PR: {e}")
             return False
 
     def _cleanup(self):

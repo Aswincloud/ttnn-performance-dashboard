@@ -5,6 +5,9 @@
 
 set -eo pipefail
 
+# Ensure user-local tools (gh, uv, etc.) are on PATH for non-interactive/cron runs
+export PATH="$HOME/.local/bin:$PATH"
+
 # Configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LOG_FILE="$SCRIPT_DIR/perf_log.txt"
@@ -190,27 +193,17 @@ log "📦 Installing dependencies..."
 sudo ./install_dependencies.sh 2>&1 | tee -a "$LOG_FILE"
 check_success "${PIPESTATUS[0]}" "Install dependencies"
 
-log "🧹 Clearing TT-Metal cache..."
-rm -rf /home/aswin/.cache/tt-metal-cache
-log "🔨 Building TT-Metal..."
+log "🧹 Clearing build artifacts and caches (clean build)..."
+set +e
+./build_metal.sh --clean
+set -e
+
+log "🔨 Building TT-Metal from scratch..."
 set +e
 ./build_metal.sh
 BUILD_RC=$?
 set -e
-
-if [ "$BUILD_RC" -ne 0 ]; then
-    log "⚠️  Initial build failed (exit code: $BUILD_RC), attempting clean build..."
-    log "🧹 Cleaning build artifacts..."
-    set +e
-    ./build_metal.sh --clean
-    log "🔨 Retrying build after clean..."
-    ./build_metal.sh
-    BUILD_RC=$?
-    set -e
-    check_success "$BUILD_RC" "TT-Metal clean rebuild"
-else
-    log "✅ Build successful"
-fi
+check_success "$BUILD_RC" "TT-Metal clean build"
 
 # Install ttperf
 log "📦 Installing ttperf..."
@@ -271,8 +264,87 @@ else
     log_error "No results file found"
 fi
 
-# Step 6: Cleanup (optional)
-log "🧹 Step 6: Cleanup..."
+# Step 6: TTNN ops coverage probe (submitted via pull request)
+# main is protected by a ruleset ("changes must be made through a pull request"),
+# so results are landed through a branch + PR + auto-merge instead of a direct push.
+# Requires gh to be authenticated (e.g. GH_TOKEN exported in the environment, or a
+# prior `gh auth login`) with permission to open/merge PRs on the coverage repo.
+PROBE_STATUS="skipped (local mode)"
+if [ "$UPLOAD_TO_GITHUB" = true ]; then
+    log "🧪 Step 6: Running TTNN ops coverage probe..."
+    OPS_COVERAGE_REPO="git@github.com:Aswincloud/ttnn-ops-coverage.git"
+    OPS_COVERAGE_DIR="/tmp/ttnn-ops-coverage_${RANDOM}_$(date +%s)"
+    PROBE_DAY=$(date +%F)
+    PROBE_BRANCH="probe/${PROBE_DAY}-${RANDOM}"
+    DATED_CSV="history/eltwise_support_matrix_${PROBE_DAY}.csv"
+
+    set +e
+    (
+        set -e
+        echo "📥 Cloning $OPS_COVERAGE_REPO -> $OPS_COVERAGE_DIR"
+        git clone "$OPS_COVERAGE_REPO" "$OPS_COVERAGE_DIR"
+
+        echo "🔬 Probing eltwise op support (--dated)..."
+        cd "$OPS_COVERAGE_DIR"
+        "$PYTHON_CMD" -u eltwise_support_probe.py --dated
+
+        if [ ! -f "$DATED_CSV" ] || [ ! -f "eltwise_support_matrix.csv" ]; then
+            echo "Expected CSV outputs not found after probe"
+            exit 1
+        fi
+
+        echo "📝 Creating branch $PROBE_BRANCH and committing coverage results..."
+        git checkout -b "$PROBE_BRANCH"
+        git add eltwise_support_matrix.csv "$DATED_CSV"
+        if git diff --cached --quiet; then
+            echo "No coverage changes to commit"
+            exit 0
+        fi
+        git commit -m "Update eltwise support matrix - ${PROBE_DAY} (tt-metal ${CURRENT_COMMIT:0:12})"
+
+        echo "🚀 Pushing branch $PROBE_BRANCH..."
+        git push -u origin "$PROBE_BRANCH"
+
+        echo "🔀 Opening pull request..."
+        gh pr create --base main --head "$PROBE_BRANCH" \
+            --title "Update eltwise support matrix - ${PROBE_DAY}" \
+            --body "Automated daily TTNN eltwise op coverage probe for ${PROBE_DAY}. tt-metal commit: ${CURRENT_COMMIT}"
+
+        echo "✅ Merging pull request (squash)..."
+        # Prefer auto-merge (waits for required checks); fall back to an immediate
+        # squash merge if the repo does not have auto-merge enabled.
+        gh pr merge "$PROBE_BRANCH" --squash --auto --delete-branch \
+            || gh pr merge "$PROBE_BRANCH" --squash --delete-branch
+    ) 2>&1 | tee -a "$LOG_FILE"
+    PROBE_RC=${PIPESTATUS[0]}
+    set -e
+
+    if [ "$PROBE_RC" -eq 0 ]; then
+        PROBE_STATUS="success"
+        log "✅ Ops coverage probe - SUCCESS"
+    else
+        # Preserve the generated CSVs so a push/PR failure never discards the day's data.
+        PROBE_STATUS="FAILED (exit code: $PROBE_RC)"
+        SAVED_NOTE=""
+        if [ -f "$OPS_COVERAGE_DIR/$DATED_CSV" ]; then
+            mkdir -p "$SCRIPT_DIR/coverage_pending"
+            cp -f "$OPS_COVERAGE_DIR/$DATED_CSV" "$OPS_COVERAGE_DIR/eltwise_support_matrix.csv" \
+                "$SCRIPT_DIR/coverage_pending/" 2>/dev/null && \
+                SAVED_NOTE="Generated CSVs were preserved in $SCRIPT_DIR/coverage_pending/ for manual retry."
+        fi
+        log_error "Ops coverage probe - FAILED (exit code: $PROBE_RC). $SAVED_NOTE"
+        send_email "TT-Metal Perf: Ops coverage probe FAILED" \
+            "The TTNN ops coverage probe failed with exit code $PROBE_RC.\n\nThe daily perf measurement itself completed and uploaded successfully.\n\n$SAVED_NOTE\n\nLog tail:\n$(tail -30 "$LOG_FILE" 2>/dev/null)"
+    fi
+
+    # Remove the temporary clone (CSVs already preserved above on failure)
+    rm -rf "$OPS_COVERAGE_DIR"
+else
+    log "🧪 Step 6: Skipping ops coverage probe (local mode)"
+fi
+
+# Step 7: Cleanup (optional)
+log "🧹 Step 7: Cleanup..."
 # Remove old log files (keep last 7 days)
 find "$SCRIPT_DIR" -name "perf_log_*.txt" -mtime +7 -delete 2>/dev/null || true
 # For local mode, keep more historical data (60 days vs 30)
@@ -289,6 +361,6 @@ log "✅ Daily performance measurement completed successfully!"
 log "$(printf '=%.0s' {1..60})"
 
 send_email "TT-Metal Perf: Daily Run Completed" \
-    "Daily performance measurement completed successfully.\n\nCommit: $CURRENT_COMMIT\nResults: ${RESULTS_FILE:-none}\nTotal tests: ${TOTAL_TESTS:-unknown}\nSuccessful: ${SUCCESSFUL_TESTS:-unknown}\nFailed: ${FAILED_TESTS:-unknown}"
+    "Daily performance measurement completed successfully.\n\nCommit: $CURRENT_COMMIT\nResults: ${RESULTS_FILE:-none}\nTotal tests: ${TOTAL_TESTS:-unknown}\nSuccessful: ${SUCCESSFUL_TESTS:-unknown}\nFailed: ${FAILED_TESTS:-unknown}\nOps coverage probe: ${PROBE_STATUS:-unknown}"
 
 exit 0
