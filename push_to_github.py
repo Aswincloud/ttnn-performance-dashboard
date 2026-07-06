@@ -287,11 +287,11 @@ class GitHubPerformanceUploader:
             # Enable auto-merge (squash). Fall back to an immediate merge if the
             # repo does not have auto-merge enabled.
             result = subprocess.run(
-                [gh, "pr", "merge", branch, "--squash", "--auto", "--delete-branch"],
+                [gh, "pr", "merge", branch, "--squash", "--auto", "--delete-branch", "--yes"],
                 cwd=cwd, capture_output=True, text=True)
             if result.returncode != 0:
                 fallback = subprocess.run(
-                    [gh, "pr", "merge", branch, "--squash", "--delete-branch"],
+                    [gh, "pr", "merge", branch, "--squash", "--delete-branch", "--yes"],
                     cwd=cwd, capture_output=True, text=True)
                 if fallback.returncode != 0:
                     print(f"⚠️ Could not enable auto-merge: {result.stderr or fallback.stderr}")

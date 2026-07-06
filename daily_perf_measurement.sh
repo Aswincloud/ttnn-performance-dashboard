@@ -313,8 +313,8 @@ if [ "$UPLOAD_TO_GITHUB" = true ]; then
         echo "✅ Merging pull request (squash)..."
         # Prefer auto-merge (waits for required checks); fall back to an immediate
         # squash merge if the repo does not have auto-merge enabled.
-        gh pr merge "$PROBE_BRANCH" --squash --auto --delete-branch \
-            || gh pr merge "$PROBE_BRANCH" --squash --delete-branch
+        gh pr merge "$PROBE_BRANCH" --squash --auto --delete-branch --yes \
+            || gh pr merge "$PROBE_BRANCH" --squash --delete-branch --yes
     ) 2>&1 | tee -a "$LOG_FILE"
     PROBE_RC=${PIPESTATUS[0]}
     set -e
