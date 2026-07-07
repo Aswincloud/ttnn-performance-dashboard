@@ -510,14 +510,19 @@ def merge_result_files(input_paths: List[str], output_path: str) -> str:
 
     Each shard file has the shape written by save_results():
         {"metadata": {...}, "results": [...]}
-    The shards cover disjoint sets of operations, so merging is:
-      - concatenate every shard's `results` (dedup by test_name, last wins),
-      - recompute the metadata counts from the merged data,
-      - union the failed_test_names,
+    The shards normally cover disjoint sets of operations, so merging is:
+      - union every shard's `results` (dedup by test_name, last wins),
+      - union the failed_test_names, then drop any that ultimately succeeded
+        in some shard (a success anywhere wins over a failure — otherwise a
+        test could be counted as both, inflating total_tests),
+      - sort results and failures by test_name so the output is deterministic
+        regardless of input-file order,
+      - recompute the metadata counts from the reconciled data,
       - keep a single measurement_date / git_commit_id (they describe the same
         build+run; take them from the earliest shard by measurement_date).
-    The output matches the single-run schema exactly, so nothing downstream
-    (dashboard ingest, alerts) needs to know sharding happened.
+    The output uses the same {metadata, results} schema as a single run — with
+    two extra metadata keys (sharded, shard_count) that downstream ignores — so
+    dashboard ingest and alerts need no changes.
     """
     shards = []
     for p in input_paths:
@@ -532,14 +537,17 @@ def merge_result_files(input_paths: List[str], output_path: str) -> str:
     base_meta = shards[0].get('metadata', {})
 
     merged_by_name = {}
-    failed = []
+    failed = set()
     for s in shards:
         for r in s.get('results', []):
             merged_by_name[r['test_name']] = r
-        failed.extend(s.get('metadata', {}).get('failed_test_names', []))
+        failed.update(s.get('metadata', {}).get('failed_test_names', []))
 
-    results = list(merged_by_name.values())
-    failed = sorted(set(failed))
+    # A test that succeeded in any shard is not a failure (guards against a
+    # test appearing in both a success list and a failure list, e.g. if shards
+    # overlap or a file is passed twice). Sort for deterministic output.
+    failed = sorted(name for name in failed if name not in merged_by_name)
+    results = [merged_by_name[name] for name in sorted(merged_by_name)]
 
     merged = {
         'metadata': {
