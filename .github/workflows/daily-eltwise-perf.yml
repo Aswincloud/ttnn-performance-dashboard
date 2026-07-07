@@ -72,15 +72,28 @@ jobs:
           # branch rebase touches.
           git clone --filter=blob:none --no-checkout "$AUTH" ttm
           cd ttm
+          # Record the branch's current remote SHA up front as the exact lease
+          # expectation. In a fresh blobless clone the remote-tracking ref state
+          # is unreliable for a bare --force-with-lease (it rejects with
+          # "stale info" after the local rebase), so we pin the lease to this SHA.
+          REMOTE_SHA=$(git ls-remote "$AUTH" "refs/heads/${TT_BRANCH}" | cut -f1)
+          echo "Branch remote SHA before rebase: ${REMOTE_SHA:-<none>}"
           git fetch --no-tags origin main "${TT_BRANCH}"
-          git checkout -B "${TT_BRANCH}" "origin/${TT_BRANCH}"
+          git checkout -B "${TT_BRANCH}" "${REMOTE_SHA}"
           if ! git rebase origin/main; then
             git rebase --abort || true
             echo "FAIL_KIND=rebase-conflict" >> "$GITHUB_ENV"
             echo "::error::tt-metal branch rebase conflicted with origin/main; not dispatching."
             exit 1
           fi
-          git push --force-with-lease "$AUTH" "HEAD:${TT_BRANCH}"
+          # Lease pinned to the SHA we read: still aborts if someone else pushed
+          # in between (their push would change the ref off REMOTE_SHA), but works
+          # reliably in a fresh clone. No-op rebase pushes the same SHA harmlessly.
+          if ! git push --force-with-lease="${TT_BRANCH}:${REMOTE_SHA}" "$AUTH" "HEAD:${TT_BRANCH}"; then
+            echo "FAIL_KIND=rebase-push-failed" >> "$GITHUB_ENV"
+            echo "::error::Rebase succeeded but push was rejected (branch moved underneath us?)."
+            exit 1
+          fi
           echo "✅ Rebased ${TT_BRANCH} on origin/main and pushed."
 
       # 2. Dispatch the sharded perf workflow on tt-metal + correlate the run.
