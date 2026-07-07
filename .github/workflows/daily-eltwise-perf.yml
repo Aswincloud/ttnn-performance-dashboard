@@ -1,0 +1,266 @@
+name: Daily eltwise perf (tt-metal)
+
+# Drives a Tenstorrent eltwise perf run end to end, unattended:
+#   rebase our tt-metal branch on upstream main -> dispatch the 5-shard
+#   test-dispatch workflow on tt-metal hardware -> poll it to completion ->
+#   download the combined JSON artifact -> land it in this repo under
+#   data/workflow/ via an auto-merging PR.
+#
+# The tt-metal calls need push/workflow access to tenstorrent/tt-metal, which
+# this repo's GITHUB_TOKEN/App does not have, so they use the TT_METAL_PAT
+# secret (Aswinmcw's classic PAT, repo+workflow scopes). See
+# .github/plans / the daily-perf design for the full token-per-step rationale.
+
+on:
+  schedule:
+    - cron: "30 19 * * *"   # 19:30 UTC = 01:00 IST daily
+  workflow_dispatch: {}
+
+# Never cancel an in-flight run: it owns an N150 hardware job on tt-metal's
+# shared pool, and a scheduled run must not orphan it.
+concurrency:
+  group: daily-eltwise-perf
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  issues: write            # GITHUB_TOKEN files/dedupes failure & conflict issues
+
+env:
+  OUR_REPO: Aswincloud/ttnn-performance-dashboard
+  TT_REPO: tenstorrent/tt-metal
+  TT_BRANCH: Aswinmcw/test_eltwise_perf
+  RAW_BASE: https://raw.githubusercontent.com/Aswincloud/ttnn-performance-dashboard/main
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350   # < GitHub's 6h cap; the poll deadline itself is 4h
+    steps:
+      # 0. Checkout our repo (commit base) + idempotency guard.
+      - name: Checkout dashboard repo
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Idempotency guard
+        id: guard
+        run: |
+          set -euo pipefail
+          DATE=$(date -u +%F)
+          echo "date=$DATE" >> "$GITHUB_OUTPUT"
+          if [ "${{ github.event_name }}" = "schedule" ] && compgen -G "data/workflow/${DATE}_*" >/dev/null; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "⏭️  data/workflow/${DATE}_* already exists — scheduled run no-ops."
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # 1. Rebase the tt-metal branch onto upstream main so its build tooling
+      #    (build-artifact.yaml etc.) stays current. Conflict => file an issue,
+      #    do NOT dispatch.
+      - name: Rebase tt-metal branch on main
+        if: steps.guard.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.TT_METAL_PAT }}
+        run: |
+          set -euo pipefail
+          git config --global user.name "Aswinmcw"
+          git config --global user.email "aswin@aswincloud.com"
+          AUTH="https://x-access-token:${GH_TOKEN}@github.com/${TT_REPO}.git"
+          # tt-metal is multi-GB; blobless partial clone fetches only what a
+          # branch rebase touches.
+          git clone --filter=blob:none --no-checkout "$AUTH" ttm
+          cd ttm
+          git fetch --no-tags origin main "${TT_BRANCH}"
+          git checkout -B "${TT_BRANCH}" "origin/${TT_BRANCH}"
+          if ! git rebase origin/main; then
+            git rebase --abort || true
+            echo "FAIL_KIND=rebase-conflict" >> "$GITHUB_ENV"
+            echo "::error::tt-metal branch rebase conflicted with origin/main; not dispatching."
+            exit 1
+          fi
+          git push --force-with-lease "$AUTH" "HEAD:${TT_BRANCH}"
+          echo "✅ Rebased ${TT_BRANCH} on origin/main and pushed."
+
+      # 2. Dispatch the sharded perf workflow on tt-metal + correlate the run.
+      - name: Dispatch tt-metal perf run
+        id: dispatch
+        if: steps.guard.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.TT_METAL_PAT }}
+        run: |
+          set -euo pipefail
+          TAG="ttnn-daily-${{ github.run_id }}-$(date +%s)"
+          BEFORE=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          # $SHARD / $SHARD_TOTAL are expanded by tt-metal's shard matrix at
+          # runtime, so they are single-quoted here (no expansion on our runner).
+          CMD='set -euo pipefail
+          uv pip install ttperf
+          curl -fsSL '"${RAW_BASE}"'/test_eltwise_operations.py -o /work/test_eltwise_operations.py
+          curl -fsSL '"${RAW_BASE}"'/perf_measurement_script.py -o /work/perf_measurement_script.py
+          cd /work && python perf_measurement_script.py --shard "$SHARD/$SHARD_TOTAL"'
+
+          gh workflow run test-dispatch.yaml -R "$TT_REPO" --ref "$TT_BRANCH" \
+            -f arch=wormhole_b0 \
+            -f 'runner-label=["in-service", "N150"]' \
+            -f tracy=true \
+            -f description="$TAG" \
+            -f command="$CMD"
+          # 'commit' left at default (branch HEAD, which we just rebased to main).
+
+          # gh workflow run returns no id; find the run by its unique description
+          # tag, which test-dispatch.yaml surfaces via its run-name (set from the
+          # description input), with a created-time+branch fallback.
+          RUN_ID=""
+          for i in $(seq 1 18); do
+            RUN_ID=$(gh run list -R "$TT_REPO" -w test-dispatch.yaml -e workflow_dispatch \
+              -b "$TT_BRANCH" --created ">=$BEFORE" -L 50 --json databaseId,displayTitle \
+              -q "[.[] | select(.displayTitle | contains(\"$TAG\"))][0].databaseId" 2>/dev/null || true)
+            if [ -z "$RUN_ID" ]; then
+              RUN_ID=$(gh run list -R "$TT_REPO" -w test-dispatch.yaml -e workflow_dispatch \
+                -b "$TT_BRANCH" --created ">=$BEFORE" -L 50 --json databaseId,createdAt \
+                -q 'sort_by(.createdAt) | last | .databaseId' 2>/dev/null || true)
+            fi
+            [ -n "$RUN_ID" ] && [ "$RUN_ID" != "null" ] && break
+            sleep 10
+          done
+          if [ -z "$RUN_ID" ] || [ "$RUN_ID" = "null" ]; then
+            echo "FAIL_KIND=dispatch-not-found" >> "$GITHUB_ENV"
+            echo "::error::Dispatched but could not locate the tt-metal run."
+            exit 1
+          fi
+          echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
+          echo "🚀 tt-metal run: https://github.com/${TT_REPO}/actions/runs/${RUN_ID}"
+
+      # 3. Poll the tt-metal run (build + 5 shards + combine) to completion.
+      - name: Poll tt-metal run
+        if: steps.guard.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.TT_METAL_PAT }}
+        run: |
+          set -euo pipefail
+          RUN_ID="${{ steps.dispatch.outputs.run_id }}"
+          DEADLINE=$(( $(date +%s) + 4*3600 ))   # 4h
+          while :; do
+            S=$(gh run view "$RUN_ID" -R "$TT_REPO" --json status,conclusion \
+                  -q '.status + "|" + (.conclusion // "")')
+            STATUS="${S%%|*}"; CONCL="${S##*|}"
+            echo "$(date -u +%T) status=$STATUS conclusion=$CONCL"
+            [ "$STATUS" = "completed" ] && break
+            if [ "$(date +%s)" -ge "$DEADLINE" ]; then
+              echo "FAIL_KIND=poll-timeout" >> "$GITHUB_ENV"
+              echo "::error::tt-metal run did not complete within 4h."
+              exit 1
+            fi
+            sleep 90
+          done
+          if [ "$CONCL" != "success" ]; then
+            echo "FAIL_KIND=tt-run-failed" >> "$GITHUB_ENV"
+            echo "::error::tt-metal run concluded '$CONCL'."
+            exit 1
+          fi
+
+      # 4. Download the combined perf JSON artifact.
+      - name: Download combined result
+        id: download
+        if: steps.guard.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.TT_METAL_PAT }}
+        run: |
+          set -euo pipefail
+          gh run download "${{ steps.dispatch.outputs.run_id }}" -R "$TT_REPO" \
+            -n eltwise-perf-results -D _artifact
+          SRC=$(ls _artifact/eltwise_perf_results_*_final.json 2>/dev/null | head -1 || true)
+          if [ -z "$SRC" ]; then
+            echo "FAIL_KIND=artifact-missing" >> "$GITHUB_ENV"
+            echo "::error::eltwise-perf-results artifact had no *_final.json."
+            exit 1
+          fi
+          echo "src=$SRC" >> "$GITHUB_OUTPUT"
+          echo "📦 Combined result: $SRC ($(wc -c <"$SRC") bytes)"
+
+      # 5 + 6. Commit under data/workflow/ ONLY, open PR (App), approve
+      #        (WRITE_ACCESS_PAT), enable squash auto-merge (App).
+      - name: Mint App token
+        id: app
+        if: steps.guard.outputs.skip != 'true'
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
+      - name: Commit result + open auto-merging PR
+        if: steps.guard.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token }}          # bot authors the PR
+          APPROVE_TOKEN: ${{ secrets.WRITE_ACCESS_PAT }}     # different identity approves
+          DATE: ${{ steps.guard.outputs.date }}
+          SRC: ${{ steps.download.outputs.src }}
+        run: |
+          set -euo pipefail
+          mkdir -p data/workflow
+          DEST="data/workflow/${DATE}_$(basename "$SRC")"
+          cp "$SRC" "$DEST"
+          # Do NOT touch data/daily/, data/latest/, or data/index.json — the
+          # result is intentionally isolated under data/workflow/ for now.
+
+          git config user.name "aswincloud-bot[bot]"
+          git config user.email "aswincloud-bot[bot]@users.noreply.github.com"
+          BRANCH="workflow/perf-${DATE}-${{ github.run_id }}"
+          git checkout -b "$BRANCH"
+          git add "$DEST"
+          if git diff --cached --quiet; then
+            echo "Nothing to commit (identical file already present); skipping PR."
+            exit 0
+          fi
+          git commit -m "data(workflow): eltwise perf results ${DATE}"
+          git push "https://x-access-token:${GH_TOKEN}@github.com/${OUR_REPO}.git" "$BRANCH"
+
+          PR_URL=$(gh pr create -R "$OUR_REPO" --base main --head "$BRANCH" \
+            --title "data(workflow): eltwise perf results ${DATE}" \
+            --body "Automated daily tt-metal eltwise perf run (5-shard N150). Data-only, isolated under \`data/workflow/\`; does not touch \`data/index.json\`.")
+          echo "Opened $PR_URL"
+
+          # The membership-gated auto-approve workflow won't fire for a bot
+          # author, so approve inline with a different write identity
+          # (WRITE_ACCESS_PAT = Aswincloud-Bot, a codeowners-bypass member).
+          GH_TOKEN="$APPROVE_TOKEN" gh pr review "$PR_URL" -R "$OUR_REPO" --approve \
+            --body "Auto-approving daily perf data PR (generated, isolated under data/workflow/)."
+
+          gh pr merge "$PR_URL" -R "$OUR_REPO" --squash --auto --delete-branch
+          echo "✅ Auto-merge enabled; merge queue will land it once checks pass."
+
+      # 7. On any failure, file/dedupe an issue assigned to Aswinmcw.
+      - name: File issue on failure
+        if: failure()
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const kind = process.env.FAIL_KIND || 'pipeline-failure';
+            const kindLabel = `ttnn-perf/${kind}`;
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const open = await github.rest.issues.listForRepo({
+              owner: context.repo.owner, repo: context.repo.repo,
+              state: 'open', labels: kindLabel,
+            });
+            if (open.data.length > 0) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner, repo: context.repo.repo,
+                issue_number: open.data[0].number,
+                body: `Recurred ${new Date().toISOString()} — ${runUrl}`,
+              });
+              core.info(`Commented on existing issue #${open.data[0].number}`);
+            } else {
+              const detail = kind === 'rebase-conflict'
+                ? 'The tt-metal branch could not be rebased onto origin/main. **No dispatch was made** — resolve the conflict on `Aswinmcw/test_eltwise_perf` manually.'
+                : `Stage: **${kind}**.`;
+              await github.rest.issues.create({
+                owner: context.repo.owner, repo: context.repo.repo,
+                title: `Daily eltwise perf pipeline failed: ${kind}`,
+                labels: ['ttnn-perf-pipeline', kindLabel, 'automated'],
+                assignees: ['Aswinmcw'],
+                body: `${detail}\n\nRun: ${runUrl}`,
+              });
+              core.info('Opened new failure issue.');
+            }
