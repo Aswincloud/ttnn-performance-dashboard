@@ -104,8 +104,9 @@ jobs:
           GH_TOKEN: ${{ secrets.TT_METAL_PAT }}
         run: |
           set -euo pipefail
-          TAG="ttnn-daily-${{ github.run_id }}-$(date +%s)"
-          BEFORE=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          # Timestamp just before dispatch; used as the lower bound to find the
+          # run we just created (a few seconds early to absorb clock skew).
+          BEFORE=$(date -u -d '30 seconds ago' +%Y-%m-%dT%H:%M:%SZ)
           # $SHARD / $SHARD_TOTAL are expanded by tt-metal's shard matrix at
           # runtime, so they are single-quoted here (no expansion on our runner).
           CMD='set -euo pipefail
@@ -114,27 +115,22 @@ jobs:
           curl -fsSL '"${RAW_BASE}"'/perf_measurement_script.py -o /work/perf_measurement_script.py
           cd /work && python perf_measurement_script.py --shard "$SHARD/$SHARD_TOTAL"'
 
+          # Leave 'description' and 'commit' at their defaults (do NOT set them).
           gh workflow run test-dispatch.yaml -R "$TT_REPO" --ref "$TT_BRANCH" \
             -f arch=wormhole_b0 \
             -f 'runner-label=["in-service", "N150"]' \
             -f tracy=true \
-            -f description="$TAG" \
             -f command="$CMD"
-          # 'commit' left at default (branch HEAD, which we just rebased to main).
 
-          # gh workflow run returns no id; find the run by its unique description
-          # tag, which test-dispatch.yaml surfaces via its run-name (set from the
-          # description input), with a created-time+branch fallback.
+          # gh workflow run returns no id. Correlate by the newest test-dispatch
+          # run on our branch created at/after BEFORE. Safe because the workflow's
+          # concurrency group + this being the sole dispatcher guarantee no other
+          # daily dispatch lands in this window.
           RUN_ID=""
           for i in $(seq 1 18); do
             RUN_ID=$(gh run list -R "$TT_REPO" -w test-dispatch.yaml -e workflow_dispatch \
-              -b "$TT_BRANCH" --created ">=$BEFORE" -L 50 --json databaseId,displayTitle \
-              -q "[.[] | select(.displayTitle | contains(\"$TAG\"))][0].databaseId" 2>/dev/null || true)
-            if [ -z "$RUN_ID" ]; then
-              RUN_ID=$(gh run list -R "$TT_REPO" -w test-dispatch.yaml -e workflow_dispatch \
-                -b "$TT_BRANCH" --created ">=$BEFORE" -L 50 --json databaseId,createdAt \
-                -q 'sort_by(.createdAt) | last | .databaseId' 2>/dev/null || true)
-            fi
+              -b "$TT_BRANCH" --created ">=$BEFORE" -L 50 --json databaseId,createdAt \
+              -q 'sort_by(.createdAt) | last | .databaseId' 2>/dev/null || true)
             [ -n "$RUN_ID" ] && [ "$RUN_ID" != "null" ] && break
             sleep 10
           done
