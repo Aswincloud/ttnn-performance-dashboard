@@ -1,7 +1,7 @@
 name: Daily eltwise perf (tt-metal)
 
 # Drives a Tenstorrent eltwise perf run end to end, unattended:
-#   rebase our tt-metal branch on upstream main -> dispatch the 5-shard
+#   rebase our tt-metal branch on upstream main -> dispatch the 10-shard
 #   test-dispatch workflow on tt-metal hardware -> poll it to completion ->
 #   download the combined JSON artifact -> land it in this repo under
 #   data/workflow/ via an auto-merging PR.
@@ -16,7 +16,7 @@ on:
     - cron: "30 19 * * *"   # 19:30 UTC = 01:00 IST daily
   workflow_dispatch: {}
 
-# Never cancel an in-flight run: it owns an N150 hardware job on tt-metal's
+# Never cancel an in-flight run: it owns an N150 viommu hardware job on tt-metal's
 # shared pool, and a scheduled run must not orphan it.
 concurrency:
   group: daily-eltwise-perf
@@ -109,9 +109,15 @@ jobs:
           GH_TOKEN: ${{ secrets.TT_METAL_PAT }}
         run: |
           set -euo pipefail
-          # Timestamp just before dispatch; used as the lower bound to find the
-          # run we just created (a few seconds early to absorb clock skew).
-          BEFORE=$(date -u -d '30 seconds ago' +%Y-%m-%dT%H:%M:%SZ)
+          # Snapshot the existing test-dispatch runs on our branch BEFORE
+          # dispatching, so we can identify the exact new run we create rather
+          # than trusting "newest after a timestamp" (which could latch onto a
+          # concurrent manual dispatch or a rerun on the same branch).
+          list_runs() {
+            gh run list -R "$TT_REPO" -w test-dispatch.yaml -e workflow_dispatch \
+              -b "$TT_BRANCH" -L 100 --json databaseId -q '.[].databaseId' 2>/dev/null || true
+          }
+          BEFORE_IDS=$(list_runs | sort -u)
           # $SHARD / $SHARD_TOTAL are expanded by tt-metal's shard matrix at
           # runtime, so they are single-quoted here (no expansion on our runner).
           CMD='set -euo pipefail
@@ -120,23 +126,31 @@ jobs:
           curl -fsSL '"${RAW_BASE}"'/perf_measurement_script.py -o /work/perf_measurement_script.py
           cd /work && python perf_measurement_script.py --shard "$SHARD/$SHARD_TOTAL"'
 
+          # N150 viommu runner: this single bundled label is how tt-metal tags
+          # its viommu boxes (there is no standalone 'viommu' label). It also
+          # flips test-dispatch's contains() plumbing to the viommu paths
+          # (/nohugepages, harbor image prefix, no /mnt/MLPerf) automatically.
           # Leave 'description' and 'commit' at their defaults (do NOT set them).
           gh workflow run test-dispatch.yaml -R "$TT_REPO" --ref "$TT_BRANCH" \
             -f arch=wormhole_b0 \
-            -f 'runner-label=["in-service", "N150"]' \
+            -f 'runner-label=["tt-ubuntu-2204-N150-viommu-stable"]' \
             -f tracy=true \
             -f command="$CMD"
 
-          # gh workflow run returns no id. Correlate by the newest test-dispatch
-          # run on our branch created at/after BEFORE. Safe because the workflow's
-          # concurrency group + this being the sole dispatcher guarantee no other
-          # daily dispatch lands in this window.
+          # gh workflow run returns no id. Poll for run IDs that are NEW since
+          # our pre-dispatch snapshot (set difference). Exactly one new run is
+          # expected; if two or more appear we can't attribute the artifact
+          # safely, so fail loudly rather than commit someone else's data.
           RUN_ID=""
           for i in $(seq 1 18); do
-            RUN_ID=$(gh run list -R "$TT_REPO" -w test-dispatch.yaml -e workflow_dispatch \
-              -b "$TT_BRANCH" --created ">=$BEFORE" -L 50 --json databaseId,createdAt \
-              -q 'sort_by(.createdAt) | last | .databaseId' 2>/dev/null || true)
-            [ -n "$RUN_ID" ] && [ "$RUN_ID" != "null" ] && break
+            NEW_IDS=$(comm -13 <(printf '%s\n' "$BEFORE_IDS") <(list_runs | sort -u) | grep -v '^$' || true)
+            COUNT=$(printf '%s\n' "$NEW_IDS" | grep -c . || true)
+            if [ "$COUNT" -ge 2 ]; then
+              echo "FAIL_KIND=dispatch-ambiguous" >> "$GITHUB_ENV"
+              echo "::error::Multiple new test-dispatch runs appeared on ${TT_BRANCH}; cannot attribute ours: $(printf '%s ' $NEW_IDS)"
+              exit 1
+            fi
+            if [ "$COUNT" -eq 1 ]; then RUN_ID="$NEW_IDS"; break; fi
             sleep 10
           done
           if [ -z "$RUN_ID" ] || [ "$RUN_ID" = "null" ]; then
@@ -147,7 +161,7 @@ jobs:
           echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
           echo "🚀 tt-metal run: https://github.com/${TT_REPO}/actions/runs/${RUN_ID}"
 
-      # 3. Poll the tt-metal run (build + 5 shards + combine) to completion.
+      # 3. Poll the tt-metal run (build + 10 shards + combine) to completion.
       - name: Poll tt-metal run
         if: steps.guard.outputs.skip != 'true'
         env:
@@ -233,7 +247,7 @@ jobs:
 
           PR_URL=$(gh pr create -R "$OUR_REPO" --base main --head "$BRANCH" \
             --title "data(workflow): eltwise perf results ${DATE}" \
-            --body "Automated daily tt-metal eltwise perf run (5-shard N150). Data-only, isolated under \`data/workflow/\`; does not touch \`data/index.json\`.")
+            --body "Automated daily tt-metal eltwise perf run (10-shard N150 viommu). Data-only, isolated under \`data/workflow/\`; does not touch \`data/index.json\`.")
           echo "Opened $PR_URL"
 
           # The membership-gated auto-approve workflow won't fire for a bot
