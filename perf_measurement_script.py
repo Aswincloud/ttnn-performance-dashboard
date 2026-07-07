@@ -20,12 +20,18 @@ except ImportError as e:
     GITHUB_IMPORT_ERROR = str(e)
 
 class PerfMeasurement:
-    def __init__(self, rerun_mode=False, auto_upload=False):
+    def __init__(self, rerun_mode=False, auto_upload=False, shard_index=0, shard_total=1):
         self.results = []
         self.failed_tests = []
         self.start_time = datetime.now()
         self.rerun_mode = rerun_mode
         self.auto_upload = auto_upload
+        # Sharding: split the collected test list across `shard_total` parallel
+        # workers; this worker runs shard `shard_index` (0-based). shard_total=1
+        # (the default) means "run everything" — identical to the pre-sharding
+        # behavior. Each worker's JSON is later combined with --merge.
+        self.shard_index = shard_index
+        self.shard_total = shard_total
         self.today_date = self.start_time.strftime("%Y%m%d")
         
         # For dynamic ETA calculation
@@ -89,10 +95,21 @@ class PerfMeasurement:
     def get_tests_to_run(self) -> List[str]:
         """Get list of tests that need to be run based on mode and existing results."""
         all_tests = self.get_all_test_names()
-        
+
         if not all_tests:
             return []
-        
+
+        # Shard: keep only the tests assigned to this worker. pytest --collect-only
+        # returns a deterministic order, so a stable stride (i, i+N, i+2N, …) gives
+        # every worker a disjoint slice whose union is the full set, with no
+        # coordination needed. Interleaving (rather than contiguous blocks) also
+        # spreads slow ops evenly so shards finish at roughly the same time.
+        if self.shard_total > 1:
+            sharded = all_tests[self.shard_index::self.shard_total]
+            print(f"🧩 Shard {self.shard_index + 1}/{self.shard_total}: "
+                  f"running {len(sharded)} of {len(all_tests)} tests")
+            all_tests = sharded
+
         # If not in rerun mode, run all tests (original behavior)
         if not self.rerun_mode:
             print(f"🚀 Standard mode: Running all {len(all_tests)} tests")
@@ -488,34 +505,122 @@ class PerfMeasurement:
             print(f"   python3 push_to_github.py {json_file_path}")
             return False
 
+def merge_result_files(input_paths: List[str], output_path: str) -> str:
+    """Combine several shard result JSONs into one final JSON.
+
+    Each shard file has the shape written by save_results():
+        {"metadata": {...}, "results": [...]}
+    The shards cover disjoint sets of operations, so merging is:
+      - concatenate every shard's `results` (dedup by test_name, last wins),
+      - recompute the metadata counts from the merged data,
+      - union the failed_test_names,
+      - keep a single measurement_date / git_commit_id (they describe the same
+        build+run; take them from the earliest shard by measurement_date).
+    The output matches the single-run schema exactly, so nothing downstream
+    (dashboard ingest, alerts) needs to know sharding happened.
+    """
+    shards = []
+    for p in input_paths:
+        with open(p, 'r') as f:
+            shards.append(json.load(f))
+
+    if not shards:
+        raise ValueError("no shard files provided to merge")
+
+    # Earliest shard drives the shared metadata fields.
+    shards.sort(key=lambda s: s.get('metadata', {}).get('measurement_date', ''))
+    base_meta = shards[0].get('metadata', {})
+
+    merged_by_name = {}
+    failed = []
+    for s in shards:
+        for r in s.get('results', []):
+            merged_by_name[r['test_name']] = r
+        failed.extend(s.get('metadata', {}).get('failed_test_names', []))
+
+    results = list(merged_by_name.values())
+    failed = sorted(set(failed))
+
+    merged = {
+        'metadata': {
+            'measurement_date': base_meta.get('measurement_date'),
+            'total_tests': len(results) + len(failed),
+            'successful_tests': len(results),
+            'failed_tests': len(failed),
+            'failed_test_names': failed,
+            'rerun_mode': False,
+            'git_commit_id': base_meta.get('git_commit_id'),
+            'sharded': True,
+            'shard_count': len(shards),
+        },
+        'results': results,
+    }
+    with open(output_path, 'w') as f:
+        json.dump(merged, f, indent=2)
+
+    print(f"🧩 Merged {len(shards)} shard files -> {output_path}")
+    print(f"   {len(results)} successful ops, {len(failed)} failed, "
+          f"across {len(shards)} shards")
+    return output_path
+
+
 def main():
     """Main function to run performance measurements."""
     import argparse
-    
+
     parser = argparse.ArgumentParser(description='TTNN Eltwise Operations Performance Measurement')
-    parser.add_argument('--rerun', action='store_true', 
+    parser.add_argument('--rerun', action='store_true',
                        help='Skip tests that already passed today and run only missing/failed tests')
     parser.add_argument('--upload', action='store_true',
                        help='Automatically upload results to the database after completion')
+    parser.add_argument('--shard', metavar='INDEX/TOTAL',
+                       help='Run only shard INDEX of TOTAL (1-based), e.g. 1/5. '
+                            'Splits the collected test list across parallel workers.')
+    parser.add_argument('--merge', nargs='+', metavar='FILE',
+                       help='Merge the given shard result JSONs into one final JSON '
+                            '(written as eltwise_perf_results_<ts>_final.json) and exit.')
 
     args = parser.parse_args()
-    
+
+    # --merge is a standalone post-processing mode: no device, no tt-metal needed.
+    if args.merge:
+        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        out = f"eltwise_perf_results_{ts}_final.json"
+        merge_result_files(args.merge, out)
+        return
+
+    # Parse --shard INDEX/TOTAL (1-based on the CLI, 0-based internally).
+    shard_index, shard_total = 0, 1
+    if args.shard:
+        try:
+            idx_str, total_str = args.shard.split('/')
+            idx, total = int(idx_str), int(total_str)
+            if total < 1 or idx < 1 or idx > total:
+                raise ValueError
+            shard_index, shard_total = idx - 1, total
+        except ValueError:
+            parser.error(f"--shard must be INDEX/TOTAL with 1<=INDEX<=TOTAL, got '{args.shard}'")
+
     print("🎯 TTNN Eltwise Operations Performance Measurement")
     print("=" * 50)
-    
+
     if args.rerun:
         print("📊 Mode: Smart rerun (skipping today's successful tests)")
     else:
         print("🚀 Mode: Standard run (all tests)")
-    
+
+    if shard_total > 1:
+        print(f"🧩 Shard: {shard_index + 1}/{shard_total}")
+
     if args.upload:
         if GITHUB_AVAILABLE:
             print("📤 Auto-upload: Enabled (will upload to GitHub)")
         else:
             print("⚠️ Auto-upload: Disabled (push_to_github.py not found)")
 
-    perf = PerfMeasurement(rerun_mode=args.rerun, auto_upload=args.upload)
+    perf = PerfMeasurement(rerun_mode=args.rerun, auto_upload=args.upload,
+                           shard_index=shard_index, shard_total=shard_total)
     perf.run_all_measurements()
 
 if __name__ == "__main__":
-    main() 
+    main()
