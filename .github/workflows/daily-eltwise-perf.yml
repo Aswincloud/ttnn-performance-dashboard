@@ -256,7 +256,10 @@ jobs:
           GH_TOKEN="$APPROVE_TOKEN" gh pr review "$PR_URL" -R "$OUR_REPO" --approve \
             --body "Auto-approving daily perf data PR (generated, isolated under data/workflow/)."
 
-          gh pr merge "$PR_URL" -R "$OUR_REPO" --squash --auto --delete-branch
+          # No --delete-branch: the repo uses a merge queue, which rejects that
+          # flag ("Cannot use --delete-branch when merge queue enabled") and
+          # deletes the head branch itself on merge.
+          gh pr merge "$PR_URL" -R "$OUR_REPO" --squash --auto
           echo "✅ Auto-merge enabled; merge queue will land it once checks pass."
 
       # 7. On any failure, file/dedupe an issue assigned to Aswinmcw.
