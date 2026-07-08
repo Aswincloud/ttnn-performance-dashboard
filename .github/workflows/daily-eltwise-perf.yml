@@ -2,10 +2,10 @@ name: Daily eltwise perf (tt-metal)
 
 # Drives a Tenstorrent eltwise perf run end to end, unattended:
 #   rebase our tt-metal branch on upstream main -> dispatch ONE test-dispatch
-#   run that fans out to 3 boards x 5 shards off a single arch-agnostic build
-#   -> poll it to completion -> download the 3 per-board combined JSONs ->
-#   land them in this repo under data/workflow/{n150,n300,p100a}/ via a single
-#   auto-merging PR.
+#   run that fans out to 2 boards x 2 shapes x 5 shards off a single build
+#   -> poll it to completion -> download the 6 per-(board,shape) JSONs
+#   -> land them under data/workflow/{n150,p100a}/{small,large}/ via a
+#   single auto-merging PR.
 #
 # The tt-metal calls need push/workflow access to tenstorrent/tt-metal, which
 # this repo's GITHUB_TOKEN/App does not have, so they use the TT_METAL_PAT
@@ -13,7 +13,7 @@ name: Daily eltwise perf (tt-metal)
 
 on:
   schedule:
-    - cron: "30 19 * * *"   # 19:30 UTC = 01:00 IST daily (all 3 boards)
+    - cron: "30 19 * * *"   # 19:30 UTC = 01:00 IST daily (both boards)
   workflow_dispatch: {}
 
 # Never cancel an in-flight run: it owns viommu hardware jobs on tt-metal's
@@ -31,9 +31,11 @@ env:
   TT_REPO: tenstorrent/tt-metal
   TT_BRANCH: Aswinmcw/test_eltwise_perf
   RAW_BASE: https://raw.githubusercontent.com/Aswincloud/ttnn-performance-dashboard/main
-  # Boards produced by the tt-metal matrix; each yields an artifact
-  # eltwise-perf-results-<HW> and lands in data/workflow/<hw lowercased>/.
-  BOARDS: "N150 N300 P100a"
+  # The tt-metal matrix is board x shape; each (board, shape) yields an
+  # artifact eltwise-perf-results-<HW>-<SHAPE> that lands in
+  # data/workflow/<hw lowercased>/<shape>/.
+  BOARDS: "N150 P100a"
+  SHAPES: "small large"
 
 jobs:
   run:
@@ -99,7 +101,7 @@ jobs:
           echo "✅ Rebased ${TT_BRANCH} on origin/main and pushed."
 
       # 2. Dispatch the sharded perf workflow on tt-metal + correlate the run.
-      #    ONE run fans out to 3 boards x 5 shards off a single build.
+      #    ONE run fans out to 2 boards x 2 shapes x 5 shards off a single build.
       - name: Dispatch tt-metal perf run
         id: dispatch
         env:
@@ -123,7 +125,7 @@ jobs:
           curl -fsSL '"${RAW_BASE}"'/perf_measurement_script.py -o /work/perf_measurement_script.py
           cd /work && python perf_measurement_script.py --shard "$SHARD/$SHARD_TOTAL"'
 
-          # The board list (N150/N300/P100a) and their viommu labels + arch are
+          # The board list (N150/P100a) and their viommu labels + arch are
           # fixed in the tt-metal branch's matrix, so arch/runner-label inputs
           # are ignored — but the schema still marks them required, so pass
           # placeholders. tracy=true is needed for ttperf's profiler.
@@ -158,7 +160,7 @@ jobs:
           echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
           echo "🚀 tt-metal run: https://github.com/${TT_REPO}/actions/runs/${RUN_ID}"
 
-      # 3. Poll the tt-metal run (build + 15 cells + 3 combines) to completion.
+      # 3. Poll the tt-metal run (build + 30 cells + 6 combines) to completion.
       - name: Poll tt-metal run
         env:
           GH_TOKEN: ${{ secrets.TT_METAL_PAT }}
@@ -185,7 +187,7 @@ jobs:
             exit 1
           fi
 
-      # 4. Download the 3 per-board combined JSON artifacts.
+      # 4. Download the 6 per-(board, shape) combined JSON artifacts.
       - name: Download combined results
         id: download
         env:
@@ -194,17 +196,20 @@ jobs:
           set -euo pipefail
           RUN_ID="${{ steps.dispatch.outputs.run_id }}"
           for HW in $BOARDS; do
-            gh run download "$RUN_ID" -R "$TT_REPO" -n "eltwise-perf-results-${HW}" -D "_artifact/${HW}"
-            SRC=$(ls _artifact/${HW}/eltwise_perf_results_*.json 2>/dev/null | head -1 || true)
-            if [ -z "$SRC" ]; then
-              echo "FAIL_KIND=artifact-missing" >> "$GITHUB_ENV"
-              echo "::error::eltwise-perf-results-${HW} artifact had no JSON."
-              exit 1
-            fi
-            echo "📦 ${HW}: $SRC ($(wc -c <"$SRC") bytes)"
+            for SHAPE in $SHAPES; do
+              gh run download "$RUN_ID" -R "$TT_REPO" \
+                -n "eltwise-perf-results-${HW}-${SHAPE}" -D "_artifact/${HW}/${SHAPE}"
+              SRC=$(ls _artifact/${HW}/${SHAPE}/eltwise_perf_results_*.json 2>/dev/null | head -1 || true)
+              if [ -z "$SRC" ]; then
+                echo "FAIL_KIND=artifact-missing" >> "$GITHUB_ENV"
+                echo "::error::eltwise-perf-results-${HW}-${SHAPE} artifact had no JSON."
+                exit 1
+              fi
+              echo "📦 ${HW}/${SHAPE}: $SRC ($(wc -c <"$SRC") bytes)"
+            done
           done
 
-      # 5 + 6. Commit all 3 boards under data/workflow/<hw>/ in ONE PR (App
+      # 5 + 6. Commit both boards under data/workflow/<hw>/<shape>/ in ONE PR (App
       #        token), approve (WRITE_ACCESS_PAT), enable squash auto-merge (App).
       - name: Mint App token
         id: app
@@ -225,14 +230,16 @@ jobs:
           BRANCH="workflow/perf-${DATE}-${{ github.run_id }}"
           git checkout -b "$BRANCH"
 
-          # Drop each board's JSON into its own subdir: data/workflow/{n150,n300,p100a}/.
+          # Drop each (board, shape) JSON into data/workflow/<hw>/<shape>/.
           for HW in $BOARDS; do
             SUBDIR=$(printf '%s' "$HW" | tr '[:upper:]' '[:lower:]')
-            SRC=$(ls _artifact/${HW}/eltwise_perf_results_*.json | head -1)
-            mkdir -p "data/workflow/${SUBDIR}"
-            DEST="data/workflow/${SUBDIR}/${DATE}_$(basename "$SRC")"
-            cp "$SRC" "$DEST"
-            git add "$DEST"
+            for SHAPE in $SHAPES; do
+              SRC=$(ls _artifact/${HW}/${SHAPE}/eltwise_perf_results_*.json | head -1)
+              mkdir -p "data/workflow/${SUBDIR}/${SHAPE}"
+              DEST="data/workflow/${SUBDIR}/${SHAPE}/${DATE}_$(basename "$SRC")"
+              cp "$SRC" "$DEST"
+              git add "$DEST"
+            done
           done
           # Do NOT touch data/daily/, data/latest/, or data/index.json — the
           # results are intentionally isolated under data/workflow/ for now.
@@ -241,12 +248,12 @@ jobs:
             echo "Nothing to commit (identical files already present); skipping PR."
             exit 0
           fi
-          git commit -m "data(workflow): eltwise perf results ${DATE} (N150, N300, P100a)"
+          git commit -m "data(workflow): eltwise perf results ${DATE} (2 boards x 2 shapes)"
           git push "https://x-access-token:${GH_TOKEN}@github.com/${OUR_REPO}.git" "$BRANCH"
 
           PR_URL=$(gh pr create -R "$OUR_REPO" --base main --head "$BRANCH" \
-            --title "data(workflow): eltwise perf results ${DATE} (N150, N300, P100a)" \
-            --body "Automated daily tt-metal eltwise perf run — one build, 3 boards x 5 shards. Data-only, isolated under \`data/workflow/{n150,n300,p100a}/\`; does not touch \`data/index.json\`.")
+            --title "data(workflow): eltwise perf results ${DATE} (2 boards x 2 shapes)" \
+            --body "Automated daily tt-metal eltwise perf run — one build, 2 boards x 2 shapes (32x32, 1024x1024) x 5 shards. Data-only, isolated under \`data/workflow/{n150,p100a}/{small,large}/\`; does not touch \`data/index.json\`.")
           echo "Opened $PR_URL"
 
           # The membership-gated auto-approve workflow won't fire for a bot
