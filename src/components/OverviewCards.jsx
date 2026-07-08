@@ -16,8 +16,15 @@ function formatDateKey(isoString) {
   return isoString.slice(0, 10);
 }
 
-const TestConfigBanner = ({ summaryStats }) => {
+// Human-readable device / shape labels per combo key. Falls back to the N150 /
+// 32x32 defaults when a value is missing so the banner never renders blank.
+const DEVICE_LABEL = { n150: 'Wormhole N150', p100a: 'Blackhole P100a' };
+const SHAPE_LABEL = { small: '[1, 1, 32, 32]', large: '[1, 1, 1024, 1024]' };
+
+const TestConfigBanner = ({ summaryStats, hw = 'n150', shape = 'small' }) => {
   const [copied, setCopied] = useState(false);
+  const deviceLabel = DEVICE_LABEL[hw] || DEVICE_LABEL.n150;
+  const shapeLabel = SHAPE_LABEL[shape] || SHAPE_LABEL.small;
 
   const copyCommit = async (sha) => {
     try {
@@ -48,7 +55,7 @@ const TestConfigBanner = ({ summaryStats }) => {
             <Cpu className="h-4 w-4 text-gray-400 dark:text-gray-500 shrink-0" />
             <div className="min-w-0">
               <p className="text-xs text-gray-500 dark:text-gray-400">Device</p>
-              <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">Wormhole N150</p>
+              <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">{deviceLabel}</p>
             </div>
           </div>
 
@@ -56,7 +63,7 @@ const TestConfigBanner = ({ summaryStats }) => {
             <Settings className="h-4 w-4 text-gray-400 dark:text-gray-500 shrink-0" />
             <div className="min-w-0">
               <p className="text-xs text-gray-500 dark:text-gray-400">Shape</p>
-              <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 font-mono truncate">[1, 1, 32, 32]</p>
+              <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 font-mono truncate">{shapeLabel}</p>
             </div>
           </div>
 
@@ -136,8 +143,8 @@ const TestConfigBanner = ({ summaryStats }) => {
   );
 };
 
-const OverviewCards = ({ summaryStats }) => {
-  return <TestConfigBanner summaryStats={summaryStats} />;
+const OverviewCards = ({ summaryStats, hw, shape }) => {
+  return <TestConfigBanner summaryStats={summaryStats} hw={hw} shape={shape} />;
 };
 
 export default OverviewCards; 

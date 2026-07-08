@@ -2,46 +2,109 @@
 
 const INITIAL_DAILY_FILES = 20;
 
-export async function loadPerformanceData(limit = INITIAL_DAILY_FILES) {
+// The default combo — the only one guaranteed to have data on first deploy (via
+// the legacy fallback below), so the app always boots to a populated view.
+export const DEFAULT_COMBO = 'n150_small';
+
+// An empty-but-valid result: a combo the pipeline hasn't produced yet (e.g. P100a
+// before its first run). `latest: null` (NOT an empty-shaped object) is deliberate
+// — calculateSummaryStats divides by result counts and would render NaN/Infinity
+// on an empty latest, whereas it null-guards `latest: null` cleanly.
+function emptyResult() {
+  return {
+    index: { files: [] },
+    latest: null,
+    daily: [],
+    totalAvailable: 0,
+    currentlyLoaded: 0,
+  };
+}
+
+// Load the first `limit` files of a per-combo file list into the daily[] shape
+// PerformanceTable expects. Tolerant: a file that 404s / fails to parse is
+// dropped, not fatal (mirrors the original loop).
+async function loadDailyFiles(base, files, limit) {
+  const recent = files.slice(0, limit);
+  const loaded = await Promise.all(
+    recent.map(async (file) => {
+      try {
+        const response = await fetch(`${base}${file.path}`);
+        const data = await response.json();
+        return { ...data, filename: file.filename, date: file.measurement_date };
+      } catch (error) {
+        console.error(`Error loading ${file.filename}:`, error);
+        return null;
+      }
+    })
+  );
+  return loaded.filter((d) => d !== null);
+}
+
+// The pre-workflow behavior, kept verbatim as the n150_small fallback: read the
+// legacy index + latest_results.json. Used when data/workflow/index.json doesn't
+// exist yet (first deploy, before the generator has ever run) or lacks the combo.
+async function loadLegacy(base, limit) {
+  const indexResponse = await fetch(`${base}data/index.json`);
+  const indexData = await indexResponse.json();
+  const latestResponse = await fetch(`${base}data/latest/latest_results.json`);
+  const latestData = await latestResponse.json();
+  const validDailyData = await loadDailyFiles(base, indexData.files, limit);
+  return {
+    index: indexData,
+    latest: latestData,
+    daily: validDailyData,
+    totalAvailable: indexData.files.length,
+    currentlyLoaded: validDailyData.length,
+  };
+}
+
+export async function loadPerformanceData(combo = DEFAULT_COMBO, limit = INITIAL_DAILY_FILES) {
   const base = import.meta.env.BASE_URL;
   try {
-    // Load the index file to get available data files
-    const indexResponse = await fetch(`${base}data/index.json`);
-    const indexData = await indexResponse.json();
-    
-    // Load the latest results
-    const latestResponse = await fetch(`${base}data/latest/latest_results.json`);
-    const latestData = await latestResponse.json();
-    
-    // Only load the most recent N daily data files (instead of all 563!)
-    const recentFiles = indexData.files.slice(0, limit);
-    
-    const dailyData = await Promise.all(
-      recentFiles.map(async (file) => {
-        try {
-          const response = await fetch(`${base}${file.path}`);
-          const data = await response.json();
-          return {
-            ...data,
-            filename: file.filename,
-            date: file.measurement_date
-          };
-        } catch (error) {
-          console.error(`Error loading ${file.filename}:`, error);
-          return null;
-        }
-      })
-    );
-    
-    // Filter out any failed loads
-    const validDailyData = dailyData.filter(d => d !== null);
-    
+    // The per-combo index (2 boards x 2 shapes) written by generate_workflow_index.py.
+    let workflowIndex = null;
+    try {
+      const res = await fetch(`${base}data/workflow/index.json`);
+      if (res.ok) workflowIndex = await res.json();
+    } catch {
+      // 404 / parse failure => treat as "not generated yet" and fall through.
+    }
+
+    const entry = workflowIndex?.combos?.[combo];
+
+    // No workflow index (or this combo absent): fall back to the legacy source
+    // for the default combo, and to an empty-but-valid view for the rest — so a
+    // not-yet-populated combo shows the empty state, never a crash.
+    if (!entry) {
+      if (combo === DEFAULT_COMBO) return await loadLegacy(base, limit);
+      return emptyResult();
+    }
+
+    // Latest snapshot: may be null (empty combo) or a path; a bad fetch is
+    // swallowed to null so the UI degrades to its no-stats banner.
+    let latestData = null;
+    if (entry.latest) {
+      try {
+        const res = await fetch(`${base}${entry.latest}`);
+        if (res.ok) latestData = await res.json();
+      } catch {
+        latestData = null;
+      }
+    }
+
+    // Coerce to an array: a malformed index (files missing or non-array) must
+    // not let `.slice()` throw and break the never-throws fallback contract.
+    const files = Array.isArray(entry.files) ? entry.files : [];
+    const validDailyData = await loadDailyFiles(base, files, limit);
+
     return {
-      index: indexData,
+      // Keep `index.files` populated so loadAllData + the "Load all N days"
+      // counters keep working per-combo.
+      index: { files },
       latest: latestData,
       daily: validDailyData,
-      totalAvailable: indexData.files.length,
-      currentlyLoaded: validDailyData.length
+      totalAvailable: entry.totalAvailable ?? files.length,
+      currentlyLoaded: validDailyData.length,
     };
   } catch (error) {
     console.error('Error loading performance data:', error);

@@ -3,7 +3,7 @@ name: Daily eltwise perf (tt-metal)
 # Drives a Tenstorrent eltwise perf run end to end, unattended:
 #   rebase our tt-metal branch on upstream main -> dispatch ONE test-dispatch
 #   run that fans out to 2 boards x 2 shapes x 5 shards off a single build
-#   -> poll it to completion -> download the 6 per-(board,shape) JSONs
+#   -> poll it to completion -> download the 4 per-(board,shape) JSONs
 #   -> land them under data/workflow/{n150,p100a}/{small,large}/ via a
 #   single auto-merging PR.
 #
@@ -160,7 +160,7 @@ jobs:
           echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
           echo "🚀 tt-metal run: https://github.com/${TT_REPO}/actions/runs/${RUN_ID}"
 
-      # 3. Poll the tt-metal run (build + 30 cells + 6 combines) to completion.
+      # 3. Poll the tt-metal run (build + 20 cells + 4 combines) to completion.
       - name: Poll tt-metal run
         env:
           GH_TOKEN: ${{ secrets.TT_METAL_PAT }}
@@ -187,7 +187,7 @@ jobs:
             exit 1
           fi
 
-      # 4. Download the 6 per-(board, shape) combined JSON artifacts.
+      # 4. Download the 4 per-(board, shape) combined JSON artifacts.
       - name: Download combined results
         id: download
         env:
@@ -241,8 +241,21 @@ jobs:
               git add "$DEST"
             done
           done
-          # Do NOT touch data/daily/, data/latest/, or data/index.json — the
-          # results are intentionally isolated under data/workflow/ for now.
+
+          # Regenerate the per-combo index + the latest_<hw>_<shape>.json
+          # snapshots the dashboard reads. Scans data/workflow/**, merges the
+          # legacy N150/32x32 history into n150_small, and writes
+          # data/workflow/index.json + a latest file per NON-EMPTY combo.
+          # Idempotent. Only combos with data get a latest file, so add each
+          # explicitly and only if present (a combo with no run yet has none).
+          python3 generate_workflow_index.py
+          git add data/workflow/index.json
+          for LATEST in n150_small n150_large p100a_small p100a_large; do
+            [ -f "data/latest/latest_${LATEST}.json" ] && git add "data/latest/latest_${LATEST}.json"
+          done
+          # Do NOT touch data/daily/, data/index.json, or the legacy
+          # data/latest/latest_results.json — those stay as the first-deploy
+          # fallback; only the per-combo latest_<hw>_<shape>.json are written here.
 
           if git diff --cached --quiet; then
             echo "Nothing to commit (identical files already present); skipping PR."

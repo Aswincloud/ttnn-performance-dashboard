@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { RefreshCw, AlertCircle, Zap, TrendingUp, Book, Github, Bug, GitPullRequest, Bell, Users, Sun, Moon, LayoutGrid, ExternalLink } from 'lucide-react';
 import OverviewCards from './components/OverviewCards';
 import PerformanceTable from './components/PerformanceTable';
@@ -11,6 +11,65 @@ import {
   calculateSummaryStats,
 } from './utils/dataLoader';
 
+// A small segmented control: a labelled group of plain toggle buttons. Uses the
+// button-toggle a11y pattern (group + aria-pressed) rather than radiogroup, since
+// each option is an independently Tab-focusable button — no custom arrow-key
+// roving is needed and the ARIA stays honest for assistive tech.
+function SegmentedToggle({ label, options, value, onChange }) {
+  return (
+    <div className="flex items-center gap-2">
+      <span id={`${label}-toggle-label`} className="text-xs font-medium text-gray-500 dark:text-gray-400 shrink-0">
+        {label}
+      </span>
+      <div
+        role="group"
+        aria-labelledby={`${label}-toggle-label`}
+        className="inline-flex rounded-lg bg-gray-100 dark:bg-slate-800 p-0.5 ring-1 ring-gray-200 dark:ring-slate-700"
+      >
+        {options.map((opt) => {
+          const active = opt.value === value;
+          return (
+            <button
+              key={opt.value}
+              type="button"
+              aria-pressed={active}
+              onClick={() => onChange(opt.value)}
+              className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                active
+                  ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-300 shadow-sm'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+              }`}
+            >
+              {opt.label}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// Persisted toggle: read a whitelisted value from localStorage, else default.
+function usePersistedChoice(storageKey, allowed, fallback) {
+  const [value, setValue] = useState(() => {
+    try {
+      const saved = localStorage.getItem(storageKey);
+      if (allowed.includes(saved)) return saved;
+    } catch {
+      // localStorage may be unavailable (private mode) — use the default.
+    }
+    return fallback;
+  });
+  useEffect(() => {
+    try {
+      localStorage.setItem(storageKey, value);
+    } catch {
+      // Persisting is best-effort; in-memory state still drives the UI.
+    }
+  }, [storageKey, value]);
+  return [value, setValue];
+}
+
 function App() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -21,6 +80,12 @@ function App() {
   const [isSubscribeOpen, setIsSubscribeOpen] = useState(false);
   const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [atHome, setAtHome] = useState(false);
+
+  // Which (hardware, shape) combo to view — persisted, default N150 / 32x32.
+  // The data source is data/workflow/<hw>/<shape>/ (see dataLoader combo keys).
+  const [hw, setHw] = usePersistedChoice('ttnn-dash:v1:hw', ['n150', 'p100a'], 'n150');
+  const [shape, setShape] = usePersistedChoice('ttnn-dash:v1:shape', ['small', 'large'], 'small');
+  const combo = `${hw}_${shape}`;
 
   // Theme: persisted, defaults to the OS preference on first visit. Applied as a
   // `.dark` class on <html> so the CSS dark: variant + .dark overrides take effect.
@@ -47,17 +112,20 @@ function App() {
     }
   }, [theme]);
 
-  const loadData = async () => {
+  // Memoized so it's a stable dependency for the load effect below (lets the
+  // effect depend on loadData directly instead of suppressing exhaustive-deps).
+  // Recreated only when `combo` changes — which is exactly when we want to reload.
+  const loadData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      
-      const performanceData = await loadPerformanceData();
-      
+
+      const performanceData = await loadPerformanceData(combo);
+
       if (!performanceData) {
         throw new Error('Failed to load performance data');
       }
-      
+
       setData(performanceData);
       setLastRefresh(new Date());
     } catch (err) {
@@ -66,7 +134,7 @@ function App() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [combo]);
 
   // Manual function to load all remaining data
   const loadAllData = async () => {
@@ -120,9 +188,12 @@ function App() {
     }
   };
 
+  // Reload whenever the combo changes (initial mount + either toggle).
+  // loadData is memoized on [combo], so depending on it is equivalent and keeps
+  // exhaustive-deps satisfied without a suppression.
   useEffect(() => {
     loadData();
-  }, []);
+  }, [loadData]);
 
   // Reveal the admin "Subscribers" button only when the dashboard is opened from
   // the operator's home IP. This is UI-only; the subscriber data endpoint is
@@ -339,14 +410,37 @@ function App() {
             <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">Performance Overview</h2>
             <p className="text-gray-600 dark:text-gray-400">Key metrics and trends for TTNN eltwise operations</p>
           </div>
-          <OverviewCards summaryStats={summaryStats} />
+          <OverviewCards summaryStats={summaryStats} hw={hw} shape={shape} />
         </section>
 
         {/* Performance Table Section */}
         <section className="slide-up">
-          <div className="mb-6">
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">Detailed Performance Analysis</h2>
-            <p className="text-gray-600 dark:text-gray-400">Day-by-day performance comparison across all operations</p>
+          <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">Detailed Performance Analysis</h2>
+              <p className="text-gray-600 dark:text-gray-400">Day-by-day performance comparison across all operations</p>
+            </div>
+            {/* Combo selectors: pick which board × shape to view. */}
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+              <SegmentedToggle
+                label="Hardware"
+                value={hw}
+                onChange={setHw}
+                options={[
+                  { value: 'n150', label: 'N150' },
+                  { value: 'p100a', label: 'P100a' },
+                ]}
+              />
+              <SegmentedToggle
+                label="Shape"
+                value={shape}
+                onChange={setShape}
+                options={[
+                  { value: 'small', label: '32×32' },
+                  { value: 'large', label: '1024×1024' },
+                ]}
+              />
+            </div>
           </div>
                      <div className="glass-card">
              <PerformanceTable 
