@@ -1,34 +1,23 @@
 name: Daily eltwise perf (tt-metal)
 
 # Drives a Tenstorrent eltwise perf run end to end, unattended:
-#   rebase our tt-metal branch on upstream main -> dispatch the 10-shard
-#   test-dispatch workflow on tt-metal hardware -> poll it to completion ->
-#   download the combined JSON artifact -> land it in this repo under
-#   data/workflow/ via an auto-merging PR.
+#   rebase our tt-metal branch on upstream main -> dispatch ONE test-dispatch
+#   run that fans out to 3 boards x 5 shards off a single arch-agnostic build
+#   -> poll it to completion -> download the 3 per-board combined JSONs ->
+#   land them in this repo under data/workflow/{n150,n300,p100a}/ via a single
+#   auto-merging PR.
 #
 # The tt-metal calls need push/workflow access to tenstorrent/tt-metal, which
 # this repo's GITHUB_TOKEN/App does not have, so they use the TT_METAL_PAT
-# secret (Aswinmcw's classic PAT, repo+workflow scopes). See
-# .github/plans / the daily-perf design for the full token-per-step rationale.
+# secret (Aswinmcw's classic PAT, repo+workflow scopes).
 
 on:
   schedule:
-    - cron: "30 19 * * *"   # 19:30 UTC = 01:00 IST daily -> N150
-    - cron: "30 0 * * *"    # 00:30 UTC = 06:00 IST daily -> N300
-    - cron: "30 2 * * *"    # 02:30 UTC = 08:00 IST daily -> P100a
-  workflow_dispatch:
-    inputs:
-      target:
-        description: "Hardware target for a manual run (runner + arch). Scheduled crons pick their own board."
-        type: choice
-        default: N150
-        options:
-          - N150     # wormhole_b0, tt-ubuntu-2204-N150-viommu-stable
-          - N300     # wormhole_b0, tt-ubuntu-2204-N300-viommu-stable
-          - P100a    # blackhole,   tt-ubuntu-2204-P100a-viommu-stable
+    - cron: "30 19 * * *"   # 19:30 UTC = 01:00 IST daily (all 3 boards)
+  workflow_dispatch: {}
 
-# Never cancel an in-flight run: it owns a viommu hardware job on tt-metal's
-# shared pool, and a scheduled run must not orphan it.
+# Never cancel an in-flight run: it owns viommu hardware jobs on tt-metal's
+# shared pool, and a scheduled run must not orphan them.
 concurrency:
   group: daily-eltwise-perf
   cancel-in-progress: false
@@ -42,6 +31,9 @@ env:
   TT_REPO: tenstorrent/tt-metal
   TT_BRANCH: Aswinmcw/test_eltwise_perf
   RAW_BASE: https://raw.githubusercontent.com/Aswincloud/ttnn-performance-dashboard/main
+  # Boards produced by the tt-metal matrix; each yields an artifact
+  # eltwise-perf-results-<HW> and lands in data/workflow/<hw lowercased>/.
+  BOARDS: "N150 N300 P100a"
 
 jobs:
   run:
@@ -63,9 +55,8 @@ jobs:
         id: guard
         run: |
           set -euo pipefail
-          # No idempotency skip: result filenames are timestamped, so multiple
-          # runs on the same day (e.g. all three scheduled boards, or a manual
-          # re-run) each produce a distinct file and never collide.
+          # No idempotency skip: result filenames are timestamped and land in
+          # per-board subdirs, so a same-day re-run never collides.
           echo "date=$(date -u +%F)" >> "$GITHUB_OUTPUT"
 
       # 1. Rebase the tt-metal branch onto upstream main so its build tooling
@@ -108,6 +99,7 @@ jobs:
           echo "✅ Rebased ${TT_BRANCH} on origin/main and pushed."
 
       # 2. Dispatch the sharded perf workflow on tt-metal + correlate the run.
+      #    ONE run fans out to 3 boards x 5 shards off a single build.
       - name: Dispatch tt-metal perf run
         id: dispatch
         env:
@@ -131,40 +123,20 @@ jobs:
           curl -fsSL '"${RAW_BASE}"'/perf_measurement_script.py -o /work/perf_measurement_script.py
           cd /work && python perf_measurement_script.py --shard "$SHARD/$SHARD_TOTAL"'
 
-          # Resolve the hardware target -> (viommu runner label, tt-metal arch).
-          # On workflow_dispatch it comes from the 'target' input; on schedule
-          # it's derived from which cron fired (github.event.schedule), since
-          # scheduled events carry no inputs. These bundled viommu labels are
-          # tt-metal's only viommu tags (no standalone 'viommu' label; do NOT add
-          # 'in-service' — viommu boxes are ephemeral pods that lack it, and
-          # runs-on is AND). The label's substrings also flip test-dispatch's
-          # contains() plumbing to the viommu paths (/nohugepages, harbor image
-          # prefix, no /mnt/MLPerf). P100a is Blackhole -> arch=blackhole.
-          case "${{ github.event.schedule }}" in
-            "30 19 * * *") TARGET="N150"  ;;   # 01:00 IST
-            "30 0 * * *")  TARGET="N300"  ;;   # 06:00 IST
-            "30 2 * * *")  TARGET="P100a" ;;   # 08:00 IST
-            *)             TARGET="${{ github.event.inputs.target || 'N150' }}" ;;
-          esac
-          case "$TARGET" in
-            N150)  RUNNER_LABEL="tt-ubuntu-2204-N150-viommu-stable";  ARCH="wormhole_b0" ;;
-            N300)  RUNNER_LABEL="tt-ubuntu-2204-N300-viommu-stable";  ARCH="wormhole_b0" ;;
-            P100a) RUNNER_LABEL="tt-ubuntu-2204-P100a-viommu-stable"; ARCH="blackhole"   ;;
-            *) echo "::error::Unknown target '$TARGET'"; exit 1 ;;
-          esac
-          echo "target=$TARGET" >> "$GITHUB_OUTPUT"
-          echo "🎯 target=$TARGET runner=$RUNNER_LABEL arch=$ARCH"
-
+          # The board list (N150/N300/P100a) and their viommu labels + arch are
+          # fixed in the tt-metal branch's matrix, so arch/runner-label inputs
+          # are ignored — but the schema still marks them required, so pass
+          # placeholders. tracy=true is needed for ttperf's profiler.
           # Leave 'description' and 'commit' at their defaults (do NOT set them).
           gh workflow run test-dispatch.yaml -R "$TT_REPO" --ref "$TT_BRANCH" \
-            -f arch="$ARCH" \
-            -f "runner-label=[\"$RUNNER_LABEL\"]" \
+            -f arch=wormhole_b0 \
+            -f 'runner-label=["tt-ubuntu-2204-N150-viommu-stable"]' \
             -f tracy=true \
             -f command="$CMD"
 
           # gh workflow run returns no id. Poll for run IDs that are NEW since
           # our pre-dispatch snapshot (set difference). Exactly one new run is
-          # expected; if two or more appear we can't attribute the artifact
+          # expected; if two or more appear we can't attribute the artifacts
           # safely, so fail loudly rather than commit someone else's data.
           RUN_ID=""
           for i in $(seq 1 18); do
@@ -186,7 +158,7 @@ jobs:
           echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
           echo "🚀 tt-metal run: https://github.com/${TT_REPO}/actions/runs/${RUN_ID}"
 
-      # 3. Poll the tt-metal run (build + 10 shards + combine) to completion.
+      # 3. Poll the tt-metal run (build + 15 cells + 3 combines) to completion.
       - name: Poll tt-metal run
         env:
           GH_TOKEN: ${{ secrets.TT_METAL_PAT }}
@@ -209,30 +181,31 @@ jobs:
           done
           if [ "$CONCL" != "success" ]; then
             echo "FAIL_KIND=tt-run-failed" >> "$GITHUB_ENV"
-            echo "::error::tt-metal run concluded '$CONCL'."
+            echo "::error::tt-metal run concluded '$CONCL' (all-or-nothing: no data landed)."
             exit 1
           fi
 
-      # 4. Download the combined perf JSON artifact.
-      - name: Download combined result
+      # 4. Download the 3 per-board combined JSON artifacts.
+      - name: Download combined results
         id: download
         env:
           GH_TOKEN: ${{ secrets.TT_METAL_PAT }}
         run: |
           set -euo pipefail
-          gh run download "${{ steps.dispatch.outputs.run_id }}" -R "$TT_REPO" \
-            -n eltwise-perf-results -D _artifact
-          SRC=$(ls _artifact/eltwise_perf_results_*_final.json 2>/dev/null | head -1 || true)
-          if [ -z "$SRC" ]; then
-            echo "FAIL_KIND=artifact-missing" >> "$GITHUB_ENV"
-            echo "::error::eltwise-perf-results artifact had no *_final.json."
-            exit 1
-          fi
-          echo "src=$SRC" >> "$GITHUB_OUTPUT"
-          echo "📦 Combined result: $SRC ($(wc -c <"$SRC") bytes)"
+          RUN_ID="${{ steps.dispatch.outputs.run_id }}"
+          for HW in $BOARDS; do
+            gh run download "$RUN_ID" -R "$TT_REPO" -n "eltwise-perf-results-${HW}" -D "_artifact/${HW}"
+            SRC=$(ls _artifact/${HW}/eltwise_perf_results_*.json 2>/dev/null | head -1 || true)
+            if [ -z "$SRC" ]; then
+              echo "FAIL_KIND=artifact-missing" >> "$GITHUB_ENV"
+              echo "::error::eltwise-perf-results-${HW} artifact had no JSON."
+              exit 1
+            fi
+            echo "📦 ${HW}: $SRC ($(wc -c <"$SRC") bytes)"
+          done
 
-      # 5 + 6. Commit under data/workflow/ ONLY, open PR (App), approve
-      #        (WRITE_ACCESS_PAT), enable squash auto-merge (App).
+      # 5 + 6. Commit all 3 boards under data/workflow/<hw>/ in ONE PR (App
+      #        token), approve (WRITE_ACCESS_PAT), enable squash auto-merge (App).
       - name: Mint App token
         id: app
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
@@ -240,38 +213,40 @@ jobs:
           app-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
 
-      - name: Commit result + open auto-merging PR
+      - name: Commit results + open auto-merging PR
         env:
           GH_TOKEN: ${{ steps.app.outputs.token }}          # bot authors the PR
           APPROVE_TOKEN: ${{ secrets.WRITE_ACCESS_PAT }}     # different identity approves
           DATE: ${{ steps.guard.outputs.date }}
-          SRC: ${{ steps.download.outputs.src }}
-          TARGET: ${{ steps.dispatch.outputs.target }}
         run: |
           set -euo pipefail
-          # Segregate results by board: data/workflow/{n150,n300,p100a}/.
-          SUBDIR=$(printf '%s' "$TARGET" | tr '[:upper:]' '[:lower:]')
-          mkdir -p "data/workflow/${SUBDIR}"
-          DEST="data/workflow/${SUBDIR}/${DATE}_$(basename "$SRC")"
-          cp "$SRC" "$DEST"
-          # Do NOT touch data/daily/, data/latest/, or data/index.json — the
-          # result is intentionally isolated under data/workflow/ for now.
-
           git config user.name "aswincloud-bot[bot]"
           git config user.email "aswincloud-bot[bot]@users.noreply.github.com"
           BRANCH="workflow/perf-${DATE}-${{ github.run_id }}"
           git checkout -b "$BRANCH"
-          git add "$DEST"
+
+          # Drop each board's JSON into its own subdir: data/workflow/{n150,n300,p100a}/.
+          for HW in $BOARDS; do
+            SUBDIR=$(printf '%s' "$HW" | tr '[:upper:]' '[:lower:]')
+            SRC=$(ls _artifact/${HW}/eltwise_perf_results_*.json | head -1)
+            mkdir -p "data/workflow/${SUBDIR}"
+            DEST="data/workflow/${SUBDIR}/${DATE}_$(basename "$SRC")"
+            cp "$SRC" "$DEST"
+            git add "$DEST"
+          done
+          # Do NOT touch data/daily/, data/latest/, or data/index.json — the
+          # results are intentionally isolated under data/workflow/ for now.
+
           if git diff --cached --quiet; then
-            echo "Nothing to commit (identical file already present); skipping PR."
+            echo "Nothing to commit (identical files already present); skipping PR."
             exit 0
           fi
-          git commit -m "data(workflow): ${TARGET} eltwise perf results ${DATE}"
+          git commit -m "data(workflow): eltwise perf results ${DATE} (N150, N300, P100a)"
           git push "https://x-access-token:${GH_TOKEN}@github.com/${OUR_REPO}.git" "$BRANCH"
 
           PR_URL=$(gh pr create -R "$OUR_REPO" --base main --head "$BRANCH" \
-            --title "data(workflow): ${TARGET} eltwise perf results ${DATE}" \
-            --body "Automated daily tt-metal eltwise perf run (10-shard, ${TARGET} viommu). Data-only, isolated under \`data/workflow/${SUBDIR}/\`; does not touch \`data/index.json\`.")
+            --title "data(workflow): eltwise perf results ${DATE} (N150, N300, P100a)" \
+            --body "Automated daily tt-metal eltwise perf run — one build, 3 boards x 5 shards. Data-only, isolated under \`data/workflow/{n150,n300,p100a}/\`; does not touch \`data/index.json\`.")
           echo "Opened $PR_URL"
 
           # The membership-gated auto-approve workflow won't fire for a bot
