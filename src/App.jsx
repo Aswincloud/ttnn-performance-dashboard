@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { RefreshCw, AlertCircle, Zap, TrendingUp, Book, Github, Bug, GitPullRequest, Bell, Users, Sun, Moon, LayoutGrid, ExternalLink } from 'lucide-react';
 import OverviewCards from './components/OverviewCards';
 import PerformanceTable from './components/PerformanceTable';
@@ -11,15 +11,19 @@ import {
   calculateSummaryStats,
 } from './utils/dataLoader';
 
-// A small 2+ button segmented control. `options` is [{value,label}]; `value` is
-// the active one; `onChange(value)` fires on click. Accessible as a radiogroup.
+// A small segmented control: a labelled group of plain toggle buttons. Uses the
+// button-toggle a11y pattern (group + aria-pressed) rather than radiogroup, since
+// each option is an independently Tab-focusable button — no custom arrow-key
+// roving is needed and the ARIA stays honest for assistive tech.
 function SegmentedToggle({ label, options, value, onChange }) {
   return (
     <div className="flex items-center gap-2">
-      <span className="text-xs font-medium text-gray-500 dark:text-gray-400 shrink-0">{label}</span>
+      <span id={`${label}-toggle-label`} className="text-xs font-medium text-gray-500 dark:text-gray-400 shrink-0">
+        {label}
+      </span>
       <div
-        role="radiogroup"
-        aria-label={label}
+        role="group"
+        aria-labelledby={`${label}-toggle-label`}
         className="inline-flex rounded-lg bg-gray-100 dark:bg-slate-800 p-0.5 ring-1 ring-gray-200 dark:ring-slate-700"
       >
         {options.map((opt) => {
@@ -28,8 +32,7 @@ function SegmentedToggle({ label, options, value, onChange }) {
             <button
               key={opt.value}
               type="button"
-              role="radio"
-              aria-checked={active}
+              aria-pressed={active}
               onClick={() => onChange(opt.value)}
               className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
                 active
@@ -109,17 +112,20 @@ function App() {
     }
   }, [theme]);
 
-  const loadData = async () => {
+  // Memoized so it's a stable dependency for the load effect below (lets the
+  // effect depend on loadData directly instead of suppressing exhaustive-deps).
+  // Recreated only when `combo` changes — which is exactly when we want to reload.
+  const loadData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      
+
       const performanceData = await loadPerformanceData(combo);
 
       if (!performanceData) {
         throw new Error('Failed to load performance data');
       }
-      
+
       setData(performanceData);
       setLastRefresh(new Date());
     } catch (err) {
@@ -128,7 +134,7 @@ function App() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [combo]);
 
   // Manual function to load all remaining data
   const loadAllData = async () => {
@@ -183,10 +189,11 @@ function App() {
   };
 
   // Reload whenever the combo changes (initial mount + either toggle).
+  // loadData is memoized on [combo], so depending on it is equivalent and keeps
+  // exhaustive-deps satisfied without a suppression.
   useEffect(() => {
     loadData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [combo]);
+  }, [loadData]);
 
   // Reveal the admin "Subscribers" button only when the dashboard is opened from
   // the operator's home IP. This is UI-only; the subscriber data endpoint is

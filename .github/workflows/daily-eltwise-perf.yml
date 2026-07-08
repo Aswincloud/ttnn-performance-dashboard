@@ -3,7 +3,7 @@ name: Daily eltwise perf (tt-metal)
 # Drives a Tenstorrent eltwise perf run end to end, unattended:
 #   rebase our tt-metal branch on upstream main -> dispatch ONE test-dispatch
 #   run that fans out to 2 boards x 2 shapes x 5 shards off a single build
-#   -> poll it to completion -> download the 6 per-(board,shape) JSONs
+#   -> poll it to completion -> download the 4 per-(board,shape) JSONs
 #   -> land them under data/workflow/{n150,p100a}/{small,large}/ via a
 #   single auto-merging PR.
 #
@@ -160,7 +160,7 @@ jobs:
           echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
           echo "🚀 tt-metal run: https://github.com/${TT_REPO}/actions/runs/${RUN_ID}"
 
-      # 3. Poll the tt-metal run (build + 30 cells + 6 combines) to completion.
+      # 3. Poll the tt-metal run (build + 20 cells + 4 combines) to completion.
       - name: Poll tt-metal run
         env:
           GH_TOKEN: ${{ secrets.TT_METAL_PAT }}
@@ -187,7 +187,7 @@ jobs:
             exit 1
           fi
 
-      # 4. Download the 6 per-(board, shape) combined JSON artifacts.
+      # 4. Download the 4 per-(board, shape) combined JSON artifacts.
       - name: Download combined results
         id: download
         env:

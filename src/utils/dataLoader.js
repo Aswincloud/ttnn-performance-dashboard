@@ -92,7 +92,9 @@ export async function loadPerformanceData(combo = DEFAULT_COMBO, limit = INITIAL
       }
     }
 
-    const files = entry.files || [];
+    // Coerce to an array: a malformed index (files missing or non-array) must
+    // not let `.slice()` throw and break the never-throws fallback contract.
+    const files = Array.isArray(entry.files) ? entry.files : [];
     const validDailyData = await loadDailyFiles(base, files, limit);
 
     return {
