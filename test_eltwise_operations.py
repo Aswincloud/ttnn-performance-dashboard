@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import os
 import pytest
 import torch
 import ttnn
@@ -13,9 +14,42 @@ import numpy as np
 # CONSTANTS AND HELPER FUNCTIONS
 # =============================================================================
 
-DEFAULT_SHAPE = (1, 1, 32, 32)
+
+def _shape_from_env() -> Tuple[int, ...]:
+    """Tensor shape the whole sweep runs on, from the PERF_SHAPE env var
+    (comma/x-separated, e.g. '1,1,32,32' or '1x1x1024x1024'). Defaults to a
+    single 32x32 tile. Lets one test file be reused for multiple shapes
+    (the tt-metal matrix sets PERF_SHAPE per cell) without duplicating tests."""
+    raw = os.environ.get("PERF_SHAPE", "1,1,32,32").strip()
+    # Normalise the two accepted separators to commas, then require every
+    # segment to be a positive integer — no empty/garbage segments (so a stray
+    # 'x' or ',,' is rejected rather than silently dropped).
+    parts = raw.replace("x", ",").split(",")
+    try:
+        shape = tuple(int(p.strip()) for p in parts)
+    except ValueError:
+        raise ValueError(f"PERF_SHAPE must be integers separated by ',' or 'x' (e.g. 1,1,32,32); got {raw!r}")
+    if len(shape) < 2 or any(d < 1 for d in shape):
+        raise ValueError(f"PERF_SHAPE needs >=2 positive dims; got {raw!r}")
+    return shape
+
+
+DEFAULT_SHAPE = _shape_from_env()
 DEFAULT_DTYPE = ttnn.bfloat16
 DEFAULT_VALUES = "range"
+
+
+def glu_shape() -> Tuple[int, ...]:
+    """GLU-family ops split the last dim in half; each half must be a full tile
+    (>=32) in TILE layout, and the split needs an even last dim. Derive from
+    DEFAULT_SHAPE: keep it if the last dim is already even and >=64 (true at
+    large shapes like 1024), else force the last dim to 64 (needed at 32x32,
+    where 32/2=16 is sub-tile)."""
+    shape = DEFAULT_SHAPE
+    last = shape[-1]
+    if last >= 64 and last % 2 == 0:
+        return shape
+    return (*shape[:-1], 64)
 
 
 # Example usage:
@@ -571,7 +605,7 @@ class TestEltwiseOperations:
 
     def test_glu(self, device):
         # GLU requires input with even number of channels for splitting
-        shape = (1, 1, 32, 64)  # Use even last dimension
+        shape = glu_shape()  # even last dim, >=64 half-tiles
         torch_input, ttnn_input = create_test_tensor(shape, DEFAULT_DTYPE, device)
         dim = -1
         ttnn_result = ttnn.glu(ttnn_input, dim)
@@ -580,7 +614,7 @@ class TestEltwiseOperations:
 
     def test_reglu(self, device):
         # REGLU requires input with even number of channels for splitting  
-        shape = (1, 1, 32, 64)  # Use even last dimension
+        shape = glu_shape()  # even last dim, >=64 half-tiles
         torch_input, ttnn_input = create_test_tensor(shape, DEFAULT_DTYPE, device)
         ttnn_result = ttnn.reglu(ttnn_input)
         # REGLU: x1 * relu(x2) where x1, x2 are split halves
@@ -590,7 +624,7 @@ class TestEltwiseOperations:
 
     def test_geglu(self, device):
         # GEGLU requires input with even number of channels for splitting
-        shape = (1, 1, 32, 64)  # Use even last dimension
+        shape = glu_shape()  # even last dim, >=64 half-tiles
         torch_input, ttnn_input = create_test_tensor(shape, DEFAULT_DTYPE, device)
         ttnn_result = ttnn.geglu(ttnn_input)
         # GEGLU: x1 * gelu(x2) where x1, x2 are split halves
@@ -600,7 +634,7 @@ class TestEltwiseOperations:
 
     def test_swiglu(self, device):
         # SWIGLU requires input with even number of channels for splitting
-        shape = (1, 1, 32, 64)  # Use even last dimension
+        shape = glu_shape()  # even last dim, >=64 half-tiles
         torch_input, ttnn_input = create_test_tensor(shape, DEFAULT_DTYPE, device)
         ttnn_result = ttnn.swiglu(ttnn_input)
         # SWIGLU: x1 * swish(x2) where x1, x2 are split halves
