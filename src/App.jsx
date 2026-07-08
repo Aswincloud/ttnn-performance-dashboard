@@ -11,6 +11,62 @@ import {
   calculateSummaryStats,
 } from './utils/dataLoader';
 
+// A small 2+ button segmented control. `options` is [{value,label}]; `value` is
+// the active one; `onChange(value)` fires on click. Accessible as a radiogroup.
+function SegmentedToggle({ label, options, value, onChange }) {
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-xs font-medium text-gray-500 dark:text-gray-400 shrink-0">{label}</span>
+      <div
+        role="radiogroup"
+        aria-label={label}
+        className="inline-flex rounded-lg bg-gray-100 dark:bg-slate-800 p-0.5 ring-1 ring-gray-200 dark:ring-slate-700"
+      >
+        {options.map((opt) => {
+          const active = opt.value === value;
+          return (
+            <button
+              key={opt.value}
+              type="button"
+              role="radio"
+              aria-checked={active}
+              onClick={() => onChange(opt.value)}
+              className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                active
+                  ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-300 shadow-sm'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+              }`}
+            >
+              {opt.label}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// Persisted toggle: read a whitelisted value from localStorage, else default.
+function usePersistedChoice(storageKey, allowed, fallback) {
+  const [value, setValue] = useState(() => {
+    try {
+      const saved = localStorage.getItem(storageKey);
+      if (allowed.includes(saved)) return saved;
+    } catch {
+      // localStorage may be unavailable (private mode) — use the default.
+    }
+    return fallback;
+  });
+  useEffect(() => {
+    try {
+      localStorage.setItem(storageKey, value);
+    } catch {
+      // Persisting is best-effort; in-memory state still drives the UI.
+    }
+  }, [storageKey, value]);
+  return [value, setValue];
+}
+
 function App() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -21,6 +77,12 @@ function App() {
   const [isSubscribeOpen, setIsSubscribeOpen] = useState(false);
   const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [atHome, setAtHome] = useState(false);
+
+  // Which (hardware, shape) combo to view — persisted, default N150 / 32x32.
+  // The data source is data/workflow/<hw>/<shape>/ (see dataLoader combo keys).
+  const [hw, setHw] = usePersistedChoice('ttnn-dash:v1:hw', ['n150', 'p100a'], 'n150');
+  const [shape, setShape] = usePersistedChoice('ttnn-dash:v1:shape', ['small', 'large'], 'small');
+  const combo = `${hw}_${shape}`;
 
   // Theme: persisted, defaults to the OS preference on first visit. Applied as a
   // `.dark` class on <html> so the CSS dark: variant + .dark overrides take effect.
@@ -52,8 +114,8 @@ function App() {
       setLoading(true);
       setError(null);
       
-      const performanceData = await loadPerformanceData();
-      
+      const performanceData = await loadPerformanceData(combo);
+
       if (!performanceData) {
         throw new Error('Failed to load performance data');
       }
@@ -120,9 +182,11 @@ function App() {
     }
   };
 
+  // Reload whenever the combo changes (initial mount + either toggle).
   useEffect(() => {
     loadData();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [combo]);
 
   // Reveal the admin "Subscribers" button only when the dashboard is opened from
   // the operator's home IP. This is UI-only; the subscriber data endpoint is
@@ -339,14 +403,37 @@ function App() {
             <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">Performance Overview</h2>
             <p className="text-gray-600 dark:text-gray-400">Key metrics and trends for TTNN eltwise operations</p>
           </div>
-          <OverviewCards summaryStats={summaryStats} />
+          <OverviewCards summaryStats={summaryStats} hw={hw} shape={shape} />
         </section>
 
         {/* Performance Table Section */}
         <section className="slide-up">
-          <div className="mb-6">
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">Detailed Performance Analysis</h2>
-            <p className="text-gray-600 dark:text-gray-400">Day-by-day performance comparison across all operations</p>
+          <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">Detailed Performance Analysis</h2>
+              <p className="text-gray-600 dark:text-gray-400">Day-by-day performance comparison across all operations</p>
+            </div>
+            {/* Combo selectors: pick which board × shape to view. */}
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+              <SegmentedToggle
+                label="Hardware"
+                value={hw}
+                onChange={setHw}
+                options={[
+                  { value: 'n150', label: 'N150' },
+                  { value: 'p100a', label: 'P100a' },
+                ]}
+              />
+              <SegmentedToggle
+                label="Shape"
+                value={shape}
+                onChange={setShape}
+                options={[
+                  { value: 'small', label: '32×32' },
+                  { value: 'large', label: '1024×1024' },
+                ]}
+              />
+            </div>
           </div>
                      <div className="glass-card">
              <PerformanceTable 

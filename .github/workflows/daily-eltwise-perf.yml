@@ -241,8 +241,21 @@ jobs:
               git add "$DEST"
             done
           done
-          # Do NOT touch data/daily/, data/latest/, or data/index.json — the
-          # results are intentionally isolated under data/workflow/ for now.
+
+          # Regenerate the per-combo index + the latest_<hw>_<shape>.json
+          # snapshots the dashboard reads. Scans data/workflow/**, merges the
+          # legacy N150/32x32 history into n150_small, and writes
+          # data/workflow/index.json + a latest file per NON-EMPTY combo.
+          # Idempotent. Only combos with data get a latest file, so add each
+          # explicitly and only if present (a combo with no run yet has none).
+          python3 generate_workflow_index.py
+          git add data/workflow/index.json
+          for LATEST in n150_small n150_large p100a_small p100a_large; do
+            [ -f "data/latest/latest_${LATEST}.json" ] && git add "data/latest/latest_${LATEST}.json"
+          done
+          # Do NOT touch data/daily/, data/index.json, or the legacy
+          # data/latest/latest_results.json — those stay as the first-deploy
+          # fallback; only the per-combo latest_<hw>_<shape>.json are written here.
 
           if git diff --cached --quiet; then
             echo "Nothing to commit (identical files already present); skipping PR."
