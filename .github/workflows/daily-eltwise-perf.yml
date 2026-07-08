@@ -63,9 +63,10 @@ jobs:
           set -euo pipefail
           DATE=$(date -u +%F)
           echo "date=$DATE" >> "$GITHUB_OUTPUT"
-          if [ "${{ github.event_name }}" = "schedule" ] && compgen -G "data/workflow/${DATE}_*" >/dev/null; then
+          # Scheduled runs always target N150, so dedupe against that subdir.
+          if [ "${{ github.event_name }}" = "schedule" ] && compgen -G "data/workflow/n150/${DATE}_*" >/dev/null; then
             echo "skip=true" >> "$GITHUB_OUTPUT"
-            echo "⏭️  data/workflow/${DATE}_* already exists — scheduled run no-ops."
+            echo "⏭️  data/workflow/n150/${DATE}_* already exists — scheduled run no-ops."
           else
             echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
@@ -248,10 +249,13 @@ jobs:
           APPROVE_TOKEN: ${{ secrets.WRITE_ACCESS_PAT }}     # different identity approves
           DATE: ${{ steps.guard.outputs.date }}
           SRC: ${{ steps.download.outputs.src }}
+          TARGET: ${{ steps.dispatch.outputs.target }}
         run: |
           set -euo pipefail
-          mkdir -p data/workflow
-          DEST="data/workflow/${DATE}_$(basename "$SRC")"
+          # Segregate results by board: data/workflow/{n150,n300,p100a}/.
+          SUBDIR=$(printf '%s' "$TARGET" | tr '[:upper:]' '[:lower:]')
+          mkdir -p "data/workflow/${SUBDIR}"
+          DEST="data/workflow/${SUBDIR}/${DATE}_$(basename "$SRC")"
           cp "$SRC" "$DEST"
           # Do NOT touch data/daily/, data/latest/, or data/index.json — the
           # result is intentionally isolated under data/workflow/ for now.
@@ -265,12 +269,12 @@ jobs:
             echo "Nothing to commit (identical file already present); skipping PR."
             exit 0
           fi
-          git commit -m "data(workflow): eltwise perf results ${DATE}"
+          git commit -m "data(workflow): ${TARGET} eltwise perf results ${DATE}"
           git push "https://x-access-token:${GH_TOKEN}@github.com/${OUR_REPO}.git" "$BRANCH"
 
           PR_URL=$(gh pr create -R "$OUR_REPO" --base main --head "$BRANCH" \
-            --title "data(workflow): eltwise perf results ${DATE}" \
-            --body "Automated daily tt-metal eltwise perf run (10-shard, ${{ steps.dispatch.outputs.target }} viommu). Data-only, isolated under \`data/workflow/\`; does not touch \`data/index.json\`.")
+            --title "data(workflow): ${TARGET} eltwise perf results ${DATE}" \
+            --body "Automated daily tt-metal eltwise perf run (10-shard, ${TARGET} viommu). Data-only, isolated under \`data/workflow/${SUBDIR}/\`; does not touch \`data/index.json\`.")
           echo "Opened $PR_URL"
 
           # The membership-gated auto-approve workflow won't fire for a bot
