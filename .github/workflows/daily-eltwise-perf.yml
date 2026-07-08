@@ -14,9 +14,18 @@ name: Daily eltwise perf (tt-metal)
 on:
   schedule:
     - cron: "30 19 * * *"   # 19:30 UTC = 01:00 IST daily
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "Hardware target (runner + arch). Scheduled runs always use N150."
+        type: choice
+        default: N150
+        options:
+          - N150     # wormhole_b0, tt-ubuntu-2204-N150-viommu-stable
+          - N300     # wormhole_b0, tt-ubuntu-2204-N300-viommu-stable
+          - P100a    # blackhole,   tt-ubuntu-2204-P100a-viommu-stable
 
-# Never cancel an in-flight run: it owns an N150 viommu hardware job on tt-metal's
+# Never cancel an in-flight run: it owns a viommu hardware job on tt-metal's
 # shared pool, and a scheduled run must not orphan it.
 concurrency:
   group: daily-eltwise-perf
@@ -126,14 +135,28 @@ jobs:
           curl -fsSL '"${RAW_BASE}"'/perf_measurement_script.py -o /work/perf_measurement_script.py
           cd /work && python perf_measurement_script.py --shard "$SHARD/$SHARD_TOTAL"'
 
-          # N150 viommu runner: this single bundled label is how tt-metal tags
-          # its viommu boxes (there is no standalone 'viommu' label). It also
-          # flips test-dispatch's contains() plumbing to the viommu paths
-          # (/nohugepages, harbor image prefix, no /mnt/MLPerf) automatically.
+          # Resolve the hardware target -> (viommu runner label, tt-metal arch).
+          # inputs.target only exists on workflow_dispatch; scheduled runs get
+          # the N150 default. These bundled viommu labels are tt-metal's only
+          # viommu tags (no standalone 'viommu' label; do NOT add 'in-service' —
+          # viommu boxes are ephemeral pods that lack it, and runs-on is AND).
+          # The label's substrings also flip test-dispatch's contains() plumbing
+          # to the viommu paths (/nohugepages, harbor image prefix, no
+          # /mnt/MLPerf). P100a is Blackhole, so it must dispatch arch=blackhole.
+          TARGET="${{ github.event.inputs.target || 'N150' }}"
+          case "$TARGET" in
+            N150)  RUNNER_LABEL="tt-ubuntu-2204-N150-viommu-stable";  ARCH="wormhole_b0" ;;
+            N300)  RUNNER_LABEL="tt-ubuntu-2204-N300-viommu-stable";  ARCH="wormhole_b0" ;;
+            P100a) RUNNER_LABEL="tt-ubuntu-2204-P100a-viommu-stable"; ARCH="blackhole"   ;;
+            *) echo "::error::Unknown target '$TARGET'"; exit 1 ;;
+          esac
+          echo "target=$TARGET" >> "$GITHUB_OUTPUT"
+          echo "🎯 target=$TARGET runner=$RUNNER_LABEL arch=$ARCH"
+
           # Leave 'description' and 'commit' at their defaults (do NOT set them).
           gh workflow run test-dispatch.yaml -R "$TT_REPO" --ref "$TT_BRANCH" \
-            -f arch=wormhole_b0 \
-            -f 'runner-label=["tt-ubuntu-2204-N150-viommu-stable"]' \
+            -f arch="$ARCH" \
+            -f "runner-label=[\"$RUNNER_LABEL\"]" \
             -f tracy=true \
             -f command="$CMD"
 
@@ -247,7 +270,7 @@ jobs:
 
           PR_URL=$(gh pr create -R "$OUR_REPO" --base main --head "$BRANCH" \
             --title "data(workflow): eltwise perf results ${DATE}" \
-            --body "Automated daily tt-metal eltwise perf run (10-shard N150 viommu). Data-only, isolated under \`data/workflow/\`; does not touch \`data/index.json\`.")
+            --body "Automated daily tt-metal eltwise perf run (10-shard, ${{ steps.dispatch.outputs.target }} viommu). Data-only, isolated under \`data/workflow/\`; does not touch \`data/index.json\`.")
           echo "Opened $PR_URL"
 
           # The membership-gated auto-approve workflow won't fire for a bot
