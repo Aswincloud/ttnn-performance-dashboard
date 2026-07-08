@@ -13,11 +13,13 @@ name: Daily eltwise perf (tt-metal)
 
 on:
   schedule:
-    - cron: "30 19 * * *"   # 19:30 UTC = 01:00 IST daily
+    - cron: "30 19 * * *"   # 19:30 UTC = 01:00 IST daily -> N150
+    - cron: "30 0 * * *"    # 00:30 UTC = 06:00 IST daily -> N300
+    - cron: "30 2 * * *"    # 02:30 UTC = 08:00 IST daily -> P100a
   workflow_dispatch:
     inputs:
       target:
-        description: "Hardware target (runner + arch). Scheduled runs always use N150."
+        description: "Hardware target for a manual run (runner + arch). Scheduled crons pick their own board."
         type: choice
         default: N150
         options:
@@ -46,7 +48,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 350   # < GitHub's 6h cap; the poll deadline itself is 4h
     steps:
-      # 0. Checkout our repo (commit base) + idempotency guard.
+      # 0. Checkout our repo (commit base) + compute the run date.
       - name: Checkout dashboard repo
         uses: actions/checkout@v7
         with:
@@ -57,25 +59,19 @@ jobs:
           # as github-actions[bot]. All steps here authenticate explicitly.
           persist-credentials: false
 
-      - name: Idempotency guard
+      - name: Compute run date
         id: guard
         run: |
           set -euo pipefail
-          DATE=$(date -u +%F)
-          echo "date=$DATE" >> "$GITHUB_OUTPUT"
-          # Scheduled runs always target N150, so dedupe against that subdir.
-          if [ "${{ github.event_name }}" = "schedule" ] && compgen -G "data/workflow/n150/${DATE}_*" >/dev/null; then
-            echo "skip=true" >> "$GITHUB_OUTPUT"
-            echo "⏭️  data/workflow/n150/${DATE}_* already exists — scheduled run no-ops."
-          else
-            echo "skip=false" >> "$GITHUB_OUTPUT"
-          fi
+          # No idempotency skip: result filenames are timestamped, so multiple
+          # runs on the same day (e.g. all three scheduled boards, or a manual
+          # re-run) each produce a distinct file and never collide.
+          echo "date=$(date -u +%F)" >> "$GITHUB_OUTPUT"
 
       # 1. Rebase the tt-metal branch onto upstream main so its build tooling
       #    (build-artifact.yaml etc.) stays current. Conflict => file an issue,
       #    do NOT dispatch.
       - name: Rebase tt-metal branch on main
-        if: steps.guard.outputs.skip != 'true'
         env:
           GH_TOKEN: ${{ secrets.TT_METAL_PAT }}
         run: |
@@ -114,7 +110,6 @@ jobs:
       # 2. Dispatch the sharded perf workflow on tt-metal + correlate the run.
       - name: Dispatch tt-metal perf run
         id: dispatch
-        if: steps.guard.outputs.skip != 'true'
         env:
           GH_TOKEN: ${{ secrets.TT_METAL_PAT }}
         run: |
@@ -137,14 +132,20 @@ jobs:
           cd /work && python perf_measurement_script.py --shard "$SHARD/$SHARD_TOTAL"'
 
           # Resolve the hardware target -> (viommu runner label, tt-metal arch).
-          # inputs.target only exists on workflow_dispatch; scheduled runs get
-          # the N150 default. These bundled viommu labels are tt-metal's only
-          # viommu tags (no standalone 'viommu' label; do NOT add 'in-service' —
-          # viommu boxes are ephemeral pods that lack it, and runs-on is AND).
-          # The label's substrings also flip test-dispatch's contains() plumbing
-          # to the viommu paths (/nohugepages, harbor image prefix, no
-          # /mnt/MLPerf). P100a is Blackhole, so it must dispatch arch=blackhole.
-          TARGET="${{ github.event.inputs.target || 'N150' }}"
+          # On workflow_dispatch it comes from the 'target' input; on schedule
+          # it's derived from which cron fired (github.event.schedule), since
+          # scheduled events carry no inputs. These bundled viommu labels are
+          # tt-metal's only viommu tags (no standalone 'viommu' label; do NOT add
+          # 'in-service' — viommu boxes are ephemeral pods that lack it, and
+          # runs-on is AND). The label's substrings also flip test-dispatch's
+          # contains() plumbing to the viommu paths (/nohugepages, harbor image
+          # prefix, no /mnt/MLPerf). P100a is Blackhole -> arch=blackhole.
+          case "${{ github.event.schedule }}" in
+            "30 19 * * *") TARGET="N150"  ;;   # 01:00 IST
+            "30 0 * * *")  TARGET="N300"  ;;   # 06:00 IST
+            "30 2 * * *")  TARGET="P100a" ;;   # 08:00 IST
+            *)             TARGET="${{ github.event.inputs.target || 'N150' }}" ;;
+          esac
           case "$TARGET" in
             N150)  RUNNER_LABEL="tt-ubuntu-2204-N150-viommu-stable";  ARCH="wormhole_b0" ;;
             N300)  RUNNER_LABEL="tt-ubuntu-2204-N300-viommu-stable";  ARCH="wormhole_b0" ;;
@@ -187,7 +188,6 @@ jobs:
 
       # 3. Poll the tt-metal run (build + 10 shards + combine) to completion.
       - name: Poll tt-metal run
-        if: steps.guard.outputs.skip != 'true'
         env:
           GH_TOKEN: ${{ secrets.TT_METAL_PAT }}
         run: |
@@ -216,7 +216,6 @@ jobs:
       # 4. Download the combined perf JSON artifact.
       - name: Download combined result
         id: download
-        if: steps.guard.outputs.skip != 'true'
         env:
           GH_TOKEN: ${{ secrets.TT_METAL_PAT }}
         run: |
@@ -236,14 +235,12 @@ jobs:
       #        (WRITE_ACCESS_PAT), enable squash auto-merge (App).
       - name: Mint App token
         id: app
-        if: steps.guard.outputs.skip != 'true'
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
         with:
           app-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
 
       - name: Commit result + open auto-merging PR
-        if: steps.guard.outputs.skip != 'true'
         env:
           GH_TOKEN: ${{ steps.app.outputs.token }}          # bot authors the PR
           APPROVE_TOKEN: ${{ secrets.WRITE_ACCESS_PAT }}     # different identity approves
