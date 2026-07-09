@@ -197,7 +197,7 @@ function App() {
       const perCombo = await Promise.all(
         Object.entries(data.byCombo).map(async ([combo, info]) => {
           const remaining = (info.files || []).slice(info.currentlyLoaded, info.totalAvailable);
-          if (!remaining.length) return { combo, days: [] };
+          if (!remaining.length) return { combo, days: [], attempted: 0 };
           const days = await Promise.all(
             remaining.map(async (file) => {
               try {
@@ -210,26 +210,32 @@ function App() {
               }
             })
           );
-          return { combo, days: days.filter((d) => d !== null) };
+          // Advance the cursor by files ATTEMPTED, not just parsed — otherwise a
+          // permanently-bad file would sit at `currentlyLoaded` and get re-fetched
+          // (duplicates) or retried forever on the next "Load all".
+          return { combo, days: days.filter((d) => d !== null), attempted: remaining.length };
         })
       );
 
       const newDays = perCombo.flatMap((r) => r.days);
-      if (newDays.length > 0) {
+      const anyAttempted = perCombo.some((r) => r.attempted > 0);
+      if (anyAttempted) {
         setData((prev) => {
           const byCombo = { ...prev.byCombo };
-          for (const { combo, days } of perCombo) {
-            if (!days.length) continue;
+          for (const { combo, attempted } of perCombo) {
+            if (!attempted) continue;
             byCombo[combo] = {
               ...byCombo[combo],
-              currentlyLoaded: byCombo[combo].currentlyLoaded + days.length,
+              currentlyLoaded: byCombo[combo].currentlyLoaded + attempted,
             };
           }
           return {
             ...prev,
             daily: [...prev.daily, ...newDays],
             byCombo,
-            currentlyLoaded: prev.currentlyLoaded + newDays.length,
+            // Summed cursor also advances by attempted, so the header's
+            // "showing X of Y" reaches Y and the Load-all button hides.
+            currentlyLoaded: prev.currentlyLoaded + perCombo.reduce((n, r) => n + r.attempted, 0),
           };
         });
       }

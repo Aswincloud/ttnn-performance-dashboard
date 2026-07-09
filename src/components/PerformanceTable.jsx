@@ -334,33 +334,14 @@ const PerformanceTable = ({ dailyData, combos = [], comboLabels = {}, loadingAll
     [combos]
   );
 
-  // Build the per-date `dailyPerformance` map for ONE operation from ONE combo's
-  // days — the exact shape the render/sort/CSV already consume. Extracted so both
-  // the single- and multi-combo paths share identical per-series logic.
-  const buildSeriesForOp = (daysForCombo, operationName) => {
-    const dp = {};
-    daysForCombo.forEach(day => {
-      // measurement_date is timezone-naive ISO (e.g. "2026-05-24T02:06:53").
-      // Slicing the raw string keeps the key on the dataset's intended calendar
-      // day; routing through new Date()/toISOString() would shift it by the
-      // viewer's UTC offset.
-      const dateKey = day.metadata.measurement_date.slice(0, 10);
-      const operation = day.results.find(r => r.operation_name === operationName);
-      dp[dateKey] = operation
-        ? {
-            duration_ns: operation.average_duration_ns,
-            successful_runs: operation.successful_runs,
-            test_name: operation.test_name,
-          }
-        : null;
-    });
-    return dp;
-  };
-
   // Op-blocks: one entry per operation, each carrying a `series` array with one
   // entry per selected combo ({ combo, dailyPerformance }). `dailyPerformance` on
   // the block itself mirrors the PRIMARY (first) combo's series, so all existing
   // op-level consumers (sort, CSV, callout, chart modal) keep working unchanged.
+  //
+  // Built in one O(days * results) pass per combo — each day's results are read
+  // straight into the target per-op maps, so we never scan `day.results` per op
+  // (which multiplied to O(ops * days * results) and got worse with each combo).
   const processedData = useMemo(() => {
     if (!dailyData || dailyData.length === 0) return [];
 
@@ -368,27 +349,48 @@ const PerformanceTable = ({ dailyData, combos = [], comboLabels = {}, loadingAll
     const sortedDailyData = [...dailyData].sort((a, b) =>
       new Date(a.metadata.measurement_date) - new Date(b.metadata.measurement_date)
     );
-    const daysByCombo = new Map(activeCombos.map(c => [c, []]));
-    sortedDailyData.forEach(day => {
-      const c = day.__combo ?? null;
-      // A day whose combo isn't in the active set (shouldn't happen) is ignored;
-      // the null bucket catches the single-combo/legacy path.
-      if (daysByCombo.has(c)) daysByCombo.get(c).push(day);
-    });
+    const comboIdx = new Map(activeCombos.map((c, i) => [c, i]));
 
-    // Union of operation names across ALL days (exclude argmax — removed op).
-    const allOperations = new Set();
+    // Per operation, an array of `dailyPerformance` maps — one slot per combo,
+    // in activeCombos order. Filled directly from each day's results below.
+    const opMaps = new Map(); // operation_name -> [ {date: cell|null}, ... per combo ]
+    const dateKeysByCombo = activeCombos.map(() => new Set()); // dates each combo has data for
+
     sortedDailyData.forEach(day => {
+      const ci = comboIdx.get(day.__combo ?? null);
+      if (ci === undefined) return; // a day outside the active set (shouldn't happen)
+      // measurement_date is timezone-naive ISO (e.g. "2026-05-24T02:06:53").
+      // Slicing the raw string keeps the key on the dataset's intended calendar
+      // day; routing through new Date()/toISOString() would shift it by the
+      // viewer's UTC offset.
+      const dateKey = day.metadata.measurement_date.slice(0, 10);
+      dateKeysByCombo[ci].add(dateKey);
       day.results.forEach(result => {
-        if (result.operation_name !== 'argmax') allOperations.add(result.operation_name);
+        const op = result.operation_name;
+        if (op === 'argmax') return; // removed op
+        let slots = opMaps.get(op);
+        if (!slots) {
+          slots = activeCombos.map(() => ({}));
+          opMaps.set(op, slots);
+        }
+        slots[ci][dateKey] = {
+          duration_ns: result.average_duration_ns,
+          successful_runs: result.successful_runs,
+          test_name: result.test_name,
+        };
       });
     });
 
-    return Array.from(allOperations).map(operationName => {
-      const series = activeCombos.map(combo => ({
-        combo,
-        dailyPerformance: buildSeriesForOp(daysByCombo.get(combo) || [], operationName),
-      }));
+    // Finalize: for each op, ensure every combo's map has an explicit entry (null)
+    // for a date that combo ran but where THIS op had no result — matching the
+    // previous per-day/per-op semantics ("ran that day, but not this op" => null).
+    return Array.from(opMaps.keys()).map(operationName => {
+      const slots = opMaps.get(operationName);
+      const series = activeCombos.map((combo, ci) => {
+        const dp = slots[ci];
+        dateKeysByCombo[ci].forEach(dk => { if (!(dk in dp)) dp[dk] = null; });
+        return { combo, dailyPerformance: dp };
+      });
       return {
         operation_name: operationName,
         series,
@@ -772,7 +774,7 @@ const PerformanceTable = ({ dailyData, combos = [], comboLabels = {}, loadingAll
           key={`${operation.operation_name}__${s.combo ?? 'only'}`}
           className={`${stripe} hover:bg-blue-50 dark:hover:bg-slate-700/50 transition-colors duration-150 group ${
             multi ? 'h-12' : 'h-14'
-          } ${first ? 'border-t-2 border-gray-200 dark:border-slate-700' : ''}`}
+          } ${first && multi ? 'border-t-2 border-gray-200 dark:border-slate-700' : ''}`}
         >
           {first && (
             <td
