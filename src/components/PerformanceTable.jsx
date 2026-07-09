@@ -764,6 +764,11 @@ const PerformanceTable = ({ dailyData, combos = [], comboLabels = {}, loadingAll
   // exactly the original one-row-per-op layout (badge hidden, no rowSpan seam).
   const renderOpBlock = (operation, blockIdx) => {
     const stripe = blockIdx % 2 === 0 ? 'bg-white dark:bg-slate-800' : 'bg-slate-50 dark:bg-slate-800/60';
+    // The frozen (sticky) Operation + Trend columns MUST stay fully opaque — the
+    // odd-row `dark:bg-slate-800/60` is translucent, so scrolled date values would
+    // otherwise bleed through them. Use a solid bg for those two cells only; the
+    // <tr>/date cells keep the striped tint.
+    const stickyBg = blockIdx % 2 === 0 ? 'bg-white dark:bg-slate-800' : 'bg-slate-50 dark:bg-slate-900';
     const series = operation.series || [{ combo: null, dailyPerformance: operation.dailyPerformance }];
     const multi = series.length > 1;
     return series.map((s, subIdx) => {
@@ -779,7 +784,7 @@ const PerformanceTable = ({ dailyData, combos = [], comboLabels = {}, loadingAll
           {first && (
             <td
               rowSpan={series.length}
-              className={`table-cell-sticky table-sticky-left-0 ${stripe} group-hover:bg-blue-50 dark:group-hover:bg-slate-700 border-r border-gray-200 dark:border-slate-700 transition-colors duration-150 py-1 px-3 align-middle`}
+              className={`table-cell-sticky table-sticky-left-0 ${stickyBg} group-hover:bg-blue-50 dark:group-hover:bg-slate-700 border-r border-gray-200 dark:border-slate-700 transition-colors duration-150 py-1 px-3 align-middle`}
             >
               <div className="flex flex-col items-center gap-1">
                 <span className="font-medium text-gray-900 dark:text-gray-100 text-sm truncate max-w-full">{operation.operation_name}</span>
@@ -790,7 +795,7 @@ const PerformanceTable = ({ dailyData, combos = [], comboLabels = {}, loadingAll
             </td>
           )}
           <td
-            className={`hidden md:table-cell table-cell-sticky table-sticky-left-180 ${stripe} group-hover:bg-blue-50 dark:group-hover:bg-slate-700 border-r border-gray-200 transition-colors duration-150 py-1 px-2 cursor-zoom-in`}
+            className={`hidden md:table-cell table-cell-sticky table-sticky-left-180 ${stickyBg} group-hover:bg-blue-50 dark:group-hover:bg-slate-700 border-r border-gray-200 transition-colors duration-150 py-1 px-2 cursor-zoom-in`}
             onClick={openChart}
             role="button"
             tabIndex={0}
