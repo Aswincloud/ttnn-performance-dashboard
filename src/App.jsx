@@ -6,42 +6,67 @@ import CatalogModal from './components/CatalogModal';
 import SubscribeModal from './components/SubscribeModal';
 import AdminSubscribersModal from './components/AdminSubscribersModal';
 import {
-  loadPerformanceData,
+  loadPerformanceMulti,
   processOperationData,
   calculateSummaryStats,
 } from './utils/dataLoader';
 
-// A small segmented control: a labelled group of plain toggle buttons. Uses the
-// button-toggle a11y pattern (group + aria-pressed) rather than radiogroup, since
-// each option is an independently Tab-focusable button — no custom arrow-key
-// roving is needed and the ARIA stays honest for assistive tech.
-function SegmentedToggle({ label, options, value, onChange }) {
+// The four (hardware × shape) combos, in a FIXED order. This order drives the
+// checkbox order and — since selected combos keep this order — the sub-row order
+// under each op in the table, so the layout is stable regardless of click order.
+const COMBOS = ['n150_small', 'n150_large', 'p100a_small', 'p100a_large'];
+const COMBO_LABEL = {
+  n150_small: 'N150 · 32²',
+  n150_large: 'N150 · 1024²',
+  p100a_small: 'P100a · 32²',
+  p100a_large: 'P100a · 1024²',
+};
+
+// A labelled group of combo checkboxes: pick any subset of the 4 combos to show
+// side-by-side (one sub-row per combo, per op). The last-checked box can't be
+// unchecked — the table always has at least one combo to render.
+function ComboCheckboxes({ selected, onChange }) {
+  const toggle = (combo) => {
+    const has = selected.includes(combo);
+    if (has && selected.length === 1) return; // keep ≥1 selected
+    // Re-derive from COMBOS so the result stays in the fixed order.
+    const next = COMBOS.filter((c) => (c === combo ? !has : selected.includes(c)));
+    onChange(next);
+  };
   return (
-    <div className="flex items-center gap-2">
-      <span id={`${label}-toggle-label`} className="text-xs font-medium text-gray-500 dark:text-gray-400 shrink-0">
-        {label}
+    <div className="flex items-center gap-2 flex-wrap">
+      <span id="combo-group-label" className="text-xs font-medium text-gray-500 dark:text-gray-400 shrink-0">
+        Compare
       </span>
       <div
         role="group"
-        aria-labelledby={`${label}-toggle-label`}
-        className="inline-flex rounded-lg bg-gray-100 dark:bg-slate-800 p-0.5 ring-1 ring-gray-200 dark:ring-slate-700"
+        aria-labelledby="combo-group-label"
+        className="inline-flex flex-wrap gap-1"
       >
-        {options.map((opt) => {
-          const active = opt.value === value;
+        {COMBOS.map((combo) => {
+          const on = selected.includes(combo);
+          const lockedOn = on && selected.length === 1; // the last one — can't turn off
           return (
-            <button
-              key={opt.value}
-              type="button"
-              aria-pressed={active}
-              onClick={() => onChange(opt.value)}
-              className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
-                active
-                  ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-300 shadow-sm'
-                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+            <label
+              key={combo}
+              className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 text-sm font-medium rounded-md ring-1 transition-colors select-none ${
+                lockedOn ? 'cursor-default' : 'cursor-pointer'
+              } ${
+                on
+                  ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-300 ring-blue-300 dark:ring-blue-500/50 shadow-sm'
+                  : 'bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-gray-400 ring-gray-200 dark:ring-slate-700 hover:text-gray-900 dark:hover:text-gray-200'
               }`}
+              title={lockedOn ? 'At least one combo must stay selected' : undefined}
             >
-              {opt.label}
-            </button>
+              <input
+                type="checkbox"
+                className="h-3.5 w-3.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                checked={on}
+                disabled={lockedOn}
+                onChange={() => toggle(combo)}
+              />
+              {COMBO_LABEL[combo]}
+            </label>
           );
         })}
       </div>
@@ -49,20 +74,37 @@ function SegmentedToggle({ label, options, value, onChange }) {
   );
 }
 
-// Persisted toggle: read a whitelisted value from localStorage, else default.
-function usePersistedChoice(storageKey, allowed, fallback) {
+// Persisted MULTI-select: a validated, non-empty subset of `allowed`, stored as
+// a JSON array in localStorage. Values not in `allowed` are dropped; an empty or
+// unparseable result falls back to `fallback`. Order is normalised to `allowed`.
+//
+// Migration: if the array key is absent but the legacy single-combo keys
+// (`ttnn-dash:v1:hw` + `:shape`) exist, seed the selection from that one combo so
+// a returning user lands on what they were viewing before.
+function usePersistedCombos(storageKey, allowed, fallback) {
+  const norm = (arr) => allowed.filter((c) => arr.includes(c));
   const [value, setValue] = useState(() => {
     try {
       const saved = localStorage.getItem(storageKey);
-      if (allowed.includes(saved)) return saved;
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          const ok = norm(parsed);
+          if (ok.length) return ok;
+        }
+      }
+      // legacy single-combo → seed from hw_shape if it's a known combo
+      const hw = localStorage.getItem('ttnn-dash:v1:hw');
+      const shape = localStorage.getItem('ttnn-dash:v1:shape');
+      if (hw && shape && allowed.includes(`${hw}_${shape}`)) return [`${hw}_${shape}`];
     } catch {
-      // localStorage may be unavailable (private mode) — use the default.
+      // localStorage unavailable / bad JSON — use the default.
     }
     return fallback;
   });
   useEffect(() => {
     try {
-      localStorage.setItem(storageKey, value);
+      localStorage.setItem(storageKey, JSON.stringify(value));
     } catch {
       // Persisting is best-effort; in-memory state still drives the UI.
     }
@@ -81,11 +123,16 @@ function App() {
   const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [atHome, setAtHome] = useState(false);
 
-  // Which (hardware, shape) combo to view — persisted, default N150 / 32x32.
-  // The data source is data/workflow/<hw>/<shape>/ (see dataLoader combo keys).
-  const [hw, setHw] = usePersistedChoice('ttnn-dash:v1:hw', ['n150', 'p100a'], 'n150');
-  const [shape, setShape] = usePersistedChoice('ttnn-dash:v1:shape', ['small', 'large'], 'small');
-  const combo = `${hw}_${shape}`;
+  // Which (hardware × shape) combos to show — persisted multi-select, default the
+  // one combo with deep history. Each selected combo becomes a sub-row per op in
+  // the table (data source: data/workflow/<hw>/<shape>/, see dataLoader keys).
+  const [selectedCombos, setSelectedCombos] = usePersistedCombos(
+    'ttnn-dash:v1:combos', COMBOS, ['n150_small']
+  );
+  // Primary = first selected (fixed COMBOS order); drives the overview banner and
+  // the sort/CSV/callout key. `comboKey` is a stable string dep for the load effect.
+  const primaryCombo = selectedCombos[0];
+  const comboKey = selectedCombos.join(',');
 
   // Theme: persisted, defaults to the OS preference on first visit. Applied as a
   // `.dark` class on <html> so the CSS dark: variant + .dark overrides take effect.
@@ -114,13 +161,15 @@ function App() {
 
   // Memoized so it's a stable dependency for the load effect below (lets the
   // effect depend on loadData directly instead of suppressing exhaustive-deps).
-  // Recreated only when `combo` changes — which is exactly when we want to reload.
+  // Recreated only when the selection changes — exactly when we want to reload.
+  // `comboKey` (comma-joined) is the stable primitive dep; the array identity
+  // would change every render.
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
 
-      const performanceData = await loadPerformanceData(combo);
+      const performanceData = await loadPerformanceMulti(comboKey.split(','));
 
       if (!performanceData) {
         throw new Error('Failed to load performance data');
@@ -134,52 +183,61 @@ function App() {
     } finally {
       setLoading(false);
     }
-  }, [combo]);
+  }, [comboKey]);
 
-  // Manual function to load all remaining data
+  // Load all remaining older days — fan out across the selected combos. Each combo
+  // keeps its own file list + counters in data.byCombo, so we slice the unloaded
+  // tail per combo, tag every fetched day with its __combo, and bump both the
+  // per-combo and the summed counters. (Only n150_small has real depth today.)
   const loadAllData = async () => {
-    if (!data || loadingAll) return;
-    
+    if (!data || loadingAll || !data.byCombo) return;
+
     setLoadingAll(true);
-    
-    const startIndex = data.currentlyLoaded;
-    const totalToLoad = data.totalAvailable;
-    
-    console.log(`🔄 Loading all remaining data from ${startIndex} to ${totalToLoad} days...`);
-    
     try {
-      // Load ALL remaining data in one go
-      const remainingFiles = data.index.files.slice(startIndex, totalToLoad);
-      
-      const allNewData = await Promise.all(
-        remainingFiles.map(async (file) => {
-          try {
-            const response = await fetch(`${import.meta.env.BASE_URL}${file.path}`);
-            const fileData = await response.json();
-            return {
-              ...fileData,
-              filename: file.filename,
-              date: file.measurement_date
-            };
-          } catch (error) {
-            console.error(`Error loading ${file.filename}:`, error);
-            return null;
-          }
+      const perCombo = await Promise.all(
+        Object.entries(data.byCombo).map(async ([combo, info]) => {
+          const remaining = (info.files || []).slice(info.currentlyLoaded, info.totalAvailable);
+          if (!remaining.length) return { combo, days: [], attempted: 0 };
+          const days = await Promise.all(
+            remaining.map(async (file) => {
+              try {
+                const response = await fetch(`${import.meta.env.BASE_URL}${file.path}`);
+                const fileData = await response.json();
+                return { ...fileData, filename: file.filename, date: file.measurement_date, __combo: combo };
+              } catch (error) {
+                console.error(`Error loading ${file.filename}:`, error);
+                return null;
+              }
+            })
+          );
+          // Advance the cursor by files ATTEMPTED, not just parsed — otherwise a
+          // permanently-bad file would sit at `currentlyLoaded` and get re-fetched
+          // (duplicates) or retried forever on the next "Load all".
+          return { combo, days: days.filter((d) => d !== null), attempted: remaining.length };
         })
       );
-      
-      // Filter out failed loads
-      const validNewData = allNewData.filter(d => d !== null);
-      
-      if (validNewData.length > 0) {
-        // Update frontend only once with all data
-        setData(prevData => ({
-          ...prevData,
-          daily: [...prevData.daily, ...validNewData],
-          currentlyLoaded: prevData.currentlyLoaded + validNewData.length
-        }));
-        
-        console.log(`✅ All data loaded! Loaded ${validNewData.length} additional days. Total: ${startIndex + validNewData.length} days`);
+
+      const newDays = perCombo.flatMap((r) => r.days);
+      const anyAttempted = perCombo.some((r) => r.attempted > 0);
+      if (anyAttempted) {
+        setData((prev) => {
+          const byCombo = { ...prev.byCombo };
+          for (const { combo, attempted } of perCombo) {
+            if (!attempted) continue;
+            byCombo[combo] = {
+              ...byCombo[combo],
+              currentlyLoaded: byCombo[combo].currentlyLoaded + attempted,
+            };
+          }
+          return {
+            ...prev,
+            daily: [...prev.daily, ...newDays],
+            byCombo,
+            // Summed cursor also advances by attempted, so the header's
+            // "showing X of Y" reaches Y and the Load-all button hides.
+            currentlyLoaded: prev.currentlyLoaded + perCombo.reduce((n, r) => n + r.attempted, 0),
+          };
+        });
       }
     } catch (error) {
       console.error('Error loading all data:', error);
@@ -188,8 +246,8 @@ function App() {
     }
   };
 
-  // Reload whenever the combo changes (initial mount + either toggle).
-  // loadData is memoized on [combo], so depending on it is equivalent and keeps
+  // Reload whenever the selection changes (initial mount + any checkbox).
+  // loadData is memoized on [comboKey], so depending on it is equivalent and keeps
   // exhaustive-deps satisfied without a suppression.
   useEffect(() => {
     loadData();
@@ -410,7 +468,14 @@ function App() {
             <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">Performance Overview</h2>
             <p className="text-gray-600 dark:text-gray-400">Key metrics and trends for TTNN eltwise operations</p>
           </div>
-          <OverviewCards summaryStats={summaryStats} hw={hw} shape={shape} />
+          {/* Overview banner reflects the PRIMARY (first-selected) combo; the
+              "N combos" hint tells the reader the table is showing more. */}
+          <OverviewCards
+            summaryStats={summaryStats}
+            hw={primaryCombo.split('_')[0]}
+            shape={primaryCombo.split('_')[1]}
+            comboCount={selectedCombos.length}
+          />
         </section>
 
         {/* Performance Table Section */}
@@ -420,32 +485,18 @@ function App() {
               <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">Detailed Performance Analysis</h2>
               <p className="text-gray-600 dark:text-gray-400">Day-by-day performance comparison across all operations</p>
             </div>
-            {/* Combo selectors: pick which board × shape to view. */}
+            {/* Combo selector: check any subset of the 4 combos. Each selected
+                combo becomes a sub-row per op in the table below. */}
             <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
-              <SegmentedToggle
-                label="Hardware"
-                value={hw}
-                onChange={setHw}
-                options={[
-                  { value: 'n150', label: 'N150' },
-                  { value: 'p100a', label: 'P100a' },
-                ]}
-              />
-              <SegmentedToggle
-                label="Shape"
-                value={shape}
-                onChange={setShape}
-                options={[
-                  { value: 'small', label: '32×32' },
-                  { value: 'large', label: '1024×1024' },
-                ]}
-              />
+              <ComboCheckboxes selected={selectedCombos} onChange={setSelectedCombos} />
             </div>
           </div>
                      <div className="glass-card">
-             <PerformanceTable 
+             <PerformanceTable
                operations={processedOperations}
                dailyData={data?.daily || []}
+               combos={selectedCombos}
+               comboLabels={COMBO_LABEL}
                loadingAll={loadingAll}
                onLoadAllData={loadAllData}
                hasMoreDays={data ? data.currentlyLoaded < data.totalAvailable : false}

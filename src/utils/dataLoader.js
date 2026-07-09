@@ -112,6 +112,54 @@ export async function loadPerformanceData(combo = DEFAULT_COMBO, limit = INITIAL
   }
 }
 
+// Load SEVERAL combos at once for the multi-select (per-combo sub-rows) view.
+// Each combo is loaded with the existing single-combo loader, then its daily
+// files are tagged with `__combo` and merged into one flat `daily[]` — the shape
+// PerformanceTable already consumes, now with a combo discriminator so it can
+// split each op into one sub-row per combo. A `byCombo` map is kept so the
+// "Load all older days" fan-out can keep each combo's own file list + counters.
+//
+// The header counters (totalAvailable / currentlyLoaded) are SUMS across combos.
+// `latest` for OverviewCards / summary stats is the PRIMARY (first-selected)
+// combo's latest — the overview banner stays single-combo by design.
+export async function loadPerformanceMulti(combos, limit = INITIAL_DAILY_FILES) {
+  const list = Array.isArray(combos) && combos.length ? combos : [DEFAULT_COMBO];
+  const results = await Promise.all(list.map((c) => loadPerformanceData(c, limit)));
+
+  const daily = [];
+  const byCombo = {};
+  let totalAvailable = 0;
+  let currentlyLoaded = 0;
+
+  list.forEach((combo, i) => {
+    // loadPerformanceData never throws, but returns null on a catastrophic error;
+    // treat that as an empty combo so one bad combo can't sink the whole view.
+    const r = results[i] || emptyResult();
+    for (const d of r.daily) daily.push({ ...d, __combo: combo });
+    byCombo[combo] = {
+      files: r.index?.files || [],
+      latest: r.latest,
+      totalAvailable: r.totalAvailable || 0,
+      currentlyLoaded: r.currentlyLoaded || 0,
+    };
+    totalAvailable += r.totalAvailable || 0;
+    currentlyLoaded += r.currentlyLoaded || 0;
+  });
+
+  const primary = list[0];
+  return {
+    combos: list,
+    primary,
+    // Single-combo latest the overview + summary read (may be null for an
+    // empty primary combo — calculateSummaryStats null-guards it).
+    latest: byCombo[primary]?.latest ?? null,
+    daily,
+    byCombo,
+    totalAvailable,
+    currentlyLoaded,
+  };
+}
+
 export function processOperationData(data) {
   if (!data?.latest?.results) return [];
   

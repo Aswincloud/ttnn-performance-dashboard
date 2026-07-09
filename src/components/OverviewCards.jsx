@@ -21,10 +21,13 @@ function formatDateKey(isoString) {
 const DEVICE_LABEL = { n150: 'Wormhole N150', p100a: 'Blackhole P100a' };
 const SHAPE_LABEL = { small: '[1, 1, 32, 32]', large: '[1, 1, 1024, 1024]' };
 
-const TestConfigBanner = ({ summaryStats, hw = 'n150', shape = 'small' }) => {
+const TestConfigBanner = ({ summaryStats, hw = 'n150', shape = 'small', comboCount = 1 }) => {
   const [copied, setCopied] = useState(false);
   const deviceLabel = DEVICE_LABEL[hw] || DEVICE_LABEL.n150;
   const shapeLabel = SHAPE_LABEL[shape] || SHAPE_LABEL.small;
+  // In multi-combo mode the banner reflects the PRIMARY combo; a hint tells the
+  // reader the table below is showing several combos side by side.
+  const multi = comboCount > 1;
 
   const copyCommit = async (sha) => {
     try {
@@ -46,7 +49,11 @@ const TestConfigBanner = ({ summaryStats, hw = 'n150', shape = 'small' }) => {
           </div>
           <div>
             <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200">Test Configuration</h3>
-            <p className="text-xs text-gray-500 dark:text-gray-400">Hardware and test parameters</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              {multi
+                ? `Primary combo · ${comboCount} combos compared in the table`
+                : 'Hardware and test parameters'}
+            </p>
           </div>
         </div>
         
@@ -143,8 +150,8 @@ const TestConfigBanner = ({ summaryStats, hw = 'n150', shape = 'small' }) => {
   );
 };
 
-const OverviewCards = ({ summaryStats, hw, shape }) => {
-  return <TestConfigBanner summaryStats={summaryStats} hw={hw} shape={shape} />;
+const OverviewCards = ({ summaryStats, hw, shape, comboCount = 1 }) => {
+  return <TestConfigBanner summaryStats={summaryStats} hw={hw} shape={shape} comboCount={comboCount} />;
 };
 
 export default OverviewCards; 

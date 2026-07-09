@@ -131,7 +131,7 @@ const RowSparkline = ({ values, width = 80, height = 22, maxPoints = 30 }) => {
   );
 };
 
-const PerformanceTable = ({ dailyData, loadingAll, onLoadAllData, hasMoreDays, totalAvailable, currentlyLoaded }) => {
+const PerformanceTable = ({ dailyData, combos = [], comboLabels = {}, loadingAll, onLoadAllData, hasMoreDays, totalAvailable, currentlyLoaded }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortConfig, setSortConfig] = usePersistedState('sortConfig', { key: 'operation_name', direction: 'asc' });
   const [selectedUnit, setSelectedUnit] = usePersistedState('selectedUnit', 'ns');
@@ -326,53 +326,79 @@ const PerformanceTable = ({ dailyData, loadingAll, onLoadAllData, hasMoreDays, t
     return ((currentValue - previousValue) / previousValue) * 100;
   };
 
+  // Which combos to split each op into (sub-rows), in the caller's fixed order.
+  // When empty (single-combo mode / legacy), fall back to a single unnamed series
+  // so the whole component behaves exactly as before.
+  const activeCombos = useMemo(
+    () => (combos && combos.length ? combos : [null]),
+    [combos]
+  );
+
+  // Op-blocks: one entry per operation, each carrying a `series` array with one
+  // entry per selected combo ({ combo, dailyPerformance }). `dailyPerformance` on
+  // the block itself mirrors the PRIMARY (first) combo's series, so all existing
+  // op-level consumers (sort, CSV, callout, chart modal) keep working unchanged.
+  //
+  // Built in one O(days * results) pass per combo — each day's results are read
+  // straight into the target per-op maps, so we never scan `day.results` per op
+  // (which multiplied to O(ops * days * results) and got worse with each combo).
   const processedData = useMemo(() => {
     if (!dailyData || dailyData.length === 0) return [];
 
-    // Sort daily data by date
-    const sortedDailyData = [...dailyData].sort((a, b) => 
+    // Sort by date, then bucket days by their combo tag (null when untagged).
+    const sortedDailyData = [...dailyData].sort((a, b) =>
       new Date(a.metadata.measurement_date) - new Date(b.metadata.measurement_date)
     );
+    const comboIdx = new Map(activeCombos.map((c, i) => [c, i]));
 
-    // Get all unique operations (exclude argmax as it's been removed)
-    const allOperations = new Set();
+    // Per operation, an array of `dailyPerformance` maps — one slot per combo,
+    // in activeCombos order. Filled directly from each day's results below.
+    const opMaps = new Map(); // operation_name -> [ {date: cell|null}, ... per combo ]
+    const dateKeysByCombo = activeCombos.map(() => new Set()); // dates each combo has data for
+
     sortedDailyData.forEach(day => {
+      const ci = comboIdx.get(day.__combo ?? null);
+      if (ci === undefined) return; // a day outside the active set (shouldn't happen)
+      // measurement_date is timezone-naive ISO (e.g. "2026-05-24T02:06:53").
+      // Slicing the raw string keeps the key on the dataset's intended calendar
+      // day; routing through new Date()/toISOString() would shift it by the
+      // viewer's UTC offset.
+      const dateKey = day.metadata.measurement_date.slice(0, 10);
+      dateKeysByCombo[ci].add(dateKey);
       day.results.forEach(result => {
-        if (result.operation_name !== 'argmax') {
-          allOperations.add(result.operation_name);
+        const op = result.operation_name;
+        if (op === 'argmax') return; // removed op
+        let slots = opMaps.get(op);
+        if (!slots) {
+          slots = activeCombos.map(() => ({}));
+          opMaps.set(op, slots);
         }
+        slots[ci][dateKey] = {
+          duration_ns: result.average_duration_ns,
+          successful_runs: result.successful_runs,
+          test_name: result.test_name,
+        };
       });
     });
 
-    // Create data structure for table
-    return Array.from(allOperations).map(operationName => {
-      const operationData = {
+    // Finalize: for each op, ensure every combo's map has an explicit entry (null)
+    // for a date that combo ran but where THIS op had no result — matching the
+    // previous per-day/per-op semantics ("ran that day, but not this op" => null).
+    return Array.from(opMaps.keys()).map(operationName => {
+      const slots = opMaps.get(operationName);
+      const series = activeCombos.map((combo, ci) => {
+        const dp = slots[ci];
+        dateKeysByCombo[ci].forEach(dk => { if (!(dk in dp)) dp[dk] = null; });
+        return { combo, dailyPerformance: dp };
+      });
+      return {
         operation_name: operationName,
-        dailyPerformance: {}
+        series,
+        // primary-combo mirror for op-level consumers
+        dailyPerformance: series[0].dailyPerformance,
       };
-
-      sortedDailyData.forEach(day => {
-        // measurement_date is timezone-naive ISO (e.g. "2026-05-24T02:06:53").
-        // Slicing the raw string keeps the key on the dataset's intended calendar
-        // day; routing through new Date()/toISOString() would shift it by the
-        // viewer's UTC offset.
-        const dateKey = day.metadata.measurement_date.slice(0, 10);
-        const operation = day.results.find(r => r.operation_name === operationName);
-        
-        if (operation) {
-          operationData.dailyPerformance[dateKey] = {
-            duration_ns: operation.average_duration_ns,
-            successful_runs: operation.successful_runs,
-            test_name: operation.test_name
-          };
-        } else {
-          operationData.dailyPerformance[dateKey] = null;
-        }
-      });
-
-      return operationData;
     });
-  }, [dailyData]);
+  }, [dailyData, activeCombos]);
 
   // All date columns without any filtering (for "All Available Days" export)
   const allDateColumns = useMemo(() => {
@@ -661,15 +687,21 @@ const PerformanceTable = ({ dailyData, loadingAll, onLoadAllData, hasMoreDays, t
     }
     // 'current' uses displayedDateColumns as is
     
-    const headers = ['Operation', 'Category', ...columnsToExport.map(d => `${d.date} (${d.commitId})`)];
-    const rows = filteredAndSortedData.map(op => [
-      op.operation_name,
-      getOperationCategory(op.operation_name),
-      ...columnsToExport.map(d => {
-        const data = op.dailyPerformance[d.date];
-        return data ? `${formatValue(data.duration_ns, selectedUnit)}${selectedUnit}` : 'N/A';
-      })
-    ]);
+    // A `Config` column names the combo per row; each op fans out to one row per
+    // selected combo (single-combo mode → one row, config label blank).
+    const headers = ['Operation', 'Category', 'Config', ...columnsToExport.map(d => `${d.date} (${d.commitId})`)];
+    const rows = filteredAndSortedData.flatMap(op => {
+      const series = op.series || [{ combo: null, dailyPerformance: op.dailyPerformance }];
+      return series.map(s => [
+        op.operation_name,
+        getOperationCategory(op.operation_name),
+        comboLabels[s.combo] || s.combo || '',
+        ...columnsToExport.map(d => {
+          const data = s.dailyPerformance[d.date];
+          return data ? `${formatValue(data.duration_ns, selectedUnit)}${selectedUnit}` : 'N/A';
+        }),
+      ]);
+    });
     
     const csvContent = [
       headers.join(','),
@@ -685,6 +717,99 @@ const PerformanceTable = ({ dailyData, loadingAll, onLoadAllData, hasMoreDays, t
     a.click();
     URL.revokeObjectURL(url);
     setShowExportMenu(false);
+  };
+
+  // Render the per-date value/trend cells for ONE combo's series. Identical logic
+  // to the original single-row cells — just fed a specific `dailyPerformance`.
+  const renderDateCells = (dailyPerformance) =>
+    displayedDateColumns.map((dateObj, dateIndex) => {
+      const dayData = dailyPerformance[dateObj.date];
+      const previousDateObj = dateIndex > 0 ? displayedDateColumns[dateIndex - 1] : null;
+      const previousData = previousDateObj ? dailyPerformance[previousDateObj.date] : null;
+      const change = getPerformanceChange(dayData, previousData);
+      const previousValue = previousData?.duration_ns;
+      const isFirstColumn = dateIndex === 0;
+      const colorClass = dayData ? getPerformanceColor(dayData.duration_ns, previousValue, isFirstColumn) : '';
+      return (
+        <td key={dateObj.date} className="table-cell text-center relative py-1">
+          {dayData ? (
+            <div className="flex flex-col items-center">
+              <span className={`performance-cell ${colorClass}`}>
+                {formatValue(dayData.duration_ns, selectedUnit)}{selectedUnit}
+              </span>
+              {change && change.trend !== 'stable' && (
+                <div className={`flex items-center text-xs ${
+                  change.trend === 'better' ? 'text-green-700 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+                }`}>
+                  {change.trend === 'better' ? <TrendingUp className="h-3 w-3 mr-1" /> : <TrendingDown className="h-3 w-3 mr-1" />}
+                  {Math.abs(parseFloat(change.percentage))}%
+                </div>
+              )}
+              {change && change.trend === 'stable' && (
+                <div className="flex items-center text-xs text-gray-400"><Minus className="h-3 w-3" /></div>
+              )}
+            </div>
+          ) : (
+            <span className="text-gray-400 text-sm">—</span>
+          )}
+        </td>
+      );
+    });
+
+  // Render one operation as a BLOCK of N sub-rows (one per selected combo). The
+  // op-name cell is rendered once with rowSpan across the block; every sub-row
+  // carries its own combo badge + sparkline + date cells. Striping is by block
+  // index so the whole op reads as one striped unit; a heavier top border marks
+  // the block boundary. When there's a single (unnamed) combo this collapses to
+  // exactly the original one-row-per-op layout (badge hidden, no rowSpan seam).
+  const renderOpBlock = (operation, blockIdx) => {
+    const stripe = blockIdx % 2 === 0 ? 'bg-white dark:bg-slate-800' : 'bg-slate-50 dark:bg-slate-800/60';
+    const series = operation.series || [{ combo: null, dailyPerformance: operation.dailyPerformance }];
+    const multi = series.length > 1;
+    return series.map((s, subIdx) => {
+      const first = subIdx === 0;
+      const openChart = () => setChartModalOp({ ...operation, activeCombo: s.combo });
+      return (
+        <tr
+          key={`${operation.operation_name}__${s.combo ?? 'only'}`}
+          className={`${stripe} hover:bg-blue-50 dark:hover:bg-slate-700/50 transition-colors duration-150 group ${
+            multi ? 'h-12' : 'h-14'
+          } ${first && multi ? 'border-t-2 border-gray-200 dark:border-slate-700' : ''}`}
+        >
+          {first && (
+            <td
+              rowSpan={series.length}
+              className={`table-cell-sticky table-sticky-left-0 ${stripe} group-hover:bg-blue-50 dark:group-hover:bg-slate-700 border-r border-gray-200 dark:border-slate-700 transition-colors duration-150 py-1 px-3 align-middle`}
+            >
+              <div className="flex flex-col items-center gap-1">
+                <span className="font-medium text-gray-900 dark:text-gray-100 text-sm truncate max-w-full">{operation.operation_name}</span>
+                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium ${getCategoryColor(getOperationCategory(operation.operation_name))}`}>
+                  {getOperationCategory(operation.operation_name)}
+                </span>
+              </div>
+            </td>
+          )}
+          <td
+            className={`hidden md:table-cell table-cell-sticky table-sticky-left-180 ${stripe} group-hover:bg-blue-50 dark:group-hover:bg-slate-700 border-r border-gray-200 transition-colors duration-150 py-1 px-2 cursor-zoom-in`}
+            onClick={openChart}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openChart(); } }}
+            title={multi ? `${comboLabels[s.combo] || s.combo} — click to enlarge trend` : 'Click to enlarge trend'}
+          >
+            <div className="flex flex-col items-center justify-center gap-0.5">
+              {multi && (
+                <span className="text-[9px] font-semibold uppercase tracking-wide text-blue-600 dark:text-blue-300 whitespace-nowrap">
+                  {comboLabels[s.combo] || s.combo}
+                </span>
+              )}
+              <RowSparkline values={displayedDateColumns.map(d => s.dailyPerformance[d.date]?.duration_ns).filter(v => v != null)} />
+            </div>
+          </td>
+          {renderDateCells(s.dailyPerformance)}
+        </tr>
+      );
+    });
   };
 
   return (
@@ -1165,149 +1290,11 @@ const PerformanceTable = ({ dailyData, loadingAll, onLoadAllData, hasMoreDays, t
                       </span>
                     </td>
                   </tr>
-                  {operations.map((operation, rowIdx) => (
-                    <tr
-                      key={operation.operation_name}
-                      className={`${rowIdx % 2 === 0 ? 'bg-white dark:bg-slate-800' : 'bg-slate-50 dark:bg-slate-800/60'} hover:bg-blue-50 dark:hover:bg-slate-700/50 transition-colors duration-150 group h-14`}
-                    >
-                      <td className="table-cell-sticky table-sticky-left-0 bg-white dark:bg-slate-800 group-hover:bg-blue-50 dark:group-hover:bg-slate-700 border-r border-gray-200 dark:border-slate-700 transition-colors duration-150 py-1 px-3">
-                        <div className="flex flex-col items-center gap-1">
-                          <span className="font-medium text-gray-900 dark:text-gray-100 text-sm truncate max-w-full">{operation.operation_name}</span>
-                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium ${getCategoryColor(getOperationCategory(operation.operation_name))}`}>
-                            {getOperationCategory(operation.operation_name)}
-                          </span>
-                        </div>
-                      </td>
-                      <td
-                        className="hidden md:table-cell table-cell-sticky table-sticky-left-180 bg-white dark:bg-slate-800 group-hover:bg-blue-50 dark:group-hover:bg-slate-700 border-r border-gray-200 transition-colors duration-150 py-1 px-2 cursor-zoom-in"
-                        onClick={() => setChartModalOp(operation)}
-                        role="button"
-                        tabIndex={0}
-                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setChartModalOp(operation); } }}
-                        title="Click to enlarge trend"
-                      >
-                        <div className="flex items-center justify-center">
-                          <RowSparkline values={displayedDateColumns.map(d => operation.dailyPerformance[d.date]?.duration_ns).filter(v => v != null)} />
-                        </div>
-                      </td>
-                      {displayedDateColumns.map((dateObj, dateIndex) => {
-                        const dayData = operation.dailyPerformance[dateObj.date];
-                        const previousDateObj = dateIndex > 0 ? displayedDateColumns[dateIndex - 1] : null;
-                        const previousData = previousDateObj ? operation.dailyPerformance[previousDateObj.date] : null;
-                        const change = getPerformanceChange(dayData, previousData);
-                        
-                        const previousValue = previousData?.duration_ns;
-                        const isFirstColumn = dateIndex === 0;
-                        const colorClass = dayData ? getPerformanceColor(dayData.duration_ns, previousValue, isFirstColumn) : '';
-
-                        return (
-                          <td key={dateObj.date} className="table-cell text-center relative py-1">
-                            {dayData ? (
-                              <div className="flex flex-col items-center">
-                                <span className={`performance-cell ${colorClass}`}>
-                                  {formatValue(dayData.duration_ns, selectedUnit)}{selectedUnit}
-                                </span>
-                                {change && change.trend !== 'stable' && (
-                                  <div className={`flex items-center text-xs ${
-                                    change.trend === 'better' ? 'text-green-700 dark:text-green-400' : 'text-red-600 dark:text-red-400'
-                                  }`}>
-                                    {change.trend === 'better' ? (
-                                      <TrendingUp className="h-3 w-3 mr-1" />
-                                    ) : (
-                                      <TrendingDown className="h-3 w-3 mr-1" />
-                                    )}
-                                    {Math.abs(parseFloat(change.percentage))}%
-                                  </div>
-                                )}
-                                {change && change.trend === 'stable' && (
-                                  <div className="flex items-center text-xs text-gray-400">
-                                    <Minus className="h-3 w-3" />
-                                  </div>
-                                )}
-                              </div>
-                            ) : (
-                              <span className="text-gray-400 text-sm">—</span>
-                            )}
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  ))}
+                  {operations.map((operation, rowIdx) => renderOpBlock(operation, rowIdx))}
                 </React.Fragment>
               ))
             ) : (
-              filteredAndSortedData.map((operation, index) => (
-                <tr
-                  key={operation.operation_name}
-                  className={`${index % 2 === 0 ? 'bg-white dark:bg-slate-800' : 'bg-slate-50 dark:bg-slate-800/60'} hover:bg-blue-50 dark:hover:bg-slate-700/50 transition-colors duration-150 group h-14`}
-                >
-                  <td className="table-cell-sticky table-sticky-left-0 bg-white dark:bg-slate-800 group-hover:bg-blue-50 dark:group-hover:bg-slate-700 border-r border-gray-200 dark:border-slate-700 transition-colors duration-150 py-1 px-3">
-                    <div className="flex flex-col items-center gap-1">
-                      <span className="font-medium text-gray-900 dark:text-gray-100 text-sm truncate max-w-full">{operation.operation_name}</span>
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium ${getCategoryColor(getOperationCategory(operation.operation_name))}`}>
-                        {getOperationCategory(operation.operation_name)}
-                      </span>
-                    </div>
-                  </td>
-                  <td
-                    className="hidden md:table-cell table-cell-sticky table-sticky-left-180 bg-white dark:bg-slate-800 group-hover:bg-blue-50 dark:group-hover:bg-slate-700 border-r border-gray-200 transition-colors duration-150 py-1 px-2 cursor-zoom-in"
-                    onClick={() => setChartModalOp(operation)}
-                    role="button"
-                    tabIndex={0}
-                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setChartModalOp(operation); } }}
-                    title="Click to enlarge trend"
-                  >
-                    <div className="flex items-center justify-center">
-                      <RowSparkline values={displayedDateColumns.map(d => operation.dailyPerformance[d.date]?.duration_ns).filter(v => v != null)} />
-                    </div>
-                  </td>
-                {displayedDateColumns.map((dateObj, dateIndex) => {
-                   const dayData = operation.dailyPerformance[dateObj.date];
-                   const previousDateObj = dateIndex > 0 ? displayedDateColumns[dateIndex - 1] : null;
-                   const previousData = previousDateObj ? operation.dailyPerformance[previousDateObj.date] : null;
-                   const change = getPerformanceChange(dayData, previousData);
-                   
-                   // Get previous day value for comparison
-                   const previousValue = previousData?.duration_ns;
-                   
-                   const isFirstColumn = dateIndex === 0;
-                   const colorClass = dayData ? getPerformanceColor(dayData.duration_ns, previousValue, isFirstColumn) : '';
-
-                   return (
-                     <td key={dateObj.date} className="table-cell text-center relative py-1">
-                       {dayData ? (
-                         <div className="flex flex-col items-center">
-                           <span className={`performance-cell ${colorClass}`}>
-                             {formatValue(dayData.duration_ns, selectedUnit)}{selectedUnit}
-                           </span>
-                           
-                           {/* Show day-to-day trend arrow */}
-                           {change && change.trend !== 'stable' && (
-                             <div className={`flex items-center text-xs ${
-                               change.trend === 'better' ? 'text-green-700 dark:text-green-400' : 'text-red-600 dark:text-red-400'
-                             }`}>
-                               {change.trend === 'better' ? (
-                                 <TrendingUp className="h-3 w-3 mr-1" />
-                               ) : (
-                                 <TrendingDown className="h-3 w-3 mr-1" />
-                               )}
-                               {Math.abs(parseFloat(change.percentage))}%
-                             </div>
-                           )}
-                           {change && change.trend === 'stable' && (
-                             <div className="flex items-center text-xs text-gray-400">
-                               <Minus className="h-3 w-3" />
-                             </div>
-                           )}
-                         </div>
-                       ) : (
-                         <span className="text-gray-400 text-sm">—</span>
-                       )}
-                     </td>
-                   );
-                 })}
-               </tr>
-              ))
+              filteredAndSortedData.map((operation, index) => renderOpBlock(operation, index))
             )}
           </tbody>
         </table>
@@ -1436,11 +1423,19 @@ const PerformanceTable = ({ dailyData, loadingAll, onLoadAllData, hasMoreDays, t
        </div>
 
        {chartModalOp && (() => {
+         // Chart the series for the clicked sub-row's combo (falls back to the
+         // op's primary series in single-combo mode / when opened from a callout).
+         const modalSeries = chartModalOp.activeCombo != null && chartModalOp.series
+           ? (chartModalOp.series.find(s => s.combo === chartModalOp.activeCombo)?.dailyPerformance || chartModalOp.dailyPerformance)
+           : chartModalOp.dailyPerformance;
+         const modalComboLabel = chartModalOp.activeCombo != null
+           ? (comboLabels[chartModalOp.activeCombo] || chartModalOp.activeCombo)
+           : null;
          const modalChartData = displayedDateColumns.map(dateObj => ({
            date: dateObj.date,
            commitId: dateObj.commitId,
-           value: chartModalOp.dailyPerformance[dateObj.date]?.duration_ns
-             ? convertFromNanoseconds(chartModalOp.dailyPerformance[dateObj.date].duration_ns, selectedUnit).value
+           value: modalSeries[dateObj.date]?.duration_ns
+             ? convertFromNanoseconds(modalSeries[dateObj.date].duration_ns, selectedUnit).value
              : null,
          })).filter(d => d.value !== null);
 
@@ -1462,6 +1457,11 @@ const PerformanceTable = ({ dailyData, loadingAll, onLoadAllData, hasMoreDays, t
                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium shrink-0 ${getCategoryColor(getOperationCategory(chartModalOp.operation_name))}`}>
                      {getOperationCategory(chartModalOp.operation_name)}
                    </span>
+                   {modalComboLabel && (
+                     <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold shrink-0 bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-300">
+                       {modalComboLabel}
+                     </span>
+                   )}
                  </div>
                  <button
                    onClick={() => setChartModalOp(null)}
