@@ -3,9 +3,10 @@ name: Daily eltwise perf (tt-metal)
 # Drives a Tenstorrent eltwise perf run end to end, unattended:
 #   rebase our tt-metal branch on upstream main -> dispatch ONE test-dispatch
 #   run that fans out to 2 boards x 2 shapes x 5 shards off a single build
-#   -> poll it to completion -> download the 4 per-(board,shape) JSONs
-#   -> land them under data/workflow/{n150,p100a}/{small,large}/ via a
-#   single auto-merging PR.
+#   -> poll it to completion -> download the 20 raw shard artifacts and merge
+#   each combo's 5 shards locally (tt-metal uploads raw shards; we do the merge)
+#   -> land the 4 combined JSONs under data/workflow/{n150,p100a}/{small,large}/
+#   via a single auto-merging PR.
 #
 # The tt-metal calls need push/workflow access to tenstorrent/tt-metal, which
 # this repo's GITHUB_TOKEN/App does not have, so they use the TT_METAL_PAT
@@ -31,9 +32,9 @@ env:
   TT_REPO: tenstorrent/tt-metal
   TT_BRANCH: Aswinmcw/test_eltwise_perf
   RAW_BASE: https://raw.githubusercontent.com/Aswincloud/ttnn-performance-dashboard/main
-  # The tt-metal matrix is board x shape; each (board, shape) yields an
-  # artifact eltwise-perf-results-<HW>-<SHAPE> that lands in
-  # data/workflow/<hw lowercased>/<shape>/.
+  # The tt-metal matrix is board x shape x 5 shards; each cell yields a shard
+  # artifact eltwise-perf-results-<HW>-<SHAPE>-shard-<i>. We download all 20 and
+  # merge per (board, shape) into data/workflow/<hw lowercased>/<shape>/.
   BOARDS: "N150 P100a"
   SHAPES: "small large"
 
@@ -160,7 +161,7 @@ jobs:
           echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
           echo "🚀 tt-metal run: https://github.com/${TT_REPO}/actions/runs/${RUN_ID}"
 
-      # 3. Poll the tt-metal run (build + 20 cells + 4 combines) to completion.
+      # 3. Poll the tt-metal run (build + 20 shard cells) to completion.
       - name: Poll tt-metal run
         env:
           GH_TOKEN: ${{ secrets.TT_METAL_PAT }}
@@ -187,8 +188,14 @@ jobs:
             exit 1
           fi
 
-      # 4. Download the 4 per-(board, shape) combined JSON artifacts.
-      - name: Download combined results
+      # 4. Download the 20 per-(board, shape) SHARD artifacts and merge each
+      #    combo's shards locally. tt-metal only produces raw shards now — the
+      #    merge lives HERE, using the perf_measurement_script.py already checked
+      #    out in this repo (no raw.githubusercontent curl -> no 429 that a
+      #    parallel-combine job on tt-metal used to hit). --merge is a device-free
+      #    stdlib post-process; it writes eltwise_perf_results_<ts>_final.json,
+      #    which the unchanged commit step below globs and lands.
+      - name: Download shards + merge results
         id: download
         env:
           GH_TOKEN: ${{ secrets.TT_METAL_PAT }}
@@ -197,15 +204,34 @@ jobs:
           RUN_ID="${{ steps.dispatch.outputs.run_id }}"
           for HW in $BOARDS; do
             for SHAPE in $SHAPES; do
+              DEST="_artifact/${HW}/${SHAPE}"
+              mkdir -p "$DEST/shards"
+              # One call grabs all 5 shard artifacts for this combo; each extracts
+              # into its own subdir under shards/, so glob recursively.
               gh run download "$RUN_ID" -R "$TT_REPO" \
-                -n "eltwise-perf-results-${HW}-${SHAPE}" -D "_artifact/${HW}/${SHAPE}"
-              SRC=$(ls _artifact/${HW}/${SHAPE}/eltwise_perf_results_*.json 2>/dev/null | head -1 || true)
-              if [ -z "$SRC" ]; then
+                -p "eltwise-perf-results-${HW}-${SHAPE}-shard-*" -D "$DEST/shards"
+              # Count shards up front (paths relative to the workspace root).
+              NSHARD=$(find "$DEST/shards" -name 'shard-*.json' | wc -l)
+              if [ "$NSHARD" -lt 5 ]; then
                 echo "FAIL_KIND=artifact-missing" >> "$GITHUB_ENV"
-                echo "::error::eltwise-perf-results-${HW}-${SHAPE} artifact had no JSON."
+                echo "::error::${HW}/${SHAPE}: found ${NSHARD} shard JSON(s), expected 5."
                 exit 1
               fi
-              echo "📦 ${HW}/${SHAPE}: $SRC ($(wc -c <"$SRC") bytes)"
+              # Merge from inside the combo dir so (a) the shard paths passed to
+              # --merge are relative to DEST and resolve after the cd, and (b) the
+              # _final.json --merge writes to cwd lands right where the commit step
+              # globs it. --merge needs no device / tt-metal.
+              ( cd "$DEST" \
+                && mapfile -t SHARDS < <(find shards -name 'shard-*.json' | sort) \
+                && python3 "$GITHUB_WORKSPACE/perf_measurement_script.py" \
+                     --merge "${SHARDS[@]}" >/dev/null )
+              SRC=$(ls "$DEST"/eltwise_perf_results_*_final.json 2>/dev/null | head -1 || true)
+              if [ -z "$SRC" ]; then
+                echo "FAIL_KIND=merge-failed" >> "$GITHUB_ENV"
+                echo "::error::${HW}/${SHAPE}: merge produced no eltwise_perf_results_*_final.json."
+                exit 1
+              fi
+              echo "📦 ${HW}/${SHAPE}: merged ${#SHARDS[@]} shards -> $SRC ($(wc -c <"$SRC") bytes)"
             done
           done
 
