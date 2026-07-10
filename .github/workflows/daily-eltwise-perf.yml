@@ -231,7 +231,9 @@ jobs:
                 echo "::error::${HW}/${SHAPE}: merge produced no eltwise_perf_results_*_final.json."
                 exit 1
               fi
-              echo "📦 ${HW}/${SHAPE}: merged ${#SHARDS[@]} shards -> $SRC ($(wc -c <"$SRC") bytes)"
+              # Use NSHARD (parent scope) — the SHARDS array is assigned inside the
+              # ( … ) subshell above, so it's unbound here and would trip `set -u`.
+              echo "📦 ${HW}/${SHAPE}: merged ${NSHARD} shards -> $SRC ($(wc -c <"$SRC") bytes)"
             done
           done
 
