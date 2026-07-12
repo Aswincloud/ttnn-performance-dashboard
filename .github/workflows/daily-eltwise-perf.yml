@@ -14,7 +14,7 @@ name: Daily eltwise perf (tt-metal)
 
 on:
   schedule:
-    - cron: "30 19 * * *"   # 19:30 UTC = 01:00 IST daily (both boards)
+    - cron: "0 1 * * *"     # 01:00 UTC = 06:30 IST daily (both boards)
   workflow_dispatch: {}
 
 # Never cancel an in-flight run: it owns viommu hardware jobs on tt-metal's
