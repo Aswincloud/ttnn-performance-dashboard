@@ -169,12 +169,34 @@ jobs:
           set -euo pipefail
           RUN_ID="${{ steps.dispatch.outputs.run_id }}"
           DEADLINE=$(( $(date +%s) + 4*3600 ))   # 4h
+          ERRS=0                                  # consecutive failed polls
+          MAX_ERRS=20                             # ~30 min of solid API failures
+          ERRLOG=$(mktemp)                        # captured stderr of the last poll
           while :; do
-            S=$(gh run view "$RUN_ID" -R "$TT_REPO" --json status,conclusion \
-                  -q '.status + "|" + (.conclusion // "")')
-            STATUS="${S%%|*}"; CONCL="${S##*|}"
-            echo "$(date -u +%T) status=$STATUS conclusion=$CONCL"
-            [ "$STATUS" = "completed" ] && break
+            # A single flaky `gh run view` (GitHub API 500 / Connect-Timeout) must
+            # NOT abort the whole run — it used to under set -e, ending the poll
+            # while the tt-metal run was still queued (and the data was fine). Guard
+            # the call: on failure, treat this tick as "unknown, keep waiting" and
+            # only give up after MAX_ERRS consecutive failures (a real outage / bad
+            # token), not one blip. Capture stderr (don't discard it) so the actual
+            # cause — auth / rate-limit / network — shows in the log and the final
+            # error, which matters for triage.
+            if S=$(gh run view "$RUN_ID" -R "$TT_REPO" --json status,conclusion \
+                     -q '.status + "|" + (.conclusion // "")' 2>"$ERRLOG"); then
+              ERRS=0
+              STATUS="${S%%|*}"; CONCL="${S##*|}"
+              echo "$(date -u +%T) status=$STATUS conclusion=$CONCL"
+              [ "$STATUS" = "completed" ] && break
+            else
+              ERRS=$(( ERRS + 1 ))
+              ERRMSG=$(tr '\n' ' ' <"$ERRLOG" | sed 's/  */ /g'; :)
+              echo "$(date -u +%T) poll error (${ERRS}/${MAX_ERRS}) — transient, retrying: ${ERRMSG}"
+              if [ "$ERRS" -ge "$MAX_ERRS" ]; then
+                echo "FAIL_KIND=poll-api-error" >> "$GITHUB_ENV"
+                echo "::error::gh run view kept failing (${ERRS} consecutive) — GitHub API outage or bad token. Last error: ${ERRMSG}"
+                exit 1
+              fi
+            fi
             if [ "$(date +%s)" -ge "$DEADLINE" ]; then
               echo "FAIL_KIND=poll-timeout" >> "$GITHUB_ENV"
               echo "::error::tt-metal run did not complete within 4h."
