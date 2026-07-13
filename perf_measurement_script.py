@@ -19,7 +19,9 @@ import glob
 # correct IST calendar day regardless of when UTC rolls over. All now() calls go
 # through _now() so durations stay aware-minus-aware and mutually consistent.
 IST = timezone(timedelta(hours=5, minutes=30))
-def _now():
+
+def _now() -> datetime:
+    """Return the current time in IST (+05:30)."""
     return datetime.now(IST)
 
 # Import GitHubPerformanceUploader if available
