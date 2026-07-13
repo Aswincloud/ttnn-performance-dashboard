@@ -14,7 +14,10 @@ name: Daily eltwise perf (tt-metal)
 
 on:
   schedule:
-    - cron: "0 1 * * *"     # 01:00 UTC = 06:30 IST daily (both boards)
+    - cron: "30 19 * * *"   # 19:30 UTC = 01:00 IST daily (both boards).
+    # Runs the prior UTC day, but the perf script stamps measurement_date in IST
+    # and the guard step below dates the file in IST, so the dashboard shows the
+    # correct IST run day (not the previous UTC day).
   workflow_dispatch: {}
 
 # Never cancel an in-flight run: it owns viommu hardware jobs on tt-metal's
@@ -60,7 +63,11 @@ jobs:
           set -euo pipefail
           # No idempotency skip: result filenames are timestamped and land in
           # per-board subdirs, so a same-day re-run never collides.
-          echo "date=$(date -u +%F)" >> "$GITHUB_OUTPUT"
+          # IST, not UTC: the cron is 1:00 AM IST (19:30 UTC of the prior day),
+          # so a UTC date here would label the file/branch/PR the previous day —
+          # mismatching the IST measurement_date the perf script now stamps. Use
+          # Asia/Kolkata so the filename prefix agrees with the in-file date.
+          echo "date=$(TZ='Asia/Kolkata' date +%F)" >> "$GITHUB_OUTPUT"
 
       # 1. Rebase the tt-metal branch onto upstream main so its build tooling
       #    (build-artifact.yaml etc.) stays current. Conflict => file an issue,

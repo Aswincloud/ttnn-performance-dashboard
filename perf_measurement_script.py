@@ -6,10 +6,23 @@ import json
 import csv
 import time
 import statistics
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from typing import List, Dict, Optional
 import os
 import glob
+
+# The daily pipeline runs on tt-metal's HW pool, whose runner clock is UTC. We
+# want each run's business-date to be the India day it was scheduled for (the
+# cron is 1:00/1:30 AM IST), not the previous UTC day. Stamp every timestamp in
+# IST — a fixed +05:30 offset with no DST, so no tzdata dependency — so
+# `measurement_date` (and the derived YYYY-MM-DD the dashboard slices) name the
+# correct IST calendar day regardless of when UTC rolls over. All now() calls go
+# through _now() so durations stay aware-minus-aware and mutually consistent.
+IST = timezone(timedelta(hours=5, minutes=30))
+
+def _now() -> datetime:
+    """Return the current time in IST (+05:30)."""
+    return datetime.now(IST)
 
 # Import GitHubPerformanceUploader if available
 try:
@@ -23,7 +36,7 @@ class PerfMeasurement:
     def __init__(self, rerun_mode=False, auto_upload=False, shard_index=0, shard_total=1):
         self.results = []
         self.failed_tests = []
-        self.start_time = datetime.now()
+        self.start_time = _now()
         self.rerun_mode = rerun_mode
         self.auto_upload = auto_upload
         # Sharding: split the collected test list across `shard_total` parallel
@@ -128,12 +141,12 @@ class PerfMeasurement:
 
     def start_test_timing(self):
         """Start timing for current test."""
-        self.current_test_start_time = datetime.now()
+        self.current_test_start_time = _now()
     
     def end_test_timing(self):
         """End timing for current test and record duration."""
         if self.current_test_start_time:
-            test_duration = (datetime.now() - self.current_test_start_time).total_seconds()
+            test_duration = (_now() - self.current_test_start_time).total_seconds()
             self.test_completion_times.append(test_duration)
             self.current_test_start_time = None
             return test_duration
@@ -274,7 +287,7 @@ class PerfMeasurement:
                 'std_deviation_ns': std_deviation,
                 'min_duration_ns': min(durations),
                 'max_duration_ns': max(durations),
-                'timestamp': datetime.now().isoformat()
+                'timestamp': _now().isoformat()
             }
             
             completion_msg = f"  ✅ Average: {avg_duration:.2f} ns (±{std_deviation:.2f}) from {len(durations)} runs"
@@ -426,7 +439,7 @@ class PerfMeasurement:
             else:
                 print("⚠️ Automatic upload failed, but results are saved locally")
         
-        end_time = datetime.now()
+        end_time = _now()
         duration = end_time - self.start_time
         
         print(f"\n✅ Performance measurement completed!")
@@ -592,7 +605,7 @@ def main():
 
     # --merge is a standalone post-processing mode: no device, no tt-metal needed.
     if args.merge:
-        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        ts = _now().strftime("%Y%m%d_%H%M%S")
         out = f"eltwise_perf_results_{ts}_final.json"
         merge_result_files(args.merge, out)
         return
