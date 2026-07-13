@@ -44,7 +44,8 @@ env:
 jobs:
   run:
     runs-on: ubuntu-latest
-    timeout-minutes: 350   # < GitHub's 6h cap; the poll deadline itself is 4h
+    timeout-minutes: 355   # < GitHub's hard 6h (360m) hosted-runner cap; the
+                           # poll deadline itself is 5.5h (see DEADLINE below)
     steps:
       # 0. Checkout our repo (commit base) + compute the run date.
       - name: Checkout dashboard repo
@@ -175,7 +176,13 @@ jobs:
         run: |
           set -euo pipefail
           RUN_ID="${{ steps.dispatch.outputs.run_id }}"
-          DEADLINE=$(( $(date +%s) + 4*3600 ))   # 4h
+          # 5.5h, not 6h: a hosted job is hard-killed at GitHub's 6h (360m) cap,
+          # and ~15m around this poll goes to dispatch + download/merge/PR, so a
+          # literal 6h poll could never finish. 5.5h (330m) is the largest budget
+          # that still lets THIS clean poll-timeout fire before GitHub's generic
+          # kill, while covering the tt-metal dispatch->complete times now drifting
+          # past 4h (queue + ~3h exec on the shared HW pool).
+          DEADLINE=$(( $(date +%s) + 330*60 ))   # 5.5h
           ERRS=0                                  # consecutive failed polls
           MAX_ERRS=20                             # ~30 min of solid API failures
           ERRLOG=$(mktemp)                        # captured stderr of the last poll
@@ -206,7 +213,7 @@ jobs:
             fi
             if [ "$(date +%s)" -ge "$DEADLINE" ]; then
               echo "FAIL_KIND=poll-timeout" >> "$GITHUB_ENV"
-              echo "::error::tt-metal run did not complete within 4h."
+              echo "::error::tt-metal run did not complete within 5.5h."
               exit 1
             fi
             sleep 90
