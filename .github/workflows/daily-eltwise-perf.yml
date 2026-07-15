@@ -155,6 +155,7 @@ jobs:
             COUNT=$(printf '%s\n' "$NEW_IDS" | grep -c . || true)
             if [ "$COUNT" -ge 2 ]; then
               echo "FAIL_KIND=dispatch-ambiguous" >> "$GITHUB_ENV"
+              echo "FAIL_DETAIL=multiple new runs on ${TT_BRANCH}: $(printf '%s ' $NEW_IDS)" >> "$GITHUB_ENV"
               echo "::error::Multiple new test-dispatch runs appeared on ${TT_BRANCH}; cannot attribute ours: $(printf '%s ' $NEW_IDS)"
               exit 1
             fi
@@ -207,6 +208,7 @@ jobs:
               echo "$(date -u +%T) poll error (${ERRS}/${MAX_ERRS}) — transient, retrying: ${ERRMSG}"
               if [ "$ERRS" -ge "$MAX_ERRS" ]; then
                 echo "FAIL_KIND=poll-api-error" >> "$GITHUB_ENV"
+                echo "FAIL_DETAIL=last API error: $(printf '%s' "$ERRMSG" | cut -c1-300)" >> "$GITHUB_ENV"
                 echo "::error::gh run view kept failing (${ERRS} consecutive) — GitHub API outage or bad token. Last error: ${ERRMSG}"
                 exit 1
               fi
@@ -220,6 +222,7 @@ jobs:
           done
           if [ "$CONCL" != "success" ]; then
             echo "FAIL_KIND=tt-run-failed" >> "$GITHUB_ENV"
+            echo "FAIL_DETAIL=tt-metal run concluded '$CONCL' (https://github.com/${TT_REPO}/actions/runs/${RUN_ID})" >> "$GITHUB_ENV"
             echo "::error::tt-metal run concluded '$CONCL' (all-or-nothing: no data landed)."
             exit 1
           fi
@@ -250,6 +253,7 @@ jobs:
               NSHARD=$(find "$DEST/shards" -name 'shard-*.json' | wc -l)
               if [ "$NSHARD" -lt 5 ]; then
                 echo "FAIL_KIND=artifact-missing" >> "$GITHUB_ENV"
+                echo "FAIL_DETAIL=${HW}/${SHAPE}: found ${NSHARD} shard JSON(s), expected 5" >> "$GITHUB_ENV"
                 echo "::error::${HW}/${SHAPE}: found ${NSHARD} shard JSON(s), expected 5."
                 exit 1
               fi
@@ -264,6 +268,7 @@ jobs:
               SRC=$(ls "$DEST"/eltwise_perf_results_*_final.json 2>/dev/null | head -1 || true)
               if [ -z "$SRC" ]; then
                 echo "FAIL_KIND=merge-failed" >> "$GITHUB_ENV"
+                echo "FAIL_DETAIL=${HW}/${SHAPE}: merge produced no *_final.json" >> "$GITHUB_ENV"
                 echo "::error::${HW}/${SHAPE}: merge produced no eltwise_perf_results_*_final.json."
                 exit 1
               fi
@@ -378,3 +383,83 @@ jobs:
               });
               core.info('Opened new failure issue.');
             }
+
+      # 8. Ping Slack (C09CV1RTNJC) with the failing stage + a human reason so a
+      #    failed day is noticed without watching Actions. Plain chat.postMessage
+      #    curl (no third-party action to trust/pin); the SLACK_BOT_TOKEN org
+      #    secret needs chat:write and the bot must be IN the channel. Payload is
+      #    assembled with `jq --arg` (preinstalled on ubuntu-latest) so the reason
+      #    / detail / API-error text are JSON-escaped safely — never hand-roll
+      #    JSON around error strings in bash, and no heredoc (a python heredoc
+      #    breaks under YAML block-scalar dedent). Skips silently if the token is
+      #    absent (e.g. a fork) so it never turns a tokenless run red, and a Slack
+      #    hiccup only warns — the issue was already filed above.
+      - name: Notify Slack on failure
+        if: failure()
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_CHANNEL: C09CV1RTNJC
+          FAIL_KIND: ${{ env.FAIL_KIND }}
+          FAIL_DETAIL: ${{ env.FAIL_DETAIL }}
+          TT_RUN_ID: ${{ steps.dispatch.outputs.run_id }}
+          RUN_DATE: ${{ steps.guard.outputs.date }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SLACK_BOT_TOKEN:-}" ]; then
+            echo "SLACK_BOT_TOKEN not set — skipping Slack notification."
+            exit 0
+          fi
+          KIND="${FAIL_KIND:-pipeline-failure}"
+          # Map the machine FAIL_KIND to a one-line human reason.
+          case "$KIND" in
+            rebase-conflict)    REASON="tt-metal branch rebase conflicted with origin/main — no dispatch made." ;;
+            rebase-push-failed) REASON="Rebase OK but the push was rejected (branch moved underneath us)." ;;
+            dispatch-ambiguous) REASON="Multiple new test-dispatch runs appeared — couldn't attribute ours." ;;
+            dispatch-not-found) REASON="Dispatched but the tt-metal run could not be located." ;;
+            poll-api-error)     REASON="GitHub API kept failing while polling the tt-metal run (outage / bad token)." ;;
+            poll-timeout)       REASON="tt-metal run did not complete within 5.5h." ;;
+            tt-run-failed)      REASON="The tt-metal run itself failed (all-or-nothing: no data landed)." ;;
+            artifact-missing)   REASON="A board/shape combo was missing shard artifacts (expected 5)." ;;
+            merge-failed)       REASON="Shard merge produced no results JSON." ;;
+            pipeline-failure|*) REASON="Pipeline failed at an unlabelled stage." ;;
+          esac
+          RUN_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          DATE="${RUN_DATE:-n/a}"
+          TT_URL=""
+          [ -n "${TT_RUN_ID:-}" ] && TT_URL="https://github.com/${TT_REPO}/actions/runs/${TT_RUN_ID}"
+
+          # Assemble the whole mrkdwn body INSIDE jq (not via bash $(...), which
+          # strips the trailing newlines and runs the lines together). Optional
+          # Detail / tt-metal-run link are appended only when non-empty.
+          PAYLOAD=$(jq -n \
+            --arg channel "$SLACK_CHANNEL" \
+            --arg reason  "$REASON" \
+            --arg kind    "$KIND" \
+            --arg detail  "${FAIL_DETAIL:-}" \
+            --arg date    "$DATE" \
+            --arg runurl  "$RUN_URL" \
+            --arg tturl   "$TT_URL" '
+            ( "*Reason:* " + $reason
+              + "\n*Stage:* `" + $kind + "`"
+              + (if $detail != "" then "\n*Detail:* " + $detail else "" end)
+              + "\n*Date:* " + $date
+              + "\n<" + $runurl + "|pipeline run>"
+              + (if $tturl != "" then " · <" + $tturl + "|tt-metal run>" else "" end)
+            ) as $body |
+            { channel: $channel,
+              text: (":rotating_light: Daily eltwise perf pipeline failed (" + $date + ") — " + $reason),
+              blocks: [
+                {type:"header", text:{type:"plain_text", text:"🚨 Daily eltwise perf pipeline failed", emoji:true}},
+                {type:"section", text:{type:"mrkdwn", text:$body}}
+              ] }')
+
+          # Slack returns HTTP 200 even on logical errors; inspect the JSON "ok".
+          RESP=$(curl -sS -X POST https://slack.com/api/chat.postMessage \
+            -H "Authorization: Bearer ${SLACK_BOT_TOKEN}" \
+            -H 'Content-Type: application/json; charset=utf-8' \
+            --data "$PAYLOAD")
+          if printf '%s' "$RESP" | grep -q '"ok":true'; then
+            echo "✅ Slack notified (${KIND})."
+          else
+            echo "::warning::Slack notify failed: ${RESP}"
+          fi
