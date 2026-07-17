@@ -14,11 +14,27 @@ name: Daily eltwise perf (tt-metal)
 
 on:
   schedule:
-    - cron: "30 19 * * *"   # 19:30 UTC = 01:00 IST daily (both boards).
+    - cron: "30 19 * * *"   # 19:30 UTC = 01:00 IST daily (both boards) — MAIN run.
     # Runs the prior UTC day, but the perf script stamps measurement_date in IST
     # and the guard step below dates the file in IST, so the dashboard shows the
     # correct IST run day (not the previous UTC day).
-  workflow_dispatch: {}
+    - cron: "30 23 * * *"   # 23:30 UTC — SAFETY-NET. ~4h after the main run, by
+    # which the tt-metal run (queue + ~3h exec) has finished. If the main run got
+    # cancelled/killed before ingesting (as on 2026-07-16, when the hosted runner
+    # was SIGTERM'd mid-poll but the tt-metal run itself succeeded), this pass
+    # detects the missing day and ingests the newest successful tt-metal run
+    # instead of re-dispatching. No-op (silent) when today's data already landed.
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "normal = rebase+dispatch+poll+ingest; recover = skip all that and just ingest an already-completed tt-metal run"
+        type: choice
+        options: [normal, recover]
+        default: normal
+      run_id:
+        description: "recover only: tt-metal test-dispatch run id to ingest (blank = newest successful run on the branch)"
+        required: false
+        default: ""
 
 # Never cancel an in-flight run: it owns viommu hardware jobs on tt-metal's
 # shared pool, and a scheduled run must not orphan them.
@@ -58,6 +74,32 @@ jobs:
           # as github-actions[bot]. All steps here authenticate explicitly.
           persist-credentials: false
 
+      # 0a. Classify this invocation into one of three modes, consumed by the
+      #     `if:` on every later step:
+      #       normal     — rebase + dispatch + poll + ingest (the daily run).
+      #       recover    — manual `mode=recover`: skip rebase/dispatch/poll and
+      #                    ingest an already-completed tt-metal run.
+      #       safety-net — the 23:30 UTC cron: same as recover, but first checks
+      #                    whether today's data is already present and no-ops if so.
+      #     The two crons are told apart by github.event.schedule.
+      - name: Detect mode
+        id: mode
+        env:
+          EVENT: ${{ github.event_name }}
+          SCHEDULE: ${{ github.event.schedule }}
+          INPUT_MODE: ${{ github.event.inputs.mode }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT" = "schedule" ] && [ "$SCHEDULE" = "30 23 * * *" ]; then
+            MODE=safety-net
+          elif [ "$EVENT" = "workflow_dispatch" ] && [ "${INPUT_MODE:-normal}" = "recover" ]; then
+            MODE=recover
+          else
+            MODE=normal
+          fi
+          echo "mode=$MODE" >> "$GITHUB_OUTPUT"
+          echo "🧭 mode=$MODE (event=$EVENT schedule='${SCHEDULE:-}' input='${INPUT_MODE:-}')"
+
       - name: Compute run date
         id: guard
         run: |
@@ -68,12 +110,62 @@ jobs:
           # so a UTC date here would label the file/branch/PR the previous day —
           # mismatching the IST measurement_date the perf script now stamps. Use
           # Asia/Kolkata so the filename prefix agrees with the in-file date.
+          # NOTE: in recover/safety-net the authoritative date is re-derived at
+          # commit time from the merged file's metadata.measurement_date (a run
+          # recovered the next morning must NOT be dated "today"); this value is
+          # the normal-mode date and the safety-net gap-check's "today (IST)".
           echo "date=$(TZ='Asia/Kolkata' date +%F)" >> "$GITHUB_OUTPUT"
+
+      # 0b. Safety-net only: if today's data already landed, stop here (success,
+      #     silent). Checks the primary combo's dated file on the checked-out
+      #     main. Any other mode falls through. Emits present=true|false so the
+      #     later heavy steps can be skipped wholesale when nothing's missing.
+      - name: Safety-net gap check
+        id: gap
+        if: steps.mode.outputs.mode == 'safety-net'
+        env:
+          DATE: ${{ steps.guard.outputs.date }}
+        run: |
+          set -euo pipefail
+          # Primary combo n150/small is written every successful run, so its
+          # presence for DATE is a faithful proxy for "the day was ingested".
+          if ls "data/workflow/n150/small/${DATE}_"*.json >/dev/null 2>&1; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+            echo "✅ ${DATE} data already present — safety-net has nothing to do."
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "⚠️ ${DATE} data missing — safety-net will ingest the newest successful tt-metal run."
+          fi
+
+      # 0c. Collapse mode + gap-check into two booleans so every later step gates
+      #     on a single equality instead of a repeated 3-clause expression:
+      #       dispatch — do the rebase + dispatch + poll (normal only).
+      #       ingest   — do resolve + download + merge + commit (normal & recover
+      #                  always; safety-net only when today's data is missing).
+      - name: Plan run
+        id: plan
+        env:
+          MODE: ${{ steps.mode.outputs.mode }}
+          GAP_PRESENT: ${{ steps.gap.outputs.present }}
+        run: |
+          set -euo pipefail
+          case "$MODE" in
+            normal)  DISPATCH=true;  INGEST=true ;;
+            recover) DISPATCH=false; INGEST=true ;;
+            safety-net)
+              DISPATCH=false
+              if [ "$GAP_PRESENT" = "false" ]; then INGEST=true; else INGEST=false; fi ;;
+            *) DISPATCH=true; INGEST=true ;;
+          esac
+          echo "dispatch=$DISPATCH" >> "$GITHUB_OUTPUT"
+          echo "ingest=$INGEST"     >> "$GITHUB_OUTPUT"
+          echo "🧭 plan: dispatch=$DISPATCH ingest=$INGEST (mode=$MODE gap_present='${GAP_PRESENT:-}')"
 
       # 1. Rebase the tt-metal branch onto upstream main so its build tooling
       #    (build-artifact.yaml etc.) stays current. Conflict => file an issue,
       #    do NOT dispatch.
       - name: Rebase tt-metal branch on main
+        if: steps.plan.outputs.dispatch == 'true'
         env:
           GH_TOKEN: ${{ secrets.TT_METAL_PAT }}
         run: |
@@ -113,6 +205,7 @@ jobs:
       #    ONE run fans out to 2 boards x 2 shapes x 5 shards off a single build.
       - name: Dispatch tt-metal perf run
         id: dispatch
+        if: steps.plan.outputs.dispatch == 'true'
         env:
           GH_TOKEN: ${{ secrets.TT_METAL_PAT }}
         run: |
@@ -170,13 +263,71 @@ jobs:
           echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
           echo "🚀 tt-metal run: https://github.com/${TT_REPO}/actions/runs/${RUN_ID}"
 
-      # 3. Poll the tt-metal run (build + 20 shard cells) to completion.
+      # 2b. Resolve the tt-metal run id every ingest mode will act on, so the
+      #     Poll/Download/Slack steps never depend on the (skipped) Dispatch step.
+      #       normal     — pass through the just-dispatched run.
+      #       recover    — the run_id input if given, else the newest SUCCESSFUL
+      #                    test-dispatch run on our branch.
+      #       safety-net — always the newest successful run.
+      #     Because recover/safety-net SKIP the Poll step (and thus its
+      #     CONCL==success gate), this step re-validates that the resolved run is
+      #     completed/successful — an operator-supplied run_id is untrusted.
+      - name: Resolve tt-metal run
+        id: resolve
+        if: steps.plan.outputs.ingest == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.TT_METAL_PAT }}
+          MODE: ${{ steps.mode.outputs.mode }}
+          INPUT_RUN_ID: ${{ github.event.inputs.run_id }}
+          DISPATCH_RUN_ID: ${{ steps.dispatch.outputs.run_id }}
+        run: |
+          set -euo pipefail
+          if [ "$MODE" = "normal" ]; then
+            # Trust the dispatch+poll path; no re-validation (Poll already gated).
+            RID="$DISPATCH_RUN_ID"
+          else
+            RID="${INPUT_RUN_ID:-}"
+            if [ -n "$RID" ]; then
+              echo "Using operator-supplied run id: $RID"
+            else
+              # Newest successful test-dispatch run on our branch. --status success
+              # means auto-pick can't grab a failed/in-progress run; the explicit
+              # id path is validated below regardless.
+              RID=$(gh run list -R "$TT_REPO" -w test-dispatch.yaml -e workflow_dispatch \
+                      -b "$TT_BRANCH" --status success -L 20 \
+                      --json databaseId -q '.[0].databaseId' 2>/dev/null || true)
+              echo "Auto-resolved newest successful run: ${RID:-<none>}"
+            fi
+            if [ -z "$RID" ] || [ "$RID" = "null" ]; then
+              echo "FAIL_KIND=resolve-run-not-found" >> "$GITHUB_ENV"
+              echo "::error::Could not resolve a tt-metal run to ingest (no successful run on ${TT_BRANCH}, and none supplied)."
+              exit 1
+            fi
+            # Re-validate: recover/safety-net skip Poll's success gate, so confirm
+            # the run actually completed successfully before we trust its shards.
+            SC=$(gh run view "$RID" -R "$TT_REPO" --json status,conclusion \
+                   -q '.status + "|" + (.conclusion // "")' 2>/dev/null || echo "|")
+            ST="${SC%%|*}"; CO="${SC##*|}"
+            echo "Resolved run $RID → status=$ST conclusion=$CO"
+            if [ "$ST" != "completed" ] || [ "$CO" != "success" ]; then
+              echo "FAIL_KIND=recover-run-not-successful" >> "$GITHUB_ENV"
+              echo "FAIL_DETAIL=run $RID is status=$ST conclusion=$CO (need completed/success)" >> "$GITHUB_ENV"
+              echo "::error::Resolved tt-metal run $RID is not completed/successful ($ST/$CO)."
+              exit 1
+            fi
+          fi
+          echo "run_id=$RID" >> "$GITHUB_OUTPUT"
+          echo "📌 ingest target: https://github.com/${TT_REPO}/actions/runs/${RID}"
+
+      # 3. Poll the tt-metal run (build + 20 shard cells) to completion. Skipped
+      #    in recover/safety-net — the resolved run has already completed.
       - name: Poll tt-metal run
+        if: steps.plan.outputs.dispatch == 'true'
         env:
           GH_TOKEN: ${{ secrets.TT_METAL_PAT }}
         run: |
           set -euo pipefail
-          RUN_ID="${{ steps.dispatch.outputs.run_id }}"
+          RUN_ID="${{ steps.resolve.outputs.run_id }}"
           # 5.5h, not 6h: a hosted job is hard-killed at GitHub's 6h (360m) cap,
           # and ~15m around this poll goes to dispatch + download/merge/PR, so a
           # literal 6h poll could never finish. 5.5h (330m) is the largest budget
@@ -236,11 +387,12 @@ jobs:
       #    which the unchanged commit step below globs and lands.
       - name: Download shards + merge results
         id: download
+        if: steps.plan.outputs.ingest == 'true'
         env:
           GH_TOKEN: ${{ secrets.TT_METAL_PAT }}
         run: |
           set -euo pipefail
-          RUN_ID="${{ steps.dispatch.outputs.run_id }}"
+          RUN_ID="${{ steps.resolve.outputs.run_id }}"
           for HW in $BOARDS; do
             for SHAPE in $SHAPES; do
               DEST="_artifact/${HW}/${SHAPE}"
@@ -282,20 +434,52 @@ jobs:
       #        token), approve (WRITE_ACCESS_PAT), enable squash auto-merge (App).
       - name: Mint App token
         id: app
+        if: steps.plan.outputs.ingest == 'true'
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
         with:
           app-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
 
       - name: Commit results + open auto-merging PR
+        if: steps.plan.outputs.ingest == 'true'
         env:
           GH_TOKEN: ${{ steps.app.outputs.token }}          # bot authors the PR
           APPROVE_TOKEN: ${{ secrets.WRITE_ACCESS_PAT }}     # different identity approves
-          DATE: ${{ steps.guard.outputs.date }}
+          GUARD_DATE: ${{ steps.guard.outputs.date }}       # normal-mode date (today IST)
+          MODE: ${{ steps.mode.outputs.mode }}
         run: |
           set -euo pipefail
           git config user.name "aswincloud-bot[bot]"
           git config user.email "aswincloud-bot[bot]@users.noreply.github.com"
+
+          # DATE: in normal mode this is today-in-IST (the guard step). In
+          # recover/safety-net the run may be ingested a day later, so "today" is
+          # wrong — derive the business date from the merged file's own IST
+          # measurement_date (metadata.measurement_date, e.g. 2026-07-16T04:55…
+          # +05:30) and slice the first 10 chars (never Date-parse it). The
+          # primary combo n150/small is always present; use it as the date source.
+          DATE="$GUARD_DATE"
+          if [ "$MODE" != "normal" ]; then
+            PRIMARY=$(ls _artifact/N150/small/eltwise_perf_results_*.json | head -1)
+            DATE=$(python3 -c "import json,sys; print(json.load(open(sys.argv[1]))['metadata']['measurement_date'][:10])" "$PRIMARY")
+            echo "🗓️  recover/safety-net date from measurement_date: $DATE (guard was $GUARD_DATE)"
+          fi
+
+          # Safety-net-only staleness guard: the safety-net fires because TODAY's
+          # data is missing, and Resolve auto-picks the newest *successful* run.
+          # If today's tt-metal run ALSO failed, that newest-success is a PRIOR
+          # day whose file already exists → the commit below would be a no-op and
+          # exit 0 SILENTLY, leaving today genuinely missing with no alert. Detect
+          # that (derived DATE != the safety-net's today) and fail loudly so the
+          # cancel/failure notify fires. (Manual `recover` is exempt: backfilling
+          # an older run by id is a legitimate operation there.)
+          if [ "$MODE" = "safety-net" ] && [ "$DATE" != "$GUARD_DATE" ]; then
+            echo "FAIL_KIND=safety-net-no-run-today" >> "$GITHUB_ENV"
+            echo "FAIL_DETAIL=newest successful run is ${DATE}, not today (${GUARD_DATE}); today's run likely failed — nothing to recover automatically" >> "$GITHUB_ENV"
+            echo "::error::Safety-net: no successful tt-metal run for ${GUARD_DATE} (newest is ${DATE}). Today's run failed — needs a manual dispatch/recover."
+            exit 1
+          fi
+
           BRANCH="workflow/perf-${DATE}-${{ github.run_id }}"
           git checkout -b "$BRANCH"
 
@@ -333,9 +517,13 @@ jobs:
           git commit -m "data(workflow): eltwise perf results ${DATE} (2 boards x 2 shapes)"
           git push "https://x-access-token:${GH_TOKEN}@github.com/${OUR_REPO}.git" "$BRANCH"
 
+          # Note the ingest mode in the body so a recovered/backfilled day is
+          # distinguishable from a fresh daily run in the PR history.
+          ORIGIN="Automated daily"
+          [ "$MODE" != "normal" ] && ORIGIN="Recovered (${MODE})"
           PR_URL=$(gh pr create -R "$OUR_REPO" --base main --head "$BRANCH" \
             --title "data(workflow): eltwise perf results ${DATE} (2 boards x 2 shapes)" \
-            --body "Automated daily tt-metal eltwise perf run — one build, 2 boards x 2 shapes (32x32, 1024x1024) x 5 shards. Data-only, isolated under \`data/workflow/{n150,p100a}/{small,large}/\`; does not touch \`data/index.json\`.")
+            --body "${ORIGIN} tt-metal eltwise perf run — one build, 2 boards x 2 shapes (32x32, 1024x1024) x 5 shards. Data-only, isolated under \`data/workflow/{n150,p100a}/{small,large}/\`; does not touch \`data/index.json\`.")
           echo "Opened $PR_URL"
 
           # The membership-gated auto-approve workflow won't fire for a bot
@@ -350,13 +538,19 @@ jobs:
           gh pr merge "$PR_URL" -R "$OUR_REPO" --squash --auto
           echo "✅ Auto-merge enabled; merge queue will land it once checks pass."
 
-      # 7. On any failure, file/dedupe an issue assigned to Aswinmcw.
+      # 7. On any failure OR cancellation, file/dedupe an issue assigned to
+      #    Aswinmcw. Cancellation is included because a hosted-runner SIGTERM
+      #    (as on 2026-07-16) is a `cancelled()`, not a `failure()`, and used to
+      #    slip through silently — even though the dispatched tt-metal run may
+      #    have succeeded and the day is recoverable.
       - name: File issue on failure
-        if: failure()
+        if: failure() || cancelled()
         uses: actions/github-script@v9
         with:
           script: |
-            const kind = process.env.FAIL_KIND || 'pipeline-failure';
+            // A cancel has no FAIL_KIND (no step set one) -> label it 'cancelled'.
+            const cancelled = '${{ job.status }}' === 'cancelled';
+            const kind = process.env.FAIL_KIND || (cancelled ? 'cancelled' : 'pipeline-failure');
             const kindLabel = `ttnn-perf/${kind}`;
             const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
             const open = await github.rest.issues.listForRepo({
@@ -373,10 +567,12 @@ jobs:
             } else {
               const detail = kind === 'rebase-conflict'
                 ? 'The tt-metal branch could not be rebased onto origin/main. **No dispatch was made** — resolve the conflict on `Aswinmcw/test_eltwise_perf` manually.'
+                : kind === 'cancelled'
+                ? 'The run was **cancelled** (hosted-runner shutdown or manual). The dispatched tt-metal run may have finished successfully — re-run this workflow with **mode=recover** to ingest it (or wait for the 23:30 UTC safety-net).'
                 : `Stage: **${kind}**.`;
               await github.rest.issues.create({
                 owner: context.repo.owner, repo: context.repo.repo,
-                title: `Daily eltwise perf pipeline failed: ${kind}`,
+                title: `Daily eltwise perf pipeline ${cancelled ? 'cancelled' : 'failed'}: ${kind}`,
                 labels: ['ttnn-perf-pipeline', kindLabel, 'automated'],
                 assignees: ['Aswinmcw'],
                 body: `${detail}\n\nRun: ${runUrl}`,
@@ -394,14 +590,17 @@ jobs:
       #    breaks under YAML block-scalar dedent). Skips silently if the token is
       #    absent (e.g. a fork) so it never turns a tokenless run red, and a Slack
       #    hiccup only warns — the issue was already filed above.
-      - name: Notify Slack on failure
-        if: failure()
+      - name: Notify Slack on failure or cancel
+        if: failure() || cancelled()
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
           SLACK_CHANNEL: C09CV1RTNJC
           FAIL_KIND: ${{ env.FAIL_KIND }}
           FAIL_DETAIL: ${{ env.FAIL_DETAIL }}
-          TT_RUN_ID: ${{ steps.dispatch.outputs.run_id }}
+          JOB_STATUS: ${{ job.status }}
+          # Prefer the resolved run; fall back to the dispatched one (resolve is
+          # skipped on an early cancel, but dispatch may still have produced an id).
+          TT_RUN_ID: ${{ steps.resolve.outputs.run_id || steps.dispatch.outputs.run_id }}
           RUN_DATE: ${{ steps.guard.outputs.date }}
         run: |
           set -euo pipefail
@@ -409,7 +608,13 @@ jobs:
             echo "SLACK_BOT_TOKEN not set — skipping Slack notification."
             exit 0
           fi
-          KIND="${FAIL_KIND:-pipeline-failure}"
+          # A cancel sets no FAIL_KIND (no step ran the mapping) -> derive it from
+          # the job status so the message says "cancelled" with a recover hint,
+          # rather than the generic unlabelled-failure text.
+          KIND="${FAIL_KIND:-}"
+          if [ -z "$KIND" ] && [ "${JOB_STATUS:-}" = "cancelled" ]; then KIND="cancelled"; fi
+          KIND="${KIND:-pipeline-failure}"
+          CANCEL_HINT=""
           # Map the machine FAIL_KIND to a one-line human reason.
           case "$KIND" in
             rebase-conflict)    REASON="tt-metal branch rebase conflicted with origin/main — no dispatch made." ;;
@@ -421,35 +626,49 @@ jobs:
             tt-run-failed)      REASON="The tt-metal run itself failed (all-or-nothing: no data landed)." ;;
             artifact-missing)   REASON="A board/shape combo was missing shard artifacts (expected 5)." ;;
             merge-failed)       REASON="Shard merge produced no results JSON." ;;
+            resolve-run-not-found)       REASON="Recover: no successful tt-metal run to ingest (and none supplied)." ;;
+            recover-run-not-successful)  REASON="Recover: the supplied tt-metal run is not completed/successful." ;;
+            safety-net-no-run-today)     REASON="Safety-net: today's tt-metal run failed — no successful run to auto-ingest. Needs a manual dispatch/recover." ;;
+            cancelled)          REASON="Run was cancelled (hosted-runner shutdown or manual)."
+                                CANCEL_HINT="The dispatched tt-metal run may have finished OK — re-run with *mode=recover* to ingest it, or wait for the 23:30 UTC safety-net." ;;
             pipeline-failure|*) REASON="Pipeline failed at an unlabelled stage." ;;
           esac
           RUN_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
           DATE="${RUN_DATE:-n/a}"
           TT_URL=""
           [ -n "${TT_RUN_ID:-}" ] && TT_URL="https://github.com/${TT_REPO}/actions/runs/${TT_RUN_ID}"
+          if [ "$KIND" = "cancelled" ]; then
+            HEADER="⚠️ Daily eltwise perf pipeline cancelled"; LEAD=":warning: Daily eltwise perf pipeline cancelled"
+          else
+            HEADER="🚨 Daily eltwise perf pipeline failed";    LEAD=":rotating_light: Daily eltwise perf pipeline failed"
+          fi
 
           # Assemble the whole mrkdwn body INSIDE jq (not via bash $(...), which
           # strips the trailing newlines and runs the lines together). Optional
-          # Detail / tt-metal-run link are appended only when non-empty.
+          # Detail / cancel-hint / tt-metal-run link are appended only when set.
           PAYLOAD=$(jq -n \
             --arg channel "$SLACK_CHANNEL" \
             --arg reason  "$REASON" \
             --arg kind    "$KIND" \
             --arg detail  "${FAIL_DETAIL:-}" \
+            --arg hint    "$CANCEL_HINT" \
             --arg date    "$DATE" \
             --arg runurl  "$RUN_URL" \
-            --arg tturl   "$TT_URL" '
+            --arg tturl   "$TT_URL" \
+            --arg header  "$HEADER" \
+            --arg lead    "$LEAD" '
             ( "*Reason:* " + $reason
               + "\n*Stage:* `" + $kind + "`"
               + (if $detail != "" then "\n*Detail:* " + $detail else "" end)
+              + (if $hint   != "" then "\n" + $hint else "" end)
               + "\n*Date:* " + $date
               + "\n<" + $runurl + "|pipeline run>"
               + (if $tturl != "" then " · <" + $tturl + "|tt-metal run>" else "" end)
             ) as $body |
             { channel: $channel,
-              text: (":rotating_light: Daily eltwise perf pipeline failed (" + $date + ") — " + $reason),
+              text: ($lead + " (" + $date + ") — " + $reason),
               blocks: [
-                {type:"header", text:{type:"plain_text", text:"🚨 Daily eltwise perf pipeline failed", emoji:true}},
+                {type:"header", text:{type:"plain_text", text:$header, emoji:true}},
                 {type:"section", text:{type:"mrkdwn", text:$body}}
               ] }')
 
