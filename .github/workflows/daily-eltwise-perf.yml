@@ -173,22 +173,48 @@ jobs:
           git config --global user.name "Aswinmcw"
           git config --global user.email "aswin@aswincloud.com"
           AUTH="https://x-access-token:${GH_TOKEN}@github.com/${TT_REPO}.git"
-          # tt-metal is multi-GB; blobless partial clone fetches only what a
-          # branch rebase touches.
-          git clone --filter=blob:none --no-checkout "$AUTH" ttm
+          # FULL clone — deliberately NOT --filter=blob:none. A blobless partial
+          # clone defers blob downloads, so `git rebase` has to lazily fetch
+          # objects mid-operation over the network. On 2026-08-17/18 that fetch
+          # failed in BOTH daily pipelines with
+          #     fatal: remote error: upload-pack: not our ref <blob sha>
+          # (the blobs exist and the REST API serves them; upload-pack refused
+          # them on the promisor fetch), taking the runs down for two days. A
+          # full clone of tt-metal is ~1.5 GB — well under a minute on a hosted
+          # runner, against a 5.5h budget — and makes the rebase a purely LOCAL
+          # operation that cannot fail this way.
+          git clone --no-checkout "$AUTH" ttm
           cd ttm
           # Record the branch's current remote SHA up front as the exact lease
-          # expectation. In a fresh blobless clone the remote-tracking ref state
-          # is unreliable for a bare --force-with-lease (it rejects with
+          # expectation. In a fresh clone the remote-tracking ref state is
+          # unreliable for a bare --force-with-lease (it rejects with
           # "stale info" after the local rebase), so we pin the lease to this SHA.
           REMOTE_SHA=$(git ls-remote "$AUTH" "refs/heads/${TT_BRANCH}" | cut -f1)
           echo "Branch remote SHA before rebase: ${REMOTE_SHA:-<none>}"
           git fetch --no-tags origin main "${TT_BRANCH}"
           git checkout -B "${TT_BRANCH}" "${REMOTE_SHA}"
-          if ! git rebase origin/main; then
+          # Tell a REAL content conflict apart from a transport/other failure.
+          # Previously any non-zero `git rebase` exit was labelled
+          # rebase-conflict, so the 08-17/18 fetch outage above alerted us with
+          # "resolve the conflict manually" for a conflict that did not exist —
+          # the misdiagnosis cost more than the outage. Unmerged paths exist
+          # only for a genuine conflict, so use them as the discriminator.
+          if ! REBASE_OUT=$(git rebase origin/main 2>&1); then
+            echo "$REBASE_OUT"
+            CONFLICTS=$(git diff --name-only --diff-filter=U | tr '\n' ' ')
+            if [ -n "${CONFLICTS// /}" ]; then
+              KIND=rebase-conflict
+              MSG="tt-metal branch rebase hit a real content conflict with origin/main (files: ${CONFLICTS})"
+            else
+              KIND=rebase-failed
+              MSG="git rebase failed with NO conflicting files — transport/clone error, not a merge conflict"
+            fi
             git rebase --abort || true
-            echo "FAIL_KIND=rebase-conflict" >> "$GITHUB_ENV"
-            echo "::error::tt-metal branch rebase conflicted with origin/main; not dispatching."
+            # $GITHUB_ENV is line-oriented: flatten git's output to one line.
+            TAIL=$(printf '%s' "$REBASE_OUT" | tail -3 | tr '\n' ' ')
+            echo "FAIL_KIND=$KIND" >> "$GITHUB_ENV"
+            echo "FAIL_DETAIL=${MSG}. git said: ${TAIL}" >> "$GITHUB_ENV"
+            echo "::error::${MSG}; not dispatching."
             exit 1
           fi
           # Lease pinned to the SHA we read: still aborts if someone else pushed
@@ -566,7 +592,9 @@ jobs:
               core.info(`Commented on existing issue #${open.data[0].number}`);
             } else {
               const detail = kind === 'rebase-conflict'
-                ? 'The tt-metal branch could not be rebased onto origin/main. **No dispatch was made** — resolve the conflict on `Aswinmcw/test_eltwise_perf` manually.'
+                ? 'The tt-metal branch hit a **real content conflict** rebasing onto origin/main. **No dispatch was made** — resolve the conflict on `Aswinmcw/test_eltwise_perf` manually.'
+                : kind === 'rebase-failed'
+                ? '`git rebase` failed but **left no conflicting files** — this is a transport/clone error, *not* a merge conflict, so do NOT go hunting for conflicts. Check the git output in the run log; re-running usually clears it.'
                 : kind === 'cancelled'
                 ? 'The run was **cancelled** (hosted-runner shutdown or manual). The dispatched tt-metal run may have finished successfully — re-run this workflow with **mode=recover** to ingest it (or wait for the 23:30 UTC safety-net).'
                 : `Stage: **${kind}**.`;
@@ -617,7 +645,8 @@ jobs:
           CANCEL_HINT=""
           # Map the machine FAIL_KIND to a one-line human reason.
           case "$KIND" in
-            rebase-conflict)    REASON="tt-metal branch rebase conflicted with origin/main — no dispatch made." ;;
+            rebase-conflict)    REASON="tt-metal branch rebase hit a REAL content conflict with origin/main — no dispatch made." ;;
+            rebase-failed)      REASON="git rebase failed with no conflicting files — transport/clone error, NOT a merge conflict. Re-run usually clears it." ;;
             rebase-push-failed) REASON="Rebase OK but the push was rejected (branch moved underneath us)." ;;
             dispatch-ambiguous) REASON="Multiple new test-dispatch runs appeared — couldn't attribute ours." ;;
             dispatch-not-found) REASON="Dispatched but the tt-metal run could not be located." ;;
