@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { RefreshCw, AlertCircle, Zap, TrendingUp, Book, Github, Bug, GitPullRequest, Bell, Users, Sun, Moon, LayoutGrid, ExternalLink } from 'lucide-react';
+import { RefreshCw, AlertCircle, Zap, TrendingUp, Book, Bug, GitPullRequest, Bell, Users, Sun, Moon, LayoutGrid, ExternalLink } from 'lucide-react';
+import GithubIcon from './components/icons/GithubIcon';
 import OverviewCards from './components/OverviewCards';
 import PerformanceTable from './components/PerformanceTable';
 import CatalogModal from './components/CatalogModal';
@@ -532,7 +533,7 @@ function App() {
                 className="inline-flex items-center gap-1.5 hover:text-gray-900 dark:hover:text-white transition-colors"
                 aria-label="View source on GitHub"
               >
-                <Github className="h-4 w-4" />
+                <GithubIcon className="h-4 w-4" />
                 <span>Source</span>
               </a>
               <span aria-hidden="true">•</span>
