@@ -173,22 +173,48 @@ jobs:
           git config --global user.name "Aswinmcw"
           git config --global user.email "aswin@aswincloud.com"
           AUTH="https://x-access-token:${GH_TOKEN}@github.com/${TT_REPO}.git"
-          # tt-metal is multi-GB; blobless partial clone fetches only what a
-          # branch rebase touches.
-          git clone --filter=blob:none --no-checkout "$AUTH" ttm
+          # FULL clone — deliberately NOT --filter=blob:none. A blobless partial
+          # clone defers blob downloads, so `git rebase` has to lazily fetch
+          # objects mid-operation over the network. On 2026-08-17/18 that fetch
+          # failed in BOTH daily pipelines with
+          #     fatal: remote error: upload-pack: not our ref <blob sha>
+          # (the blobs exist and the REST API serves them; upload-pack refused
+          # them on the promisor fetch), taking the runs down for two days. A
+          # full clone of tt-metal is ~1.5 GB — well under a minute on a hosted
+          # runner, against a 5.5h budget — and makes the rebase a purely LOCAL
+          # operation that cannot fail this way.
+          git clone --no-checkout "$AUTH" ttm
           cd ttm
           # Record the branch's current remote SHA up front as the exact lease
-          # expectation. In a fresh blobless clone the remote-tracking ref state
-          # is unreliable for a bare --force-with-lease (it rejects with
+          # expectation. In a fresh clone the remote-tracking ref state is
+          # unreliable for a bare --force-with-lease (it rejects with
           # "stale info" after the local rebase), so we pin the lease to this SHA.
           REMOTE_SHA=$(git ls-remote "$AUTH" "refs/heads/${TT_BRANCH}" | cut -f1)
           echo "Branch remote SHA before rebase: ${REMOTE_SHA:-<none>}"
           git fetch --no-tags origin main "${TT_BRANCH}"
           git checkout -B "${TT_BRANCH}" "${REMOTE_SHA}"
-          if ! git rebase origin/main; then
+          # Tell a REAL content conflict apart from a transport/other failure.
+          # Previously any non-zero `git rebase` exit was labelled
+          # rebase-conflict, so the 08-17/18 fetch outage above alerted us with
+          # "resolve the conflict manually" for a conflict that did not exist —
+          # the misdiagnosis cost more than the outage. Unmerged paths exist
+          # only for a genuine conflict, so use them as the discriminator.
+          if ! REBASE_OUT=$(git rebase origin/main 2>&1); then
+            echo "$REBASE_OUT"
+            CONFLICTS=$(git diff --name-only --diff-filter=U | tr '\n' ' ')
+            if [ -n "${CONFLICTS// /}" ]; then
+              KIND=rebase-conflict
+              MSG="tt-metal branch rebase hit a real content conflict with origin/main (files: ${CONFLICTS})"
+            else
+              KIND=rebase-failed
+              MSG="git rebase failed with NO conflicting files — transport/clone error, not a merge conflict"
+            fi
             git rebase --abort || true
-            echo "FAIL_KIND=rebase-conflict" >> "$GITHUB_ENV"
-            echo "::error::tt-metal branch rebase conflicted with origin/main; not dispatching."
+            # $GITHUB_ENV is line-oriented: flatten git's output to one line.
+            TAIL=$(printf '%s' "$REBASE_OUT" | tail -3 | tr '\n' ' ')
+            echo "FAIL_KIND=$KIND" >> "$GITHUB_ENV"
+            echo "FAIL_DETAIL=${MSG}. git said: ${TAIL}" >> "$GITHUB_ENV"
+            echo "::error::${MSG}; not dispatching."
             exit 1
           fi
           # Lease pinned to the SHA we read: still aborts if someone else pushed
@@ -338,6 +364,7 @@ jobs:
           ERRS=0                                  # consecutive failed polls
           MAX_ERRS=20                             # ~30 min of solid API failures
           ERRLOG=$(mktemp)                        # captured stderr of the last poll
+          RETRIES_LEFT=1                          # re-run failed tt-metal jobs at most once
           while :; do
             # A single flaky `gh run view` (GitHub API 500 / Connect-Timeout) must
             # NOT abort the whole run — it used to under set -e, ending the poll
@@ -352,7 +379,56 @@ jobs:
               ERRS=0
               STATUS="${S%%|*}"; CONCL="${S##*|}"
               echo "$(date -u +%T) status=$STATUS conclusion=$CONCL"
-              [ "$STATUS" = "completed" ] && break
+              if [ "$STATUS" = "completed" ]; then
+                [ "$CONCL" = "success" ] && break
+                # The run is all-or-nothing, so ONE flaky cell (a HW blip, a
+                # runner reclaim) throws away a full day of otherwise-good data.
+                # Re-run just the failed jobs once. Safe because re-running only
+                # the failed jobs PRESERVES the successful cells' artifacts
+                # (verified on run 32662117793: 19 attempt-1 shard artifacts
+                # survived the retry), so the run still yields every shard.
+                #
+                # Only retry a PARTIAL failure — some cells passed AND some
+                # failed. A build-phase break leaves zero passing cells and will
+                # not fix itself, so that still fails fast with the real reason
+                # instead of burning ~12 min on a doomed rebuild.
+                CELLS=$(gh run view "$RUN_ID" -R "$TT_REPO" --json jobs \
+                          -q '[.jobs[]|select(.name|test("test-dispatch"))]
+                              | "\([.[]|select(.conclusion=="success")]|length) \([.[]|select(.conclusion!="success")]|length)"' \
+                          2>/dev/null || echo "0 0")
+                OK_CELLS="${CELLS%% *}"; BAD_CELLS="${CELLS##* }"
+                case "${OK_CELLS}${BAD_CELLS}" in *[!0-9]*) OK_CELLS=0; BAD_CELLS=0 ;; esac
+                echo "tt-metal run concluded '$CONCL' — cells: ${OK_CELLS} ok / ${BAD_CELLS} failed"
+                if [ "$RETRIES_LEFT" -gt 0 ] && [ "$OK_CELLS" -gt 0 ] && [ "$BAD_CELLS" -gt 0 ]; then
+                  RETRIES_LEFT=$(( RETRIES_LEFT - 1 ))
+                  ATTEMPT_BEFORE=$(gh api "repos/${TT_REPO}/actions/runs/${RUN_ID}" -q .run_attempt 2>/dev/null || echo 1)
+                  echo "::notice::Partial failure (${BAD_CELLS} of $(( OK_CELLS + BAD_CELLS )) cells) — re-running failed jobs once."
+                  if ! gh run rerun "$RUN_ID" -R "$TT_REPO" --failed 2>"$ERRLOG"; then
+                    echo "FAIL_KIND=tt-run-failed" >> "$GITHUB_ENV"
+                    echo "FAIL_DETAIL=partial failure (${BAD_CELLS} cells) and the retry could not be started: $(tr '\n' ' ' <"$ERRLOG" | cut -c1-200)" >> "$GITHUB_ENV"
+                    echo "::error::Could not re-run the tt-metal run's failed jobs."
+                    exit 1
+                  fi
+                  # The API keeps reporting completed/<old conclusion> for a few
+                  # seconds after a rerun is accepted; resuming the poll straight
+                  # away would read that stale value and declare failure. Wait for
+                  # the attempt counter to tick over first.
+                  NOW_ATTEMPT="$ATTEMPT_BEFORE"
+                  for _ in $(seq 1 20); do
+                    sleep 15
+                    NOW_ATTEMPT=$(gh api "repos/${TT_REPO}/actions/runs/${RUN_ID}" -q .run_attempt 2>/dev/null || echo "$ATTEMPT_BEFORE")
+                    [ "$NOW_ATTEMPT" -gt "$ATTEMPT_BEFORE" ] && break
+                  done
+                  echo "Retry started (attempt ${NOW_ATTEMPT}) — resuming poll."
+                  continue
+                fi
+                RETRY_NOTE=""
+                [ "$RETRIES_LEFT" -eq 0 ] && RETRY_NOTE=" (failed jobs were already re-run once)"
+                echo "FAIL_KIND=tt-run-failed" >> "$GITHUB_ENV"
+                echo "FAIL_DETAIL=tt-metal run concluded '$CONCL'${RETRY_NOTE} — ${OK_CELLS} ok / ${BAD_CELLS} failed cells (https://github.com/${TT_REPO}/actions/runs/${RUN_ID})" >> "$GITHUB_ENV"
+                echo "::error::tt-metal run concluded '$CONCL' (all-or-nothing: no data landed)${RETRY_NOTE}."
+                exit 1
+              fi
             else
               ERRS=$(( ERRS + 1 ))
               ERRMSG=$(tr '\n' ' ' <"$ERRLOG" | sed 's/  */ /g'; :)
@@ -371,12 +447,6 @@ jobs:
             fi
             sleep 90
           done
-          if [ "$CONCL" != "success" ]; then
-            echo "FAIL_KIND=tt-run-failed" >> "$GITHUB_ENV"
-            echo "FAIL_DETAIL=tt-metal run concluded '$CONCL' (https://github.com/${TT_REPO}/actions/runs/${RUN_ID})" >> "$GITHUB_ENV"
-            echo "::error::tt-metal run concluded '$CONCL' (all-or-nothing: no data landed)."
-            exit 1
-          fi
 
       # 4. Download the 20 per-(board, shape) SHARD artifacts and merge each
       #    combo's shards locally. tt-metal only produces raw shards now — the
@@ -566,7 +636,9 @@ jobs:
               core.info(`Commented on existing issue #${open.data[0].number}`);
             } else {
               const detail = kind === 'rebase-conflict'
-                ? 'The tt-metal branch could not be rebased onto origin/main. **No dispatch was made** — resolve the conflict on `Aswinmcw/test_eltwise_perf` manually.'
+                ? 'The tt-metal branch hit a **real content conflict** rebasing onto origin/main. **No dispatch was made** — resolve the conflict on `Aswinmcw/test_eltwise_perf` manually.'
+                : kind === 'rebase-failed'
+                ? '`git rebase` failed but **left no conflicting files** — this is a transport/clone error, *not* a merge conflict, so do NOT go hunting for conflicts. Check the git output in the run log; re-running usually clears it.'
                 : kind === 'cancelled'
                 ? 'The run was **cancelled** (hosted-runner shutdown or manual). The dispatched tt-metal run may have finished successfully — re-run this workflow with **mode=recover** to ingest it (or wait for the 23:30 UTC safety-net).'
                 : `Stage: **${kind}**.`;
@@ -617,7 +689,8 @@ jobs:
           CANCEL_HINT=""
           # Map the machine FAIL_KIND to a one-line human reason.
           case "$KIND" in
-            rebase-conflict)    REASON="tt-metal branch rebase conflicted with origin/main — no dispatch made." ;;
+            rebase-conflict)    REASON="tt-metal branch rebase hit a REAL content conflict with origin/main — no dispatch made." ;;
+            rebase-failed)      REASON="git rebase failed with no conflicting files — transport/clone error, NOT a merge conflict. Re-run usually clears it." ;;
             rebase-push-failed) REASON="Rebase OK but the push was rejected (branch moved underneath us)." ;;
             dispatch-ambiguous) REASON="Multiple new test-dispatch runs appeared — couldn't attribute ours." ;;
             dispatch-not-found) REASON="Dispatched but the tt-metal run could not be located." ;;

@@ -1,0 +1,3828 @@
+{
+  "metadata": {
+    "measurement_date": "2026-08-18T01:32:17.904978+05:30",
+    "total_tests": 258,
+    "successful_tests": 254,
+    "failed_tests": 4,
+    "failed_test_names": [
+      "test_elu",
+      "test_fill",
+      "test_std_hw",
+      "test_xielu"
+    ],
+    "rerun_mode": false,
+    "git_commit_id": "330b199ff8cb516d78b2db4309b9a5e00fb41f48",
+    "sharded": true,
+    "shard_count": 5
+  },
+  "results": [
+    {
+      "test_name": "test_abs",
+      "operation_name": "abs",
+      "runs": [
+        11862.0,
+        11767.0,
+        11836.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 11821.666666666666,
+      "std_deviation_ns": 49.09514572066502,
+      "min_duration_ns": 11767.0,
+      "max_duration_ns": 11862.0,
+      "timestamp": "2026-08-18T01:33:40.492318+05:30"
+    },
+    {
+      "test_name": "test_abs_bw",
+      "operation_name": "abs_bw",
+      "runs": [
+        29060.0,
+        29574.0,
+        29199.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 29277.666666666668,
+      "std_deviation_ns": 265.8765377639278,
+      "min_duration_ns": 29060.0,
+      "max_duration_ns": 29574.0,
+      "timestamp": "2026-08-18T02:57:10.714581+05:30"
+    },
+    {
+      "test_name": "test_acos",
+      "operation_name": "acos",
+      "runs": [
+        19103.0,
+        18997.0,
+        18990.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 19030.0,
+      "std_deviation_ns": 63.31666447310692,
+      "min_duration_ns": 18990.0,
+      "max_duration_ns": 19103.0,
+      "timestamp": "2026-08-18T01:33:35.078208+05:30"
+    },
+    {
+      "test_name": "test_acos_bw",
+      "operation_name": "acos_bw",
+      "runs": [
+        239644.0,
+        239833.0,
+        242951.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 240809.33333333334,
+      "std_deviation_ns": 1857.1435952379486,
+      "min_duration_ns": 239644.0,
+      "max_duration_ns": 242951.0,
+      "timestamp": "2026-08-18T02:06:33.673403+05:30"
+    },
+    {
+      "test_name": "test_acosh",
+      "operation_name": "acosh",
+      "runs": [
+        24556.0,
+        24666.0,
+        24566.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 24596.0,
+      "std_deviation_ns": 60.8276253029822,
+      "min_duration_ns": 24556.0,
+      "max_duration_ns": 24666.0,
+      "timestamp": "2026-08-18T02:28:56.959546+05:30"
+    },
+    {
+      "test_name": "test_acosh_bw",
+      "operation_name": "acosh_bw",
+      "runs": [
+        278925.0,
+        275941.0,
+        274356.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 276407.3333333333,
+      "std_deviation_ns": 2319.9224843372103,
+      "min_duration_ns": 274356.0,
+      "max_duration_ns": 278925.0,
+      "timestamp": "2026-08-18T02:06:13.660729+05:30"
+    },
+    {
+      "test_name": "test_add",
+      "operation_name": "add",
+      "runs": [
+        17146.0,
+        16492.0,
+        16830.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 16822.666666666668,
+      "std_deviation_ns": 327.061665948997,
+      "min_duration_ns": 16492.0,
+      "max_duration_ns": 17146.0,
+      "timestamp": "2026-08-18T02:42:34.324837+05:30"
+    },
+    {
+      "test_name": "test_add_",
+      "operation_name": "add_",
+      "runs": [
+        16447.0,
+        16873.0,
+        16543.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 16621.0,
+      "std_deviation_ns": 223.45469339443287,
+      "min_duration_ns": 16447.0,
+      "max_duration_ns": 16873.0,
+      "timestamp": "2026-08-18T01:57:48.997109+05:30"
+    },
+    {
+      "test_name": "test_add_bw",
+      "operation_name": "add_bw",
+      "runs": [
+        25331.0,
+        24850.0,
+        25438.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 25206.333333333332,
+      "std_deviation_ns": 313.1969561367628,
+      "min_duration_ns": 24850.0,
+      "max_duration_ns": 25438.0,
+      "timestamp": "2026-08-18T03:07:39.137956+05:30"
+    },
+    {
+      "test_name": "test_addalpha",
+      "operation_name": "addalpha",
+      "runs": [
+        16672.0,
+        16813.0,
+        16747.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 16744.0,
+      "std_deviation_ns": 70.54785609782908,
+      "min_duration_ns": 16672.0,
+      "max_duration_ns": 16813.0,
+      "timestamp": "2026-08-18T03:40:42.421169+05:30"
+    },
+    {
+      "test_name": "test_addalpha_bw",
+      "operation_name": "addalpha_bw",
+      "runs": [
+        24520.0,
+        25917.0,
+        24710.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 25049.0,
+      "std_deviation_ns": 757.6892502866858,
+      "min_duration_ns": 24520.0,
+      "max_duration_ns": 25917.0,
+      "timestamp": "2026-08-18T03:14:01.807978+05:30"
+    },
+    {
+      "test_name": "test_addcdiv",
+      "operation_name": "addcdiv",
+      "runs": [
+        22621.0,
+        22384.0,
+        22799.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 22601.333333333332,
+      "std_deviation_ns": 208.19782259508224,
+      "min_duration_ns": 22384.0,
+      "max_duration_ns": 22799.0,
+      "timestamp": "2026-08-18T03:46:15.485022+05:30"
+    },
+    {
+      "test_name": "test_addcdiv_bw",
+      "operation_name": "addcdiv_bw",
+      "runs": [
+        243105.0,
+        242696.0,
+        242571.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 242790.66666666666,
+      "std_deviation_ns": 279.30329989696384,
+      "min_duration_ns": 242571.0,
+      "max_duration_ns": 243105.0,
+      "timestamp": "2026-08-18T03:11:23.661058+05:30"
+    },
+    {
+      "test_name": "test_addcmul",
+      "operation_name": "addcmul",
+      "runs": [
+        22419.0,
+        22979.0,
+        22861.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 22753.0,
+      "std_deviation_ns": 295.2084009644712,
+      "min_duration_ns": 22419.0,
+      "max_duration_ns": 22979.0,
+      "timestamp": "2026-08-18T02:54:19.898915+05:30"
+    },
+    {
+      "test_name": "test_addcmul_bw",
+      "operation_name": "addcmul_bw",
+      "runs": [
+        60928.0,
+        60304.0,
+        61043.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 60758.333333333336,
+      "std_deviation_ns": 397.6434751549852,
+      "min_duration_ns": 60304.0,
+      "max_duration_ns": 61043.0,
+      "timestamp": "2026-08-18T02:20:55.360339+05:30"
+    },
+    {
+      "test_name": "test_angle",
+      "operation_name": "angle",
+      "runs": [
+        34827.0,
+        35315.0,
+        34541.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 34894.333333333336,
+      "std_deviation_ns": 391.3685390183188,
+      "min_duration_ns": 34541.0,
+      "max_duration_ns": 35315.0,
+      "timestamp": "2026-08-18T02:05:28.909169+05:30"
+    },
+    {
+      "test_name": "test_asin",
+      "operation_name": "asin",
+      "runs": [
+        18577.0,
+        18642.0,
+        18574.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 18597.666666666668,
+      "std_deviation_ns": 38.42308333974947,
+      "min_duration_ns": 18574.0,
+      "max_duration_ns": 18642.0,
+      "timestamp": "2026-08-18T02:28:02.663141+05:30"
+    },
+    {
+      "test_name": "test_asin_bw",
+      "operation_name": "asin_bw",
+      "runs": [
+        231330.0,
+        232260.0,
+        232038.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 231876.0,
+      "std_deviation_ns": 485.7036133281283,
+      "min_duration_ns": 231330.0,
+      "max_duration_ns": 232260.0,
+      "timestamp": "2026-08-18T03:00:47.240880+05:30"
+    },
+    {
+      "test_name": "test_asinh",
+      "operation_name": "asinh",
+      "runs": [
+        33067.0,
+        33125.0,
+        33113.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 33101.666666666664,
+      "std_deviation_ns": 30.61590000854676,
+      "min_duration_ns": 33067.0,
+      "max_duration_ns": 33125.0,
+      "timestamp": "2026-08-18T03:16:32.144928+05:30"
+    },
+    {
+      "test_name": "test_asinh_bw",
+      "operation_name": "asinh_bw",
+      "runs": [
+        28866.0,
+        28961.0,
+        29005.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 28944.0,
+      "std_deviation_ns": 71.04224095564554,
+      "min_duration_ns": 28866.0,
+      "max_duration_ns": 29005.0,
+      "timestamp": "2026-08-18T03:50:10.096605+05:30"
+    },
+    {
+      "test_name": "test_assign",
+      "operation_name": "assign",
+      "runs": [
+        11733.0,
+        11997.0,
+        11709.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 11813.0,
+      "std_deviation_ns": 159.79987484350542,
+      "min_duration_ns": 11709.0,
+      "max_duration_ns": 11997.0,
+      "timestamp": "2026-08-18T03:45:18.897430+05:30"
+    },
+    {
+      "test_name": "test_atan",
+      "operation_name": "atan",
+      "runs": [
+        14426.0,
+        14420.0,
+        14381.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 14409.0,
+      "std_deviation_ns": 24.43358344574123,
+      "min_duration_ns": 14381.0,
+      "max_duration_ns": 14426.0,
+      "timestamp": "2026-08-18T02:25:19.923056+05:30"
+    },
+    {
+      "test_name": "test_atan2",
+      "operation_name": "atan2",
+      "runs": [
+        17567.0,
+        17587.0,
+        17980.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 17711.333333333332,
+      "std_deviation_ns": 232.88695397839126,
+      "min_duration_ns": 17567.0,
+      "max_duration_ns": 17980.0,
+      "timestamp": "2026-08-18T02:47:57.529242+05:30"
+    },
+    {
+      "test_name": "test_atan2_bw",
+      "operation_name": "atan2_bw",
+      "runs": [
+        169238.0,
+        170295.0,
+        172018.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 170517.0,
+      "std_deviation_ns": 1403.2330526323844,
+      "min_duration_ns": 169238.0,
+      "max_duration_ns": 172018.0,
+      "timestamp": "2026-08-18T02:17:10.021338+05:30"
+    },
+    {
+      "test_name": "test_atan_bw",
+      "operation_name": "atan_bw",
+      "runs": [
+        30097.0,
+        29657.0,
+        29913.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 29889.0,
+      "std_deviation_ns": 220.97963707093012,
+      "min_duration_ns": 29657.0,
+      "max_duration_ns": 30097.0,
+      "timestamp": "2026-08-18T02:58:06.232441+05:30"
+    },
+    {
+      "test_name": "test_atanh",
+      "operation_name": "atanh",
+      "runs": [
+        18322.0,
+        18365.0,
+        18300.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 18329.0,
+      "std_deviation_ns": 33.06055050963308,
+      "min_duration_ns": 18300.0,
+      "max_duration_ns": 18365.0,
+      "timestamp": "2026-08-18T01:34:35.159657+05:30"
+    },
+    {
+      "test_name": "test_atanh_bw",
+      "operation_name": "atanh_bw",
+      "runs": [
+        264858.0,
+        265168.0,
+        267427.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 265817.6666666667,
+      "std_deviation_ns": 1402.3160604276532,
+      "min_duration_ns": 264858.0,
+      "max_duration_ns": 267427.0,
+      "timestamp": "2026-08-18T02:07:36.507981+05:30"
+    },
+    {
+      "test_name": "test_bias_gelu",
+      "operation_name": "bias_gelu",
+      "runs": [
+        16441.0,
+        16807.0,
+        16409.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 16552.333333333332,
+      "std_deviation_ns": 221.12741425099995,
+      "min_duration_ns": 16409.0,
+      "max_duration_ns": 16807.0,
+      "timestamp": "2026-08-18T02:51:35.100811+05:30"
+    },
+    {
+      "test_name": "test_bias_gelu_",
+      "operation_name": "bias_gelu_",
+      "runs": [
+        16763.0,
+        16766.0,
+        16699.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 16742.666666666668,
+      "std_deviation_ns": 37.84617990409776,
+      "min_duration_ns": 16699.0,
+      "max_duration_ns": 16766.0,
+      "timestamp": "2026-08-18T02:01:28.467934+05:30"
+    },
+    {
+      "test_name": "test_bias_gelu_bw",
+      "operation_name": "bias_gelu_bw",
+      "runs": [
+        52325.0,
+        52391.0,
+        52435.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 52383.666666666664,
+      "std_deviation_ns": 55.36545252531883,
+      "min_duration_ns": 52325.0,
+      "max_duration_ns": 52435.0,
+      "timestamp": "2026-08-18T02:16:33.023415+05:30"
+    },
+    {
+      "test_name": "test_bitwise_and",
+      "operation_name": "bitwise_and",
+      "runs": [
+        32354.0,
+        32647.0,
+        32372.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 32457.666666666668,
+      "std_deviation_ns": 164.21429089252047,
+      "min_duration_ns": 32354.0,
+      "max_duration_ns": 32647.0,
+      "timestamp": "2026-08-18T02:49:45.303830+05:30"
+    },
+    {
+      "test_name": "test_bitwise_not",
+      "operation_name": "bitwise_not",
+      "runs": [
+        23937.0,
+        23707.0,
+        23881.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 23841.666666666668,
+      "std_deviation_ns": 119.93887332025983,
+      "min_duration_ns": 23707.0,
+      "max_duration_ns": 23937.0,
+      "timestamp": "2026-08-18T02:36:08.135570+05:30"
+    },
+    {
+      "test_name": "test_bitwise_or",
+      "operation_name": "bitwise_or",
+      "runs": [
+        32406.0,
+        32427.0,
+        32461.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 32431.333333333332,
+      "std_deviation_ns": 27.75487945088815,
+      "min_duration_ns": 32406.0,
+      "max_duration_ns": 32461.0,
+      "timestamp": "2026-08-18T03:38:51.724415+05:30"
+    },
+    {
+      "test_name": "test_bitwise_xor",
+      "operation_name": "bitwise_xor",
+      "runs": [
+        32844.0,
+        32896.0,
+        33047.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 32929.0,
+      "std_deviation_ns": 105.4466689848475,
+      "min_duration_ns": 32844.0,
+      "max_duration_ns": 33047.0,
+      "timestamp": "2026-08-18T02:47:03.550996+05:30"
+    },
+    {
+      "test_name": "test_cbrt",
+      "operation_name": "cbrt",
+      "runs": [
+        13199.0,
+        13542.0,
+        13170.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 13303.666666666666,
+      "std_deviation_ns": 206.91141421713144,
+      "min_duration_ns": 13170.0,
+      "max_duration_ns": 13542.0,
+      "timestamp": "2026-08-18T01:43:26.728481+05:30"
+    },
+    {
+      "test_name": "test_ceil",
+      "operation_name": "ceil",
+      "runs": [
+        12304.0,
+        11876.0,
+        12333.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 12171.0,
+      "std_deviation_ns": 255.88864765753092,
+      "min_duration_ns": 11876.0,
+      "max_duration_ns": 12333.0,
+      "timestamp": "2026-08-18T02:33:26.943107+05:30"
+    },
+    {
+      "test_name": "test_ceil_bw",
+      "operation_name": "ceil_bw",
+      "runs": [
+        12071.0,
+        11703.0,
+        12101.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 11958.333333333334,
+      "std_deviation_ns": 221.63333082669072,
+      "min_duration_ns": 11703.0,
+      "max_duration_ns": 12101.0,
+      "timestamp": "2026-08-18T02:07:08.780104+05:30"
+    },
+    {
+      "test_name": "test_celu",
+      "operation_name": "celu",
+      "runs": [
+        13043.0,
+        13022.0,
+        12980.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 13015.0,
+      "std_deviation_ns": 32.07802986469088,
+      "min_duration_ns": 12980.0,
+      "max_duration_ns": 13043.0,
+      "timestamp": "2026-08-18T03:27:33.932046+05:30"
+    },
+    {
+      "test_name": "test_clamp",
+      "operation_name": "clamp",
+      "runs": [
+        12605.0,
+        12142.0,
+        12181.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 12309.333333333334,
+      "std_deviation_ns": 256.79628761594927,
+      "min_duration_ns": 12142.0,
+      "max_duration_ns": 12605.0,
+      "timestamp": "2026-08-18T02:38:00.815022+05:30"
+    },
+    {
+      "test_name": "test_clip",
+      "operation_name": "clip",
+      "runs": [
+        12177.0,
+        12336.0,
+        12166.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 12226.333333333334,
+      "std_deviation_ns": 95.13323989717439,
+      "min_duration_ns": 12166.0,
+      "max_duration_ns": 12336.0,
+      "timestamp": "2026-08-18T03:29:22.942075+05:30"
+    },
+    {
+      "test_name": "test_clip_binary",
+      "operation_name": "clip_binary",
+      "runs": [
+        120517.0,
+        120036.0,
+        121032.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 120528.33333333333,
+      "std_deviation_ns": 498.0967108236445,
+      "min_duration_ns": 120036.0,
+      "max_duration_ns": 121032.0,
+      "timestamp": "2026-08-18T02:02:50.615757+05:30"
+    },
+    {
+      "test_name": "test_complex_recip",
+      "operation_name": "complex_recip",
+      "runs": [
+        259071.0,
+        258989.0,
+        256827.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 258295.66666666666,
+      "std_deviation_ns": 1272.5632924665606,
+      "min_duration_ns": 256827.0,
+      "max_duration_ns": 259071.0,
+      "timestamp": "2026-08-18T03:49:09.889013+05:30"
+    },
+    {
+      "test_name": "test_conj",
+      "operation_name": "conj",
+      "runs": [
+        24119.0,
+        24264.0,
+        24700.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 24361.0,
+      "std_deviation_ns": 302.40205025759997,
+      "min_duration_ns": 24119.0,
+      "max_duration_ns": 24700.0,
+      "timestamp": "2026-08-18T02:05:05.728631+05:30"
+    },
+    {
+      "test_name": "test_cos",
+      "operation_name": "cos",
+      "runs": [
+        13198.0,
+        13703.0,
+        13039.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 13313.333333333334,
+      "std_deviation_ns": 346.6991971916481,
+      "min_duration_ns": 13039.0,
+      "max_duration_ns": 13703.0,
+      "timestamp": "2026-08-18T01:34:28.985968+05:30"
+    },
+    {
+      "test_name": "test_cos_bw",
+      "operation_name": "cos_bw",
+      "runs": [
+        42374.0,
+        42255.0,
+        42815.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 42481.333333333336,
+      "std_deviation_ns": 295.0259875558988,
+      "min_duration_ns": 42255.0,
+      "max_duration_ns": 42815.0,
+      "timestamp": "2026-08-18T03:01:45.949619+05:30"
+    },
+    {
+      "test_name": "test_cosh",
+      "operation_name": "cosh",
+      "runs": [
+        13654.0,
+        14186.0,
+        12624.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 13488.0,
+      "std_deviation_ns": 794.1208975968332,
+      "min_duration_ns": 12624.0,
+      "max_duration_ns": 14186.0,
+      "timestamp": "2026-08-18T02:34:20.658066+05:30"
+    },
+    {
+      "test_name": "test_cosh_bw",
+      "operation_name": "cosh_bw",
+      "runs": [
+        207933.0,
+        208579.0,
+        208299.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 208270.33333333334,
+      "std_deviation_ns": 323.9526714403407,
+      "min_duration_ns": 207933.0,
+      "max_duration_ns": 208579.0,
+      "timestamp": "2026-08-18T03:51:15.608696+05:30"
+    },
+    {
+      "test_name": "test_cumprod",
+      "operation_name": "cumprod",
+      "runs": [
+        4594390.0,
+        4600655.0,
+        4571569.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 4588871.333333333,
+      "std_deviation_ns": 15308.187689381566,
+      "min_duration_ns": 4571569.0,
+      "max_duration_ns": 4600655.0,
+      "timestamp": "2026-08-18T02:56:13.244908+05:30"
+    },
+    {
+      "test_name": "test_cumsum",
+      "operation_name": "cumsum",
+      "runs": [
+        4615794.0,
+        4589327.0,
+        4553441.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 4586187.333333333,
+      "std_deviation_ns": 31294.844341094482,
+      "min_duration_ns": 4553441.0,
+      "max_duration_ns": 4615794.0,
+      "timestamp": "2026-08-18T03:48:07.823768+05:30"
+    },
+    {
+      "test_name": "test_deg2rad",
+      "operation_name": "deg2rad",
+      "runs": [
+        11489.0,
+        12212.0,
+        12165.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 11955.333333333334,
+      "std_deviation_ns": 404.53965607012293,
+      "min_duration_ns": 11489.0,
+      "max_duration_ns": 12212.0,
+      "timestamp": "2026-08-18T01:45:15.049612+05:30"
+    },
+    {
+      "test_name": "test_deg2rad_bw",
+      "operation_name": "deg2rad_bw",
+      "runs": [
+        12827.0,
+        12691.0,
+        12936.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 12818.0,
+      "std_deviation_ns": 122.74770873625299,
+      "min_duration_ns": 12691.0,
+      "max_duration_ns": 12936.0,
+      "timestamp": "2026-08-18T02:59:01.430584+05:30"
+    },
+    {
+      "test_name": "test_digamma",
+      "operation_name": "digamma",
+      "runs": [
+        26593.0,
+        26562.0,
+        26628.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 26594.333333333332,
+      "std_deviation_ns": 33.02019584032374,
+      "min_duration_ns": 26562.0,
+      "max_duration_ns": 26628.0,
+      "timestamp": "2026-08-18T01:47:50.612195+05:30"
+    },
+    {
+      "test_name": "test_digamma_bw",
+      "operation_name": "digamma_bw",
+      "runs": [
+        213920.0,
+        214049.0,
+        213120.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 213696.33333333334,
+      "std_deviation_ns": 503.26964276949326,
+      "min_duration_ns": 213120.0,
+      "max_duration_ns": 214049.0,
+      "timestamp": "2026-08-18T02:08:36.371399+05:30"
+    },
+    {
+      "test_name": "test_div_",
+      "operation_name": "div_",
+      "runs": [
+        17910.0,
+        17152.0,
+        17531.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 17531.0,
+      "std_deviation_ns": 379.0,
+      "min_duration_ns": 17152.0,
+      "max_duration_ns": 17910.0,
+      "timestamp": "2026-08-18T02:53:22.786619+05:30"
+    },
+    {
+      "test_name": "test_div_bw",
+      "operation_name": "div_bw",
+      "runs": [
+        334133.0,
+        334282.0,
+        331776.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 333397.0,
+      "std_deviation_ns": 1405.8026177241243,
+      "min_duration_ns": 331776.0,
+      "max_duration_ns": 334282.0,
+      "timestamp": "2026-08-18T03:11:13.700838+05:30"
+    },
+    {
+      "test_name": "test_divide",
+      "operation_name": "divide",
+      "runs": [
+        17334.0,
+        17476.0,
+        17436.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 17415.333333333332,
+      "std_deviation_ns": 73.22112627741623,
+      "min_duration_ns": 17334.0,
+      "max_duration_ns": 17476.0,
+      "timestamp": "2026-08-18T02:46:10.514538+05:30"
+    },
+    {
+      "test_name": "test_divide_",
+      "operation_name": "divide_",
+      "runs": [
+        17492.0,
+        17349.0,
+        18068.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 17636.333333333332,
+      "std_deviation_ns": 380.6104745449517,
+      "min_duration_ns": 17349.0,
+      "max_duration_ns": 18068.0,
+      "timestamp": "2026-08-18T02:49:48.226273+05:30"
+    },
+    {
+      "test_name": "test_eq",
+      "operation_name": "eq",
+      "runs": [
+        17156.0,
+        16967.0,
+        17223.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 17115.333333333332,
+      "std_deviation_ns": 132.75666963785034,
+      "min_duration_ns": 16967.0,
+      "max_duration_ns": 17223.0,
+      "timestamp": "2026-08-18T01:52:47.575152+05:30"
+    },
+    {
+      "test_name": "test_eq_",
+      "operation_name": "eq_",
+      "runs": [
+        17010.0,
+        16836.0,
+        17250.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 17032.0,
+      "std_deviation_ns": 207.8749624173147,
+      "min_duration_ns": 16836.0,
+      "max_duration_ns": 17250.0,
+      "timestamp": "2026-08-18T01:59:35.873529+05:30"
+    },
+    {
+      "test_name": "test_eqz",
+      "operation_name": "eqz",
+      "runs": [
+        11695.0,
+        11991.0,
+        12231.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 11972.333333333334,
+      "std_deviation_ns": 268.4871194924131,
+      "min_duration_ns": 11695.0,
+      "max_duration_ns": 12231.0,
+      "timestamp": "2026-08-18T01:42:32.886551+05:30"
+    },
+    {
+      "test_name": "test_erf",
+      "operation_name": "erf",
+      "runs": [
+        12948.0,
+        12939.0,
+        12965.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 12950.666666666666,
+      "std_deviation_ns": 13.203534880225574,
+      "min_duration_ns": 12939.0,
+      "max_duration_ns": 12965.0,
+      "timestamp": "2026-08-18T02:34:19.983236+05:30"
+    },
+    {
+      "test_name": "test_erf_bw",
+      "operation_name": "erf_bw",
+      "runs": [
+        66867.0,
+        67109.0,
+        65611.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 66529.0,
+      "std_deviation_ns": 804.1666493955094,
+      "min_duration_ns": 65611.0,
+      "max_duration_ns": 67109.0,
+      "timestamp": "2026-08-18T02:08:04.997395+05:30"
+    },
+    {
+      "test_name": "test_erfc",
+      "operation_name": "erfc",
+      "runs": [
+        20984.0,
+        21005.0,
+        21059.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 21016.0,
+      "std_deviation_ns": 38.691084244306204,
+      "min_duration_ns": 20984.0,
+      "max_duration_ns": 21059.0,
+      "timestamp": "2026-08-18T03:23:01.407922+05:30"
+    },
+    {
+      "test_name": "test_erfc_bw",
+      "operation_name": "erfc_bw",
+      "runs": [
+        67193.0,
+        66656.0,
+        66702.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 66850.33333333333,
+      "std_deviation_ns": 297.6480024010464,
+      "min_duration_ns": 66656.0,
+      "max_duration_ns": 67193.0,
+      "timestamp": "2026-08-18T03:02:41.859117+05:30"
+    },
+    {
+      "test_name": "test_erfinv",
+      "operation_name": "erfinv",
+      "runs": [
+        23596.0,
+        23636.0,
+        23580.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 23604.0,
+      "std_deviation_ns": 28.844410203711913,
+      "min_duration_ns": 23580.0,
+      "max_duration_ns": 23636.0,
+      "timestamp": "2026-08-18T03:17:29.083314+05:30"
+    },
+    {
+      "test_name": "test_erfinv_bw",
+      "operation_name": "erfinv_bw",
+      "runs": [
+        246037.0,
+        246904.0,
+        245378.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 246106.33333333334,
+      "std_deviation_ns": 765.358957178482,
+      "min_duration_ns": 245378.0,
+      "max_duration_ns": 246904.0,
+      "timestamp": "2026-08-18T03:52:15.023168+05:30"
+    },
+    {
+      "test_name": "test_exp",
+      "operation_name": "exp",
+      "runs": [
+        12848.0,
+        13404.0,
+        12969.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 13073.666666666666,
+      "std_deviation_ns": 292.40440033168676,
+      "min_duration_ns": 12848.0,
+      "max_duration_ns": 13404.0,
+      "timestamp": "2026-08-18T01:39:51.553004+05:30"
+    },
+    {
+      "test_name": "test_exp2",
+      "operation_name": "exp2",
+      "runs": [
+        13715.0,
+        13296.0,
+        13743.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 13584.666666666666,
+      "std_deviation_ns": 250.3843711842521,
+      "min_duration_ns": 13296.0,
+      "max_duration_ns": 13743.0,
+      "timestamp": "2026-08-18T02:26:14.396617+05:30"
+    },
+    {
+      "test_name": "test_exp2_bw",
+      "operation_name": "exp2_bw",
+      "runs": [
+        43649.0,
+        44129.0,
+        43700.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 43826.0,
+      "std_deviation_ns": 263.64180245173566,
+      "min_duration_ns": 43649.0,
+      "max_duration_ns": 44129.0,
+      "timestamp": "2026-08-18T02:09:33.060839+05:30"
+    },
+    {
+      "test_name": "test_exp_bw",
+      "operation_name": "exp_bw",
+      "runs": [
+        29795.0,
+        29596.0,
+        29717.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 29702.666666666668,
+      "std_deviation_ns": 100.27129865187413,
+      "min_duration_ns": 29596.0,
+      "max_duration_ns": 29795.0,
+      "timestamp": "2026-08-18T02:59:58.061941+05:30"
+    },
+    {
+      "test_name": "test_expm1",
+      "operation_name": "expm1",
+      "runs": [
+        14682.0,
+        14555.0,
+        14522.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 14586.333333333334,
+      "std_deviation_ns": 84.4768212785811,
+      "min_duration_ns": 14522.0,
+      "max_duration_ns": 14682.0,
+      "timestamp": "2026-08-18T01:35:29.441137+05:30"
+    },
+    {
+      "test_name": "test_expm1_bw",
+      "operation_name": "expm1_bw",
+      "runs": [
+        43602.0,
+        43787.0,
+        44083.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 43824.0,
+      "std_deviation_ns": 242.625225399174,
+      "min_duration_ns": 43602.0,
+      "max_duration_ns": 44083.0,
+      "timestamp": "2026-08-18T02:09:00.775255+05:30"
+    },
+    {
+      "test_name": "test_fill_bw",
+      "operation_name": "fill_bw",
+      "runs": [
+        11465.0,
+        11867.0,
+        11501.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 11611.0,
+      "std_deviation_ns": 222.4320120845918,
+      "min_duration_ns": 11465.0,
+      "max_duration_ns": 11867.0,
+      "timestamp": "2026-08-18T02:16:11.498660+05:30"
+    },
+    {
+      "test_name": "test_fill_zero_bw",
+      "operation_name": "fill_zero_bw",
+      "runs": [
+        11798.0,
+        11780.0,
+        11881.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 11819.666666666666,
+      "std_deviation_ns": 53.87330817142505,
+      "min_duration_ns": 11780.0,
+      "max_duration_ns": 11881.0,
+      "timestamp": "2026-08-18T02:15:36.857002+05:30"
+    },
+    {
+      "test_name": "test_floor",
+      "operation_name": "floor",
+      "runs": [
+        12396.0,
+        11879.0,
+        12133.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 12136.0,
+      "std_deviation_ns": 258.5130557631471,
+      "min_duration_ns": 11879.0,
+      "max_duration_ns": 12396.0,
+      "timestamp": "2026-08-18T03:24:51.169077+05:30"
+    },
+    {
+      "test_name": "test_floor_bw",
+      "operation_name": "floor_bw",
+      "runs": [
+        11676.0,
+        11696.0,
+        11890.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 11754.0,
+      "std_deviation_ns": 118.20321484629764,
+      "min_duration_ns": 11676.0,
+      "max_duration_ns": 11890.0,
+      "timestamp": "2026-08-18T03:03:38.065525+05:30"
+    },
+    {
+      "test_name": "test_fmod",
+      "operation_name": "fmod",
+      "runs": [
+        19887.0,
+        19454.0,
+        19841.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 19727.333333333332,
+      "std_deviation_ns": 237.82836948802668,
+      "min_duration_ns": 19454.0,
+      "max_duration_ns": 19887.0,
+      "timestamp": "2026-08-18T02:46:10.170525+05:30"
+    },
+    {
+      "test_name": "test_fmod_bw",
+      "operation_name": "fmod_bw",
+      "runs": [
+        58915.0,
+        58680.0,
+        57995.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 58530.0,
+      "std_deviation_ns": 477.99058568135,
+      "min_duration_ns": 57995.0,
+      "max_duration_ns": 58915.0,
+      "timestamp": "2026-08-18T04:00:56.421095+05:30"
+    },
+    {
+      "test_name": "test_frac",
+      "operation_name": "frac",
+      "runs": [
+        11856.0,
+        11689.0,
+        11984.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 11843.0,
+      "std_deviation_ns": 147.9290370414139,
+      "min_duration_ns": 11689.0,
+      "max_duration_ns": 11984.0,
+      "timestamp": "2026-08-18T01:46:22.353532+05:30"
+    },
+    {
+      "test_name": "test_ge",
+      "operation_name": "ge",
+      "runs": [
+        16861.0,
+        16732.0,
+        16809.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 16800.666666666668,
+      "std_deviation_ns": 64.90249096400949,
+      "min_duration_ns": 16732.0,
+      "max_duration_ns": 16861.0,
+      "timestamp": "2026-08-18T02:47:03.814212+05:30"
+    },
+    {
+      "test_name": "test_ge_",
+      "operation_name": "ge_",
+      "runs": [
+        17027.0,
+        17018.0,
+        16936.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 16993.666666666668,
+      "std_deviation_ns": 50.14312847572769,
+      "min_duration_ns": 16936.0,
+      "max_duration_ns": 17027.0,
+      "timestamp": "2026-08-18T03:43:29.269772+05:30"
+    },
+    {
+      "test_name": "test_geglu",
+      "operation_name": "geglu",
+      "runs": [
+        27144.0,
+        26751.0,
+        26778.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 26891.0,
+      "std_deviation_ns": 219.51993075800658,
+      "min_duration_ns": 26751.0,
+      "max_duration_ns": 27144.0,
+      "timestamp": "2026-08-18T01:50:02.838106+05:30"
+    },
+    {
+      "test_name": "test_gelu",
+      "operation_name": "gelu",
+      "runs": [
+        22932.0,
+        22847.0,
+        22913.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 22897.333333333332,
+      "std_deviation_ns": 44.61315202194677,
+      "min_duration_ns": 22847.0,
+      "max_duration_ns": 22932.0,
+      "timestamp": "2026-08-18T02:31:39.245491+05:30"
+    },
+    {
+      "test_name": "test_gelu_bw",
+      "operation_name": "gelu_bw",
+      "runs": [
+        35552.0,
+        35513.0,
+        35547.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 35537.333333333336,
+      "std_deviation_ns": 21.221058723196006,
+      "min_duration_ns": 35513.0,
+      "max_duration_ns": 35552.0,
+      "timestamp": "2026-08-18T03:53:11.409264+05:30"
+    },
+    {
+      "test_name": "test_gez",
+      "operation_name": "gez",
+      "runs": [
+        11826.0,
+        12288.0,
+        12322.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 12145.333333333334,
+      "std_deviation_ns": 277.07279428578573,
+      "min_duration_ns": 11826.0,
+      "max_duration_ns": 12322.0,
+      "timestamp": "2026-08-18T01:35:23.051246+05:30"
+    },
+    {
+      "test_name": "test_glu",
+      "operation_name": "glu",
+      "runs": [
+        27134.0,
+        27014.0,
+        27252.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 27133.333333333332,
+      "std_deviation_ns": 119.0014005519823,
+      "min_duration_ns": 27014.0,
+      "max_duration_ns": 27252.0,
+      "timestamp": "2026-08-18T03:32:13.425291+05:30"
+    },
+    {
+      "test_name": "test_gt",
+      "operation_name": "gt",
+      "runs": [
+        16793.0,
+        16821.0,
+        16771.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 16795.0,
+      "std_deviation_ns": 25.059928172283335,
+      "min_duration_ns": 16771.0,
+      "max_duration_ns": 16821.0,
+      "timestamp": "2026-08-18T03:35:05.720454+05:30"
+    },
+    {
+      "test_name": "test_gt_",
+      "operation_name": "gt_",
+      "runs": [
+        17089.0,
+        17108.0,
+        17016.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 17071.0,
+      "std_deviation_ns": 48.569537778323564,
+      "min_duration_ns": 17016.0,
+      "max_duration_ns": 17108.0,
+      "timestamp": "2026-08-18T02:50:42.509482+05:30"
+    },
+    {
+      "test_name": "test_gtz",
+      "operation_name": "gtz",
+      "runs": [
+        12236.0,
+        12343.0,
+        11854.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 12144.333333333334,
+      "std_deviation_ns": 257.06484266296184,
+      "min_duration_ns": 11854.0,
+      "max_duration_ns": 12343.0,
+      "timestamp": "2026-08-18T02:29:51.070648+05:30"
+    },
+    {
+      "test_name": "test_hardmish",
+      "operation_name": "hardmish",
+      "runs": [
+        12300.0,
+        11870.0,
+        12236.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 12135.333333333334,
+      "std_deviation_ns": 232.00287354542257,
+      "min_duration_ns": 11870.0,
+      "max_duration_ns": 12300.0,
+      "timestamp": "2026-08-18T03:25:45.887100+05:30"
+    },
+    {
+      "test_name": "test_hardshrink",
+      "operation_name": "hardshrink",
+      "runs": [
+        12321.0,
+        12023.0,
+        12511.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 12285.0,
+      "std_deviation_ns": 245.98373929997894,
+      "min_duration_ns": 12023.0,
+      "max_duration_ns": 12511.0,
+      "timestamp": "2026-08-18T01:50:35.675327+05:30"
+    },
+    {
+      "test_name": "test_hardshrink_bw",
+      "operation_name": "hardshrink_bw",
+      "runs": [
+        40534.0,
+        41606.0,
+        41099.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 41079.666666666664,
+      "std_deviation_ns": 536.2614412143887,
+      "min_duration_ns": 40534.0,
+      "max_duration_ns": 41606.0,
+      "timestamp": "2026-08-18T03:10:16.784838+05:30"
+    },
+    {
+      "test_name": "test_hardsigmoid",
+      "operation_name": "hardsigmoid",
+      "runs": [
+        12182.0,
+        12133.0,
+        12193.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 12169.333333333334,
+      "std_deviation_ns": 31.942656954820357,
+      "min_duration_ns": 12133.0,
+      "max_duration_ns": 12193.0,
+      "timestamp": "2026-08-18T01:44:21.147745+05:30"
+    },
+    {
+      "test_name": "test_hardsigmoid_bw",
+      "operation_name": "hardsigmoid_bw",
+      "runs": [
+        72257.0,
+        73005.0,
+        72788.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 72683.33333333333,
+      "std_deviation_ns": 384.82766705803954,
+      "min_duration_ns": 72257.0,
+      "max_duration_ns": 73005.0,
+      "timestamp": "2026-08-18T03:00:56.977299+05:30"
+    },
+    {
+      "test_name": "test_hardswish",
+      "operation_name": "hardswish",
+      "runs": [
+        12819.0,
+        12247.0,
+        12444.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 12503.333333333334,
+      "std_deviation_ns": 290.5793064437544,
+      "min_duration_ns": 12247.0,
+      "max_duration_ns": 12819.0,
+      "timestamp": "2026-08-18T01:44:32.580567+05:30"
+    },
+    {
+      "test_name": "test_hardswish_bw",
+      "operation_name": "hardswish_bw",
+      "runs": [
+        108258.0,
+        108602.0,
+        108925.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 108595.0,
+      "std_deviation_ns": 333.5550929007081,
+      "min_duration_ns": 108258.0,
+      "max_duration_ns": 108925.0,
+      "timestamp": "2026-08-18T02:10:32.071913+05:30"
+    },
+    {
+      "test_name": "test_hardtanh",
+      "operation_name": "hardtanh",
+      "runs": [
+        11691.0,
+        12209.0,
+        11876.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 11925.333333333334,
+      "std_deviation_ns": 262.50015873011074,
+      "min_duration_ns": 11691.0,
+      "max_duration_ns": 12209.0,
+      "timestamp": "2026-08-18T02:38:51.147556+05:30"
+    },
+    {
+      "test_name": "test_heaviside",
+      "operation_name": "heaviside",
+      "runs": [
+        12290.0,
+        12408.0,
+        12181.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 12293.0,
+      "std_deviation_ns": 113.52973178863765,
+      "min_duration_ns": 12181.0,
+      "max_duration_ns": 12408.0,
+      "timestamp": "2026-08-18T01:49:06.457220+05:30"
+    },
+    {
+      "test_name": "test_hypot",
+      "operation_name": "hypot",
+      "runs": [
+        17909.0,
+        17799.0,
+        18256.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 17988.0,
+      "std_deviation_ns": 238.52253562294695,
+      "min_duration_ns": 17799.0,
+      "max_duration_ns": 18256.0,
+      "timestamp": "2026-08-18T03:36:59.718529+05:30"
+    },
+    {
+      "test_name": "test_hypot_bw",
+      "operation_name": "hypot_bw",
+      "runs": [
+        98480.0,
+        98150.0,
+        98071.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 98233.66666666667,
+      "std_deviation_ns": 216.95698498396712,
+      "min_duration_ns": 98071.0,
+      "max_duration_ns": 98480.0,
+      "timestamp": "2026-08-18T03:08:35.309011+05:30"
+    },
+    {
+      "test_name": "test_i0",
+      "operation_name": "i0",
+      "runs": [
+        11204.0,
+        12964.0,
+        12941.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 12369.666666666666,
+      "std_deviation_ns": 1009.5624464753695,
+      "min_duration_ns": 11204.0,
+      "max_duration_ns": 12964.0,
+      "timestamp": "2026-08-18T03:18:25.490348+05:30"
+    },
+    {
+      "test_name": "test_i0_bw",
+      "operation_name": "i0_bw",
+      "runs": [
+        71625.0,
+        71332.0,
+        71776.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 71577.66666666667,
+      "std_deviation_ns": 225.75281467422136,
+      "min_duration_ns": 71332.0,
+      "max_duration_ns": 71776.0,
+      "timestamp": "2026-08-18T02:09:57.452061+05:30"
+    },
+    {
+      "test_name": "test_i1",
+      "operation_name": "i1",
+      "runs": [
+        29499.0,
+        29469.0,
+        29504.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 29490.666666666668,
+      "std_deviation_ns": 18.929694486000912,
+      "min_duration_ns": 29469.0,
+      "max_duration_ns": 29504.0,
+      "timestamp": "2026-08-18T03:23:56.052782+05:30"
+    },
+    {
+      "test_name": "test_identity",
+      "operation_name": "identity",
+      "runs": [
+        12041.0,
+        12017.0,
+        11719.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 11925.666666666666,
+      "std_deviation_ns": 179.380415133128,
+      "min_duration_ns": 11719.0,
+      "max_duration_ns": 12041.0,
+      "timestamp": "2026-08-18T03:28:27.729688+05:30"
+    },
+    {
+      "test_name": "test_isclose",
+      "operation_name": "isclose",
+      "runs": [
+        17723.0,
+        17806.0,
+        18187.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 17905.333333333332,
+      "std_deviation_ns": 247.4355134844902,
+      "min_duration_ns": 17723.0,
+      "max_duration_ns": 18187.0,
+      "timestamp": "2026-08-18T01:58:14.385026+05:30"
+    },
+    {
+      "test_name": "test_isfinite",
+      "operation_name": "isfinite",
+      "runs": [
+        12121.0,
+        12304.0,
+        11981.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 12135.333333333334,
+      "std_deviation_ns": 161.97633572017034,
+      "min_duration_ns": 11981.0,
+      "max_duration_ns": 12304.0,
+      "timestamp": "2026-08-18T02:27:08.634507+05:30"
+    },
+    {
+      "test_name": "test_isinf",
+      "operation_name": "isinf",
+      "runs": [
+        11928.0,
+        11898.0,
+        11892.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 11906.0,
+      "std_deviation_ns": 19.28730152198591,
+      "min_duration_ns": 11892.0,
+      "max_duration_ns": 11928.0,
+      "timestamp": "2026-08-18T01:36:23.771780+05:30"
+    },
+    {
+      "test_name": "test_isnan",
+      "operation_name": "isnan",
+      "runs": [
+        12082.0,
+        12530.0,
+        12241.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 12284.333333333334,
+      "std_deviation_ns": 227.1218468869372,
+      "min_duration_ns": 12082.0,
+      "max_duration_ns": 12530.0,
+      "timestamp": "2026-08-18T01:36:16.344575+05:30"
+    },
+    {
+      "test_name": "test_isneginf",
+      "operation_name": "isneginf",
+      "runs": [
+        12267.0,
+        12601.0,
+        12030.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 12299.333333333334,
+      "std_deviation_ns": 286.86988920647167,
+      "min_duration_ns": 12030.0,
+      "max_duration_ns": 12601.0,
+      "timestamp": "2026-08-18T02:32:33.151694+05:30"
+    },
+    {
+      "test_name": "test_isposinf",
+      "operation_name": "isposinf",
+      "runs": [
+        12016.0,
+        12581.0,
+        12365.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 12320.666666666666,
+      "std_deviation_ns": 285.0970594961185,
+      "min_duration_ns": 12016.0,
+      "max_duration_ns": 12581.0,
+      "timestamp": "2026-08-18T01:41:49.454639+05:30"
+    },
+    {
+      "test_name": "test_ldexp",
+      "operation_name": "ldexp",
+      "runs": [
+        17562.0,
+        17896.0,
+        17214.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 17557.333333333332,
+      "std_deviation_ns": 341.0239483281685,
+      "min_duration_ns": 17214.0,
+      "max_duration_ns": 17896.0,
+      "timestamp": "2026-08-18T02:47:59.455721+05:30"
+    },
+    {
+      "test_name": "test_ldexp_",
+      "operation_name": "ldexp_",
+      "runs": [
+        17136.0,
+        17219.0,
+        17269.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 17208.0,
+      "std_deviation_ns": 67.17886572427373,
+      "min_duration_ns": 17136.0,
+      "max_duration_ns": 17269.0,
+      "timestamp": "2026-08-18T03:44:23.866942+05:30"
+    },
+    {
+      "test_name": "test_ldexp_bw",
+      "operation_name": "ldexp_bw",
+      "runs": [
+        73644.0,
+        72414.0,
+        72919.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 72992.33333333333,
+      "std_deviation_ns": 618.2704370526973,
+      "min_duration_ns": 72414.0,
+      "max_duration_ns": 73644.0,
+      "timestamp": "2026-08-18T02:18:06.477504+05:30"
+    },
+    {
+      "test_name": "test_le",
+      "operation_name": "le",
+      "runs": [
+        16573.0,
+        16896.0,
+        16749.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 16739.333333333332,
+      "std_deviation_ns": 161.71683070519694,
+      "min_duration_ns": 16573.0,
+      "max_duration_ns": 16896.0,
+      "timestamp": "2026-08-18T03:36:02.038053+05:30"
+    },
+    {
+      "test_name": "test_le_",
+      "operation_name": "le_",
+      "runs": [
+        17188.0,
+        17020.0,
+        17321.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 17176.333333333332,
+      "std_deviation_ns": 150.83876601634387,
+      "min_duration_ns": 17020.0,
+      "max_duration_ns": 17321.0,
+      "timestamp": "2026-08-18T02:51:36.890669+05:30"
+    },
+    {
+      "test_name": "test_leaky_relu",
+      "operation_name": "leaky_relu",
+      "runs": [
+        11813.0,
+        11949.0,
+        11702.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 11821.333333333334,
+      "std_deviation_ns": 123.71068399024125,
+      "min_duration_ns": 11702.0,
+      "max_duration_ns": 11949.0,
+      "timestamp": "2026-08-18T02:41:34.438887+05:30"
+    },
+    {
+      "test_name": "test_lerp",
+      "operation_name": "lerp",
+      "runs": [
+        23452.0,
+        23770.0,
+        23598.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 23606.666666666668,
+      "std_deviation_ns": 159.177050272121,
+      "min_duration_ns": 23452.0,
+      "max_duration_ns": 23770.0,
+      "timestamp": "2026-08-18T02:03:45.358560+05:30"
+    },
+    {
+      "test_name": "test_lerp_bw",
+      "operation_name": "lerp_bw",
+      "runs": [
+        26020.0,
+        26292.0,
+        25829.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 26047.0,
+      "std_deviation_ns": 232.67788893661555,
+      "min_duration_ns": 25829.0,
+      "max_duration_ns": 26292.0,
+      "timestamp": "2026-08-18T02:20:26.876247+05:30"
+    },
+    {
+      "test_name": "test_lez",
+      "operation_name": "lez",
+      "runs": [
+        12368.0,
+        12173.0,
+        11808.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 12116.333333333334,
+      "std_deviation_ns": 284.26806597529264,
+      "min_duration_ns": 11808.0,
+      "max_duration_ns": 12368.0,
+      "timestamp": "2026-08-18T02:30:45.158858+05:30"
+    },
+    {
+      "test_name": "test_lgamma",
+      "operation_name": "lgamma",
+      "runs": [
+        55827.0,
+        55833.0,
+        55841.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 55833.666666666664,
+      "std_deviation_ns": 7.023769168568493,
+      "min_duration_ns": 55827.0,
+      "max_duration_ns": 55841.0,
+      "timestamp": "2026-08-18T02:42:28.986913+05:30"
+    },
+    {
+      "test_name": "test_lgamma_bw",
+      "operation_name": "lgamma_bw",
+      "runs": [
+        43434.0,
+        43450.0,
+        43370.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 43418.0,
+      "std_deviation_ns": 42.33202097703345,
+      "min_duration_ns": 43370.0,
+      "max_duration_ns": 43450.0,
+      "timestamp": "2026-08-18T03:04:33.532654+05:30"
+    },
+    {
+      "test_name": "test_log",
+      "operation_name": "log",
+      "runs": [
+        13655.0,
+        13322.0,
+        12896.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 13291.0,
+      "std_deviation_ns": 380.4484196313608,
+      "min_duration_ns": 12896.0,
+      "max_duration_ns": 13655.0,
+      "timestamp": "2026-08-18T03:19:22.177174+05:30"
+    },
+    {
+      "test_name": "test_log10",
+      "operation_name": "log10",
+      "runs": [
+        13430.0,
+        13890.0,
+        13639.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 13653.0,
+      "std_deviation_ns": 230.3193435211207,
+      "min_duration_ns": 13430.0,
+      "max_duration_ns": 13890.0,
+      "timestamp": "2026-08-18T02:28:03.196059+05:30"
+    },
+    {
+      "test_name": "test_log10_bw",
+      "operation_name": "log10_bw",
+      "runs": [
+        159315.0,
+        158995.0,
+        159062.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 159124.0,
+      "std_deviation_ns": 168.76907299620981,
+      "min_duration_ns": 158995.0,
+      "max_duration_ns": 159315.0,
+      "timestamp": "2026-08-18T02:10:57.073148+05:30"
+    },
+    {
+      "test_name": "test_log1p",
+      "operation_name": "log1p",
+      "runs": [
+        14634.0,
+        14113.0,
+        13496.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 14081.0,
+      "std_deviation_ns": 569.6744684466735,
+      "min_duration_ns": 13496.0,
+      "max_duration_ns": 14634.0,
+      "timestamp": "2026-08-18T01:37:10.196827+05:30"
+    },
+    {
+      "test_name": "test_log1p_bw",
+      "operation_name": "log1p_bw",
+      "runs": [
+        160202.0,
+        159256.0,
+        159610.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 159689.33333333334,
+      "std_deviation_ns": 477.9637364208014,
+      "min_duration_ns": 159256.0,
+      "max_duration_ns": 160202.0,
+      "timestamp": "2026-08-18T02:11:31.231513+05:30"
+    },
+    {
+      "test_name": "test_log2",
+      "operation_name": "log2",
+      "runs": [
+        13876.0,
+        14347.0,
+        13353.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 13858.666666666666,
+      "std_deviation_ns": 497.22664181772615,
+      "min_duration_ns": 13353.0,
+      "max_duration_ns": 14347.0,
+      "timestamp": "2026-08-18T01:37:17.988432+05:30"
+    },
+    {
+      "test_name": "test_log2_bw",
+      "operation_name": "log2_bw",
+      "runs": [
+        157683.0,
+        160308.0,
+        157570.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 158520.33333333334,
+      "std_deviation_ns": 1549.195382556162,
+      "min_duration_ns": 157570.0,
+      "max_duration_ns": 160308.0,
+      "timestamp": "2026-08-18T03:05:33.101683+05:30"
+    },
+    {
+      "test_name": "test_log_bw",
+      "operation_name": "log_bw",
+      "runs": [
+        116304.0,
+        116555.0,
+        117499.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 116786.0,
+      "std_deviation_ns": 630.1007855890992,
+      "min_duration_ns": 116304.0,
+      "max_duration_ns": 117499.0,
+      "timestamp": "2026-08-18T03:54:09.234094+05:30"
+    },
+    {
+      "test_name": "test_log_sigmoid",
+      "operation_name": "log_sigmoid",
+      "runs": [
+        15491.0,
+        15353.0,
+        15399.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 15414.333333333334,
+      "std_deviation_ns": 70.26616065598954,
+      "min_duration_ns": 15353.0,
+      "max_duration_ns": 15491.0,
+      "timestamp": "2026-08-18T03:26:39.423368+05:30"
+    },
+    {
+      "test_name": "test_log_sigmoid_bw",
+      "operation_name": "log_sigmoid_bw",
+      "runs": [
+        175871.0,
+        177087.0,
+        176771.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 176576.33333333334,
+      "std_deviation_ns": 630.9400394120929,
+      "min_duration_ns": 175871.0,
+      "max_duration_ns": 177087.0,
+      "timestamp": "2026-08-18T03:01:58.409232+05:30"
+    },
+    {
+      "test_name": "test_logaddexp",
+      "operation_name": "logaddexp",
+      "runs": [
+        21729.0,
+        21750.0,
+        21893.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 21790.666666666668,
+      "std_deviation_ns": 89.24311364656285,
+      "min_duration_ns": 21729.0,
+      "max_duration_ns": 21893.0,
+      "timestamp": "2026-08-18T02:45:16.446031+05:30"
+    },
+    {
+      "test_name": "test_logaddexp2",
+      "operation_name": "logaddexp2",
+      "runs": [
+        26426.0,
+        26496.0,
+        26488.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 26470.0,
+      "std_deviation_ns": 38.31448812133603,
+      "min_duration_ns": 26426.0,
+      "max_duration_ns": 26496.0,
+      "timestamp": "2026-08-18T01:54:36.958340+05:30"
+    },
+    {
+      "test_name": "test_logaddexp2_",
+      "operation_name": "logaddexp2_",
+      "runs": [
+        26411.0,
+        26542.0,
+        26428.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 26460.333333333332,
+      "std_deviation_ns": 71.23435500749153,
+      "min_duration_ns": 26411.0,
+      "max_duration_ns": 26542.0,
+      "timestamp": "2026-08-18T02:01:50.093985+05:30"
+    },
+    {
+      "test_name": "test_logaddexp2_bw",
+      "operation_name": "logaddexp2_bw",
+      "runs": [
+        166613.0,
+        166159.0,
+        165972.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 166248.0,
+      "std_deviation_ns": 329.63767988505197,
+      "min_duration_ns": 165972.0,
+      "max_duration_ns": 166613.0,
+      "timestamp": "2026-08-18T03:12:09.943891+05:30"
+    },
+    {
+      "test_name": "test_logaddexp_",
+      "operation_name": "logaddexp_",
+      "runs": [
+        21912.0,
+        21723.0,
+        21711.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 21782.0,
+      "std_deviation_ns": 112.74307074051158,
+      "min_duration_ns": 21711.0,
+      "max_duration_ns": 21912.0,
+      "timestamp": "2026-08-18T02:52:30.123276+05:30"
+    },
+    {
+      "test_name": "test_logaddexp_bw",
+      "operation_name": "logaddexp_bw",
+      "runs": [
+        142079.0,
+        142876.0,
+        143368.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 142774.33333333334,
+      "std_deviation_ns": 650.4862283963691,
+      "min_duration_ns": 142079.0,
+      "max_duration_ns": 143368.0,
+      "timestamp": "2026-08-18T02:17:31.337143+05:30"
+    },
+    {
+      "test_name": "test_logical_and",
+      "operation_name": "logical_and",
+      "runs": [
+        17604.0,
+        17392.0,
+        17403.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 17466.333333333332,
+      "std_deviation_ns": 119.34962644823541,
+      "min_duration_ns": 17392.0,
+      "max_duration_ns": 17604.0,
+      "timestamp": "2026-08-18T02:44:22.713773+05:30"
+    },
+    {
+      "test_name": "test_logical_and_",
+      "operation_name": "logical_and_",
+      "runs": [
+        17750.0,
+        18124.0,
+        18276.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 18050.0,
+      "std_deviation_ns": 270.69540077363706,
+      "min_duration_ns": 17750.0,
+      "max_duration_ns": 18276.0,
+      "timestamp": "2026-08-18T02:00:56.972020+05:30"
+    },
+    {
+      "test_name": "test_logical_not",
+      "operation_name": "logical_not",
+      "runs": [
+        12175.0,
+        11799.0,
+        11853.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 11942.333333333334,
+      "std_deviation_ns": 203.29617146747583,
+      "min_duration_ns": 11799.0,
+      "max_duration_ns": 12175.0,
+      "timestamp": "2026-08-18T02:31:38.834667+05:30"
+    },
+    {
+      "test_name": "test_logical_not_",
+      "operation_name": "logical_not_",
+      "runs": [
+        12050.0,
+        11825.0,
+        11780.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 11885.0,
+      "std_deviation_ns": 144.65476141489432,
+      "min_duration_ns": 11780.0,
+      "max_duration_ns": 12050.0,
+      "timestamp": "2026-08-18T01:48:44.285721+05:30"
+    },
+    {
+      "test_name": "test_logical_or",
+      "operation_name": "logical_or",
+      "runs": [
+        17825.0,
+        17802.0,
+        17467.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 17698.0,
+      "std_deviation_ns": 200.38213493223392,
+      "min_duration_ns": 17467.0,
+      "max_duration_ns": 17825.0,
+      "timestamp": "2026-08-18T01:53:42.206416+05:30"
+    },
+    {
+      "test_name": "test_logical_or_",
+      "operation_name": "logical_or_",
+      "runs": [
+        17561.0,
+        17580.0,
+        17217.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 17452.666666666668,
+      "std_deviation_ns": 204.3143003642509,
+      "min_duration_ns": 17217.0,
+      "max_duration_ns": 17580.0,
+      "timestamp": "2026-08-18T02:00:32.468038+05:30"
+    },
+    {
+      "test_name": "test_logical_xor",
+      "operation_name": "logical_xor",
+      "runs": [
+        17359.0,
+        17315.0,
+        17218.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 17297.333333333332,
+      "std_deviation_ns": 72.14106551287784,
+      "min_duration_ns": 17218.0,
+      "max_duration_ns": 17359.0,
+      "timestamp": "2026-08-18T01:53:15.661095+05:30"
+    },
+    {
+      "test_name": "test_logical_xor_",
+      "operation_name": "logical_xor_",
+      "runs": [
+        17048.0,
+        17279.0,
+        17567.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 17298.0,
+      "std_deviation_ns": 260.02115298567537,
+      "min_duration_ns": 17048.0,
+      "max_duration_ns": 17567.0,
+      "timestamp": "2026-08-18T02:55:11.724169+05:30"
+    },
+    {
+      "test_name": "test_logit",
+      "operation_name": "logit",
+      "runs": [
+        22252.0,
+        22188.0,
+        22258.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 22232.666666666668,
+      "std_deviation_ns": 38.7986254052039,
+      "min_duration_ns": 22188.0,
+      "max_duration_ns": 22258.0,
+      "timestamp": "2026-08-18T02:40:40.516490+05:30"
+    },
+    {
+      "test_name": "test_logit_bw",
+      "operation_name": "logit_bw",
+      "runs": [
+        221787.0,
+        221945.0,
+        220561.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 221431.0,
+      "std_deviation_ns": 757.5724387806093,
+      "min_duration_ns": 220561.0,
+      "max_duration_ns": 221945.0,
+      "timestamp": "2026-08-18T03:55:09.755397+05:30"
+    },
+    {
+      "test_name": "test_lt",
+      "operation_name": "lt",
+      "runs": [
+        16770.0,
+        16951.0,
+        17199.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 16973.333333333332,
+      "std_deviation_ns": 215.37022387817063,
+      "min_duration_ns": 16770.0,
+      "max_duration_ns": 17199.0,
+      "timestamp": "2026-08-18T02:43:28.328607+05:30"
+    },
+    {
+      "test_name": "test_lt_",
+      "operation_name": "lt_",
+      "runs": [
+        17141.0,
+        17187.0,
+        16970.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 17099.333333333332,
+      "std_deviation_ns": 114.34305109333638,
+      "min_duration_ns": 16970.0,
+      "max_duration_ns": 17187.0,
+      "timestamp": "2026-08-18T02:00:01.812478+05:30"
+    },
+    {
+      "test_name": "test_ltz",
+      "operation_name": "ltz",
+      "runs": [
+        12284.0,
+        12016.0,
+        12514.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 12271.333333333334,
+      "std_deviation_ns": 249.24151607092534,
+      "min_duration_ns": 12016.0,
+      "max_duration_ns": 12514.0,
+      "timestamp": "2026-08-18T03:20:16.597440+05:30"
+    },
+    {
+      "test_name": "test_mac",
+      "operation_name": "mac",
+      "runs": [
+        33680.0,
+        33632.0,
+        33948.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 33753.333333333336,
+      "std_deviation_ns": 170.286033876338,
+      "min_duration_ns": 33632.0,
+      "max_duration_ns": 33948.0,
+      "timestamp": "2026-08-18T02:57:01.539842+05:30"
+    },
+    {
+      "test_name": "test_max",
+      "operation_name": "max",
+      "runs": [
+        39563.0,
+        39735.0,
+        39750.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 39682.666666666664,
+      "std_deviation_ns": 103.90540569832416,
+      "min_duration_ns": 39563.0,
+      "max_duration_ns": 39750.0,
+      "timestamp": "2026-08-18T02:03:21.556329+05:30"
+    },
+    {
+      "test_name": "test_max_bw",
+      "operation_name": "max_bw",
+      "runs": [
+        166547.0,
+        167610.0,
+        166266.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 166807.66666666666,
+      "std_deviation_ns": 708.9036135705145,
+      "min_duration_ns": 166266.0,
+      "max_duration_ns": 167610.0,
+      "timestamp": "2026-08-18T04:01:54.625930+05:30"
+    },
+    {
+      "test_name": "test_maximum",
+      "operation_name": "maximum",
+      "runs": [
+        16873.0,
+        16660.0,
+        16815.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 16782.666666666668,
+      "std_deviation_ns": 110.11963191608177,
+      "min_duration_ns": 16660.0,
+      "max_duration_ns": 16873.0,
+      "timestamp": "2026-08-18T01:54:09.983464+05:30"
+    },
+    {
+      "test_name": "test_mean",
+      "operation_name": "mean",
+      "runs": [
+        38958.0,
+        39228.0,
+        39029.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 39071.666666666664,
+      "std_deviation_ns": 139.96547193266392,
+      "min_duration_ns": 38958.0,
+      "max_duration_ns": 39228.0,
+      "timestamp": "2026-08-18T03:47:10.789776+05:30"
+    },
+    {
+      "test_name": "test_min",
+      "operation_name": "min",
+      "runs": [
+        43653.0,
+        43934.0,
+        43688.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 43758.333333333336,
+      "std_deviation_ns": 153.13501667918194,
+      "min_duration_ns": 43653.0,
+      "max_duration_ns": 43934.0,
+      "timestamp": "2026-08-18T02:57:55.840117+05:30"
+    },
+    {
+      "test_name": "test_min_bw",
+      "operation_name": "min_bw",
+      "runs": [
+        167609.0,
+        166896.0,
+        167239.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 167248.0,
+      "std_deviation_ns": 356.5851931867054,
+      "min_duration_ns": 166896.0,
+      "max_duration_ns": 167609.0,
+      "timestamp": "2026-08-18T03:09:32.023552+05:30"
+    },
+    {
+      "test_name": "test_minimum",
+      "operation_name": "minimum",
+      "runs": [
+        16602.0,
+        16638.0,
+        16550.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 16596.666666666668,
+      "std_deviation_ns": 44.24176006143215,
+      "min_duration_ns": 16550.0,
+      "max_duration_ns": 16638.0,
+      "timestamp": "2026-08-18T02:48:51.365025+05:30"
+    },
+    {
+      "test_name": "test_mish",
+      "operation_name": "mish",
+      "runs": [
+        17479.0,
+        17530.0,
+        17442.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 17483.666666666668,
+      "std_deviation_ns": 44.185216230469365,
+      "min_duration_ns": 17442.0,
+      "max_duration_ns": 17530.0,
+      "timestamp": "2026-08-18T02:37:02.142134+05:30"
+    },
+    {
+      "test_name": "test_mul",
+      "operation_name": "mul",
+      "runs": [
+        17326.0,
+        17164.0,
+        17658.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 17382.666666666668,
+      "std_deviation_ns": 251.82798361844803,
+      "min_duration_ns": 17164.0,
+      "max_duration_ns": 17658.0,
+      "timestamp": "2026-08-18T01:56:25.307214+05:30"
+    },
+    {
+      "test_name": "test_mul_",
+      "operation_name": "mul_",
+      "runs": [
+        17616.0,
+        17092.0,
+        17506.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 17404.666666666668,
+      "std_deviation_ns": 276.30659299649966,
+      "min_duration_ns": 17092.0,
+      "max_duration_ns": 17616.0,
+      "timestamp": "2026-08-18T01:59:07.231383+05:30"
+    },
+    {
+      "test_name": "test_mul_bw",
+      "operation_name": "mul_bw",
+      "runs": [
+        34952.0,
+        34689.0,
+        34953.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 34864.666666666664,
+      "std_deviation_ns": 152.13261758522836,
+      "min_duration_ns": 34689.0,
+      "max_duration_ns": 34953.0,
+      "timestamp": "2026-08-18T02:19:01.240209+05:30"
+    },
+    {
+      "test_name": "test_multigammaln",
+      "operation_name": "multigammaln",
+      "runs": [
+        324148.0,
+        323870.0,
+        323796.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 323938.0,
+      "std_deviation_ns": 185.59094805512473,
+      "min_duration_ns": 323796.0,
+      "max_duration_ns": 324148.0,
+      "timestamp": "2026-08-18T03:31:16.070125+05:30"
+    },
+    {
+      "test_name": "test_multigammaln_bw",
+      "operation_name": "multigammaln_bw",
+      "runs": [
+        263580.0,
+        263321.0,
+        262550.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 263150.3333333333,
+      "std_deviation_ns": 535.7894486954118,
+      "min_duration_ns": 262550.0,
+      "max_duration_ns": 263580.0,
+      "timestamp": "2026-08-18T03:02:55.394104+05:30"
+    },
+    {
+      "test_name": "test_multiply",
+      "operation_name": "multiply",
+      "runs": [
+        17114.0,
+        17177.0,
+        17146.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 17145.666666666668,
+      "std_deviation_ns": 31.50132272355136,
+      "min_duration_ns": 17114.0,
+      "max_duration_ns": 17177.0,
+      "timestamp": "2026-08-18T01:51:28.384412+05:30"
+    },
+    {
+      "test_name": "test_multiply_",
+      "operation_name": "multiply_",
+      "runs": [
+        16876.0,
+        16830.0,
+        16859.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 16855.0,
+      "std_deviation_ns": 23.259406699226016,
+      "min_duration_ns": 16830.0,
+      "max_duration_ns": 16876.0,
+      "timestamp": "2026-08-18T03:41:36.182717+05:30"
+    },
+    {
+      "test_name": "test_ne",
+      "operation_name": "ne",
+      "runs": [
+        17061.0,
+        17072.0,
+        16892.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 17008.333333333332,
+      "std_deviation_ns": 100.89763789768982,
+      "min_duration_ns": 16892.0,
+      "max_duration_ns": 17072.0,
+      "timestamp": "2026-08-18T01:52:22.154605+05:30"
+    },
+    {
+      "test_name": "test_ne_",
+      "operation_name": "ne_",
+      "runs": [
+        16919.0,
+        16792.0,
+        16765.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 16825.333333333332,
+      "std_deviation_ns": 82.2334076475816,
+      "min_duration_ns": 16765.0,
+      "max_duration_ns": 16919.0,
+      "timestamp": "2026-08-18T02:54:17.296369+05:30"
+    },
+    {
+      "test_name": "test_neg",
+      "operation_name": "neg",
+      "runs": [
+        11941.0,
+        12024.0,
+        11723.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 11896.0,
+      "std_deviation_ns": 155.46382215808282,
+      "min_duration_ns": 11723.0,
+      "max_duration_ns": 12024.0,
+      "timestamp": "2026-08-18T02:28:56.706127+05:30"
+    },
+    {
+      "test_name": "test_neg_bw",
+      "operation_name": "neg_bw",
+      "runs": [
+        11532.0,
+        11764.0,
+        11850.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 11715.333333333334,
+      "std_deviation_ns": 164.4911345128768,
+      "min_duration_ns": 11532.0,
+      "max_duration_ns": 11850.0,
+      "timestamp": "2026-08-18T02:12:27.071695+05:30"
+    },
+    {
+      "test_name": "test_nextafter",
+      "operation_name": "nextafter",
+      "runs": [
+        105536.0,
+        104623.0,
+        104316.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 104825.0,
+      "std_deviation_ns": 634.588843267828,
+      "min_duration_ns": 104316.0,
+      "max_duration_ns": 105536.0,
+      "timestamp": "2026-08-18T01:56:55.173428+05:30"
+    },
+    {
+      "test_name": "test_nez",
+      "operation_name": "nez",
+      "runs": [
+        12296.0,
+        11818.0,
+        12548.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 12220.666666666666,
+      "std_deviation_ns": 370.78475337226763,
+      "min_duration_ns": 11818.0,
+      "max_duration_ns": 12548.0,
+      "timestamp": "2026-08-18T01:41:39.026101+05:30"
+    },
+    {
+      "test_name": "test_polar",
+      "operation_name": "polar",
+      "runs": [
+        118001.0,
+        116601.0,
+        116337.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 116979.66666666667,
+      "std_deviation_ns": 894.2959987237633,
+      "min_duration_ns": 116337.0,
+      "max_duration_ns": 118001.0,
+      "timestamp": "2026-08-18T02:59:41.250174+05:30"
+    },
+    {
+      "test_name": "test_polygamma",
+      "operation_name": "polygamma",
+      "runs": [
+        22913.0,
+        22917.0,
+        22837.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 22889.0,
+      "std_deviation_ns": 45.077710678338576,
+      "min_duration_ns": 22837.0,
+      "max_duration_ns": 22917.0,
+      "timestamp": "2026-08-18T02:39:50.886967+05:30"
+    },
+    {
+      "test_name": "test_pow",
+      "operation_name": "pow",
+      "runs": [
+        26555.0,
+        26553.0,
+        26564.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 26557.333333333332,
+      "std_deviation_ns": 5.8594652770823155,
+      "min_duration_ns": 26553.0,
+      "max_duration_ns": 26564.0,
+      "timestamp": "2026-08-18T03:37:55.787335+05:30"
+    },
+    {
+      "test_name": "test_pow_bw",
+      "operation_name": "pow_bw",
+      "runs": [
+        71681.0,
+        71284.0,
+        71192.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 71385.66666666667,
+      "std_deviation_ns": 259.8698392144293,
+      "min_duration_ns": 71192.0,
+      "max_duration_ns": 71681.0,
+      "timestamp": "2026-08-18T02:19:29.816638+05:30"
+    },
+    {
+      "test_name": "test_prelu",
+      "operation_name": "prelu",
+      "runs": [
+        12006.0,
+        12261.0,
+        12241.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 12169.333333333334,
+      "std_deviation_ns": 141.80385514270523,
+      "min_duration_ns": 12006.0,
+      "max_duration_ns": 12261.0,
+      "timestamp": "2026-08-18T02:41:40.483962+05:30"
+    },
+    {
+      "test_name": "test_prod",
+      "operation_name": "prod",
+      "runs": [
+        425657.0,
+        425926.0,
+        425726.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 425769.6666666667,
+      "std_deviation_ns": 139.71518648068766,
+      "min_duration_ns": 425657.0,
+      "max_duration_ns": 425926.0,
+      "timestamp": "2026-08-18T02:04:34.353844+05:30"
+    },
+    {
+      "test_name": "test_rad2deg",
+      "operation_name": "rad2deg",
+      "runs": [
+        12136.0,
+        12250.0,
+        11869.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 12085.0,
+      "std_deviation_ns": 195.55306185278715,
+      "min_duration_ns": 11869.0,
+      "max_duration_ns": 12250.0,
+      "timestamp": "2026-08-18T02:39:45.810903+05:30"
+    },
+    {
+      "test_name": "test_rad2deg_bw",
+      "operation_name": "rad2deg_bw",
+      "runs": [
+        12771.0,
+        13178.0,
+        12883.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 12944.0,
+      "std_deviation_ns": 210.24509506763766,
+      "min_duration_ns": 12771.0,
+      "max_duration_ns": 13178.0,
+      "timestamp": "2026-08-18T02:11:53.524986+05:30"
+    },
+    {
+      "test_name": "test_rdiv",
+      "operation_name": "rdiv",
+      "runs": [
+        12351.0,
+        12146.0,
+        12304.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 12267.0,
+      "std_deviation_ns": 107.39180601889512,
+      "min_duration_ns": 12146.0,
+      "max_duration_ns": 12351.0,
+      "timestamp": "2026-08-18T03:39:47.050107+05:30"
+    },
+    {
+      "test_name": "test_reciprocal",
+      "operation_name": "reciprocal",
+      "runs": [
+        11679.0,
+        11955.0,
+        11887.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 11840.333333333334,
+      "std_deviation_ns": 143.79615201156577,
+      "min_duration_ns": 11679.0,
+      "max_duration_ns": 11955.0,
+      "timestamp": "2026-08-18T01:38:12.090431+05:30"
+    },
+    {
+      "test_name": "test_reciprocal_bw",
+      "operation_name": "reciprocal_bw",
+      "runs": [
+        153261.0,
+        152471.0,
+        152162.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 152631.33333333334,
+      "std_deviation_ns": 566.7718529826029,
+      "min_duration_ns": 152162.0,
+      "max_duration_ns": 153261.0,
+      "timestamp": "2026-08-18T03:06:29.428252+05:30"
+    },
+    {
+      "test_name": "test_reglu",
+      "operation_name": "reglu",
+      "runs": [
+        27383.0,
+        27017.0,
+        26833.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 27077.666666666668,
+      "std_deviation_ns": 279.97380829880024,
+      "min_duration_ns": 26833.0,
+      "max_duration_ns": 27383.0,
+      "timestamp": "2026-08-18T02:40:45.860387+05:30"
+    },
+    {
+      "test_name": "test_relu",
+      "operation_name": "relu",
+      "runs": [
+        12469.0,
+        12113.0,
+        12045.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 12209.0,
+      "std_deviation_ns": 227.71912523984454,
+      "min_duration_ns": 12045.0,
+      "max_duration_ns": 12469.0,
+      "timestamp": "2026-08-18T01:38:03.744745+05:30"
+    },
+    {
+      "test_name": "test_relu6",
+      "operation_name": "relu6",
+      "runs": [
+        12328.0,
+        12635.0,
+        12204.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 12389.0,
+      "std_deviation_ns": 221.8805985209162,
+      "min_duration_ns": 12204.0,
+      "max_duration_ns": 12635.0,
+      "timestamp": "2026-08-18T02:32:32.792951+05:30"
+    },
+    {
+      "test_name": "test_relu6_bw",
+      "operation_name": "relu6_bw",
+      "runs": [
+        120219.0,
+        120052.0,
+        117849.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 119373.33333333333,
+      "std_deviation_ns": 1322.7495353744537,
+      "min_duration_ns": 117849.0,
+      "max_duration_ns": 120219.0,
+      "timestamp": "2026-08-18T03:03:53.868146+05:30"
+    },
+    {
+      "test_name": "test_relu_bw",
+      "operation_name": "relu_bw",
+      "runs": [
+        28854.0,
+        29171.0,
+        28975.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 29000.0,
+      "std_deviation_ns": 159.97187252764155,
+      "min_duration_ns": 28854.0,
+      "max_duration_ns": 29171.0,
+      "timestamp": "2026-08-18T03:56:06.628396+05:30"
+    },
+    {
+      "test_name": "test_relu_max",
+      "operation_name": "relu_max",
+      "runs": [
+        12070.0,
+        12181.0,
+        12163.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 12138.0,
+      "std_deviation_ns": 59.57348403442592,
+      "min_duration_ns": 12070.0,
+      "max_duration_ns": 12181.0,
+      "timestamp": "2026-08-18T02:44:15.694405+05:30"
+    },
+    {
+      "test_name": "test_relu_min",
+      "operation_name": "relu_min",
+      "runs": [
+        12178.0,
+        11958.0,
+        11903.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 12013.0,
+      "std_deviation_ns": 145.5163221085525,
+      "min_duration_ns": 11903.0,
+      "max_duration_ns": 12178.0,
+      "timestamp": "2026-08-18T03:33:08.669696+05:30"
+    },
+    {
+      "test_name": "test_remainder",
+      "operation_name": "remainder",
+      "runs": [
+        20235.0,
+        20184.0,
+        20370.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 20263.0,
+      "std_deviation_ns": 96.10931276416453,
+      "min_duration_ns": 20184.0,
+      "max_duration_ns": 20370.0,
+      "timestamp": "2026-08-18T01:55:31.639649+05:30"
+    },
+    {
+      "test_name": "test_remainder_bw",
+      "operation_name": "remainder_bw",
+      "runs": [
+        59042.0,
+        59235.0,
+        59039.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 59105.333333333336,
+      "std_deviation_ns": 112.3046451992674,
+      "min_duration_ns": 59039.0,
+      "max_duration_ns": 59235.0,
+      "timestamp": "2026-08-18T02:18:29.857040+05:30"
+    },
+    {
+      "test_name": "test_round",
+      "operation_name": "round",
+      "runs": [
+        12441.0,
+        12189.0,
+        12635.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 12421.666666666666,
+      "std_deviation_ns": 223.62766674392805,
+      "min_duration_ns": 12189.0,
+      "max_duration_ns": 12635.0,
+      "timestamp": "2026-08-18T01:46:08.281219+05:30"
+    },
+    {
+      "test_name": "test_round_binary",
+      "operation_name": "round_binary",
+      "runs": [
+        11968.0,
+        12681.0,
+        12479.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 12376.0,
+      "std_deviation_ns": 367.4901359220408,
+      "min_duration_ns": 11968.0,
+      "max_duration_ns": 12681.0,
+      "timestamp": "2026-08-18T02:53:25.301309+05:30"
+    },
+    {
+      "test_name": "test_round_bw",
+      "operation_name": "round_bw",
+      "runs": [
+        11606.0,
+        11784.0,
+        11854.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 11748.0,
+      "std_deviation_ns": 127.85929766739687,
+      "min_duration_ns": 11606.0,
+      "max_duration_ns": 11854.0,
+      "timestamp": "2026-08-18T02:13:23.926862+05:30"
+    },
+    {
+      "test_name": "test_rpow",
+      "operation_name": "rpow",
+      "runs": [
+        25121.0,
+        25096.0,
+        25067.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 25094.666666666668,
+      "std_deviation_ns": 27.024680078279065,
+      "min_duration_ns": 25067.0,
+      "max_duration_ns": 25121.0,
+      "timestamp": "2026-08-18T02:50:40.741272+05:30"
+    },
+    {
+      "test_name": "test_rsqrt",
+      "operation_name": "rsqrt",
+      "runs": [
+        13819.0,
+        13788.0,
+        13648.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 13751.666666666666,
+      "std_deviation_ns": 91.10616517740901,
+      "min_duration_ns": 13648.0,
+      "max_duration_ns": 13819.0,
+      "timestamp": "2026-08-18T01:40:55.177017+05:30"
+    },
+    {
+      "test_name": "test_rsqrt_bw",
+      "operation_name": "rsqrt_bw",
+      "runs": [
+        184510.0,
+        183709.0,
+        184003.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 184074.0,
+      "std_deviation_ns": 405.19254682187824,
+      "min_duration_ns": 183709.0,
+      "max_duration_ns": 184510.0,
+      "timestamp": "2026-08-18T02:12:51.848731+05:30"
+    },
+    {
+      "test_name": "test_rsub_",
+      "operation_name": "rsub_",
+      "runs": [
+        16604.0,
+        16653.0,
+        16623.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 16626.666666666668,
+      "std_deviation_ns": 24.704925284917042,
+      "min_duration_ns": 16604.0,
+      "max_duration_ns": 16653.0,
+      "timestamp": "2026-08-18T03:42:32.352815+05:30"
+    },
+    {
+      "test_name": "test_rsub_bw",
+      "operation_name": "rsub_bw",
+      "runs": [
+        24998.0,
+        24174.0,
+        24463.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 24545.0,
+      "std_deviation_ns": 418.0753520598888,
+      "min_duration_ns": 24174.0,
+      "max_duration_ns": 24998.0,
+      "timestamp": "2026-08-18T03:13:06.910290+05:30"
+    },
+    {
+      "test_name": "test_selu",
+      "operation_name": "selu",
+      "runs": [
+        13796.0,
+        13759.0,
+        13826.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 13793.666666666666,
+      "std_deviation_ns": 33.56088993655164,
+      "min_duration_ns": 13759.0,
+      "max_duration_ns": 13826.0,
+      "timestamp": "2026-08-18T02:36:08.356625+05:30"
+    },
+    {
+      "test_name": "test_selu_bw",
+      "operation_name": "selu_bw",
+      "runs": [
+        89800.0,
+        91222.0,
+        89390.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 90137.33333333333,
+      "std_deviation_ns": 961.4579207294167,
+      "min_duration_ns": 89390.0,
+      "max_duration_ns": 91222.0,
+      "timestamp": "2026-08-18T03:07:24.948887+05:30"
+    },
+    {
+      "test_name": "test_sigmoid",
+      "operation_name": "sigmoid",
+      "runs": [
+        14262.0,
+        14412.0,
+        14657.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 14443.666666666666,
+      "std_deviation_ns": 199.3949180228356,
+      "min_duration_ns": 14262.0,
+      "max_duration_ns": 14657.0,
+      "timestamp": "2026-08-18T01:40:45.546305+05:30"
+    },
+    {
+      "test_name": "test_sigmoid_accurate",
+      "operation_name": "sigmoid_accurate",
+      "runs": [
+        12839.0,
+        13644.0,
+        14899.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 13794.0,
+      "std_deviation_ns": 1038.159428989594,
+      "min_duration_ns": 12839.0,
+      "max_duration_ns": 14899.0,
+      "timestamp": "2026-08-18T01:47:16.880845+05:30"
+    },
+    {
+      "test_name": "test_sigmoid_bw",
+      "operation_name": "sigmoid_bw",
+      "runs": [
+        61563.0,
+        61615.0,
+        59945.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 61041.0,
+      "std_deviation_ns": 949.5198786755336,
+      "min_duration_ns": 59945.0,
+      "max_duration_ns": 61615.0,
+      "timestamp": "2026-08-18T03:57:04.152304+05:30"
+    },
+    {
+      "test_name": "test_sign",
+      "operation_name": "sign",
+      "runs": [
+        12090.0,
+        12164.0,
+        12276.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 12176.666666666666,
+      "std_deviation_ns": 93.64471866225738,
+      "min_duration_ns": 12090.0,
+      "max_duration_ns": 12276.0,
+      "timestamp": "2026-08-18T03:21:11.252756+05:30"
+    },
+    {
+      "test_name": "test_sign_bw",
+      "operation_name": "sign_bw",
+      "runs": [
+        12059.0,
+        12086.0,
+        11759.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 11968.0,
+      "std_deviation_ns": 181.50206610394275,
+      "min_duration_ns": 11759.0,
+      "max_duration_ns": 12086.0,
+      "timestamp": "2026-08-18T03:04:49.800284+05:30"
+    },
+    {
+      "test_name": "test_signbit",
+      "operation_name": "signbit",
+      "runs": [
+        11969.0,
+        11868.0,
+        11796.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 11877.666666666666,
+      "std_deviation_ns": 86.90416177222662,
+      "min_duration_ns": 11796.0,
+      "max_duration_ns": 11969.0,
+      "timestamp": "2026-08-18T02:29:50.903077+05:30"
+    },
+    {
+      "test_name": "test_silu",
+      "operation_name": "silu",
+      "runs": [
+        14349.0,
+        11434.0,
+        13833.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 13205.333333333334,
+      "std_deviation_ns": 1555.5643134674096,
+      "min_duration_ns": 11434.0,
+      "max_duration_ns": 14349.0,
+      "timestamp": "2026-08-18T01:39:06.672867+05:30"
+    },
+    {
+      "test_name": "test_silu_bw",
+      "operation_name": "silu_bw",
+      "runs": [
+        91025.0,
+        91739.0,
+        90602.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 91122.0,
+      "std_deviation_ns": 574.6729504683511,
+      "min_duration_ns": 90602.0,
+      "max_duration_ns": 91739.0,
+      "timestamp": "2026-08-18T02:14:20.992741+05:30"
+    },
+    {
+      "test_name": "test_sin",
+      "operation_name": "sin",
+      "runs": [
+        14306.0,
+        13887.0,
+        14084.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 14092.333333333334,
+      "std_deviation_ns": 209.6242670430438,
+      "min_duration_ns": 13887.0,
+      "max_duration_ns": 14306.0,
+      "timestamp": "2026-08-18T02:33:26.236106+05:30"
+    },
+    {
+      "test_name": "test_sin_bw",
+      "operation_name": "sin_bw",
+      "runs": [
+        30816.0,
+        30970.0,
+        30084.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 30623.333333333332,
+      "std_deviation_ns": 473.3807487988219,
+      "min_duration_ns": 30084.0,
+      "max_duration_ns": 30970.0,
+      "timestamp": "2026-08-18T02:13:47.414149+05:30"
+    },
+    {
+      "test_name": "test_sinh",
+      "operation_name": "sinh",
+      "runs": [
+        12636.0,
+        12613.0,
+        12641.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 12630.0,
+      "std_deviation_ns": 14.933184523068078,
+      "min_duration_ns": 12613.0,
+      "max_duration_ns": 12641.0,
+      "timestamp": "2026-08-18T01:43:38.023098+05:30"
+    },
+    {
+      "test_name": "test_sinh_bw",
+      "operation_name": "sinh_bw",
+      "runs": [
+        184909.0,
+        184329.0,
+        184001.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 184413.0,
+      "std_deviation_ns": 459.79125698516714,
+      "min_duration_ns": 184001.0,
+      "max_duration_ns": 184909.0,
+      "timestamp": "2026-08-18T03:08:25.500843+05:30"
+    },
+    {
+      "test_name": "test_softplus",
+      "operation_name": "softplus",
+      "runs": [
+        12280.0,
+        12197.0,
+        12285.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 12254.0,
+      "std_deviation_ns": 49.42671342502959,
+      "min_duration_ns": 12197.0,
+      "max_duration_ns": 12285.0,
+      "timestamp": "2026-08-18T02:37:57.504383+05:30"
+    },
+    {
+      "test_name": "test_softshrink",
+      "operation_name": "softshrink",
+      "runs": [
+        12404.0,
+        12647.0,
+        12553.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 12534.666666666666,
+      "std_deviation_ns": 122.53298875540959,
+      "min_duration_ns": 12404.0,
+      "max_duration_ns": 12647.0,
+      "timestamp": "2026-08-18T01:50:59.097816+05:30"
+    },
+    {
+      "test_name": "test_softshrink_bw",
+      "operation_name": "softshrink_bw",
+      "runs": [
+        60039.0,
+        59898.0,
+        60666.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 60201.0,
+      "std_deviation_ns": 408.8263690125675,
+      "min_duration_ns": 59898.0,
+      "max_duration_ns": 60666.0,
+      "timestamp": "2026-08-18T03:59:57.491270+05:30"
+    },
+    {
+      "test_name": "test_softsign",
+      "operation_name": "softsign",
+      "runs": [
+        12701.0,
+        12793.0,
+        12820.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 12771.333333333334,
+      "std_deviation_ns": 62.388567328744884,
+      "min_duration_ns": 12701.0,
+      "max_duration_ns": 12820.0,
+      "timestamp": "2026-08-18T02:37:03.922919+05:30"
+    },
+    {
+      "test_name": "test_softsign_bw",
+      "operation_name": "softsign_bw",
+      "runs": [
+        30657.0,
+        30173.0,
+        30185.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 30338.333333333332,
+      "std_deviation_ns": 276.0386446375459,
+      "min_duration_ns": 30173.0,
+      "max_duration_ns": 30657.0,
+      "timestamp": "2026-08-18T03:58:02.594338+05:30"
+    },
+    {
+      "test_name": "test_sqrt",
+      "operation_name": "sqrt",
+      "runs": [
+        13407.0,
+        13137.0,
+        13880.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 13474.666666666666,
+      "std_deviation_ns": 376.09351673929893,
+      "min_duration_ns": 13137.0,
+      "max_duration_ns": 13880.0,
+      "timestamp": "2026-08-18T03:22:05.248893+05:30"
+    },
+    {
+      "test_name": "test_sqrt_bw",
+      "operation_name": "sqrt_bw",
+      "runs": [
+        200878.0,
+        200556.0,
+        200864.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 200766.0,
+      "std_deviation_ns": 182.0,
+      "min_duration_ns": 200556.0,
+      "max_duration_ns": 200878.0,
+      "timestamp": "2026-08-18T03:05:49.059755+05:30"
+    },
+    {
+      "test_name": "test_square",
+      "operation_name": "square",
+      "runs": [
+        12180.0,
+        11447.0,
+        12119.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 11915.333333333334,
+      "std_deviation_ns": 406.73373763843756,
+      "min_duration_ns": 11447.0,
+      "max_duration_ns": 12180.0,
+      "timestamp": "2026-08-18T02:30:45.222389+05:30"
+    },
+    {
+      "test_name": "test_square_bw",
+      "operation_name": "square_bw",
+      "runs": [
+        30541.0,
+        30367.0,
+        30995.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 30634.333333333332,
+      "std_deviation_ns": 324.2365391706082,
+      "min_duration_ns": 30367.0,
+      "max_duration_ns": 30995.0,
+      "timestamp": "2026-08-18T02:15:17.068551+05:30"
+    },
+    {
+      "test_name": "test_squared_difference",
+      "operation_name": "squared_difference",
+      "runs": [
+        16625.0,
+        16647.0,
+        16728.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 16666.666666666668,
+      "std_deviation_ns": 54.24327915358117,
+      "min_duration_ns": 16625.0,
+      "max_duration_ns": 16728.0,
+      "timestamp": "2026-08-18T01:55:03.901014+05:30"
+    },
+    {
+      "test_name": "test_squared_difference_",
+      "operation_name": "squared_difference_",
+      "runs": [
+        16962.0,
+        16588.0,
+        16536.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 16695.333333333332,
+      "std_deviation_ns": 232.3990820406426,
+      "min_duration_ns": 16536.0,
+      "max_duration_ns": 16962.0,
+      "timestamp": "2026-08-18T02:56:05.596587+05:30"
+    },
+    {
+      "test_name": "test_squared_difference_bw",
+      "operation_name": "squared_difference_bw",
+      "runs": [
+        58486.0,
+        60419.0,
+        60796.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 59900.333333333336,
+      "std_deviation_ns": 1239.2684670132348,
+      "min_duration_ns": 58486.0,
+      "max_duration_ns": 60796.0,
+      "timestamp": "2026-08-18T04:02:50.056413+05:30"
+    },
+    {
+      "test_name": "test_std",
+      "operation_name": "std",
+      "runs": [
+        5960146.0,
+        5960136.0,
+        5959890.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 5960057.333333333,
+      "std_deviation_ns": 145.0011494207316,
+      "min_duration_ns": 5959890.0,
+      "max_duration_ns": 5960146.0,
+      "timestamp": "2026-08-18T02:58:45.159206+05:30"
+    },
+    {
+      "test_name": "test_sub",
+      "operation_name": "sub",
+      "runs": [
+        16727.0,
+        16587.0,
+        16636.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 16650.0,
+      "std_deviation_ns": 71.04224095564554,
+      "min_duration_ns": 16587.0,
+      "max_duration_ns": 16727.0,
+      "timestamp": "2026-08-18T01:55:57.464742+05:30"
+    },
+    {
+      "test_name": "test_sub_",
+      "operation_name": "sub_",
+      "runs": [
+        16702.0,
+        16581.0,
+        16652.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 16645.0,
+      "std_deviation_ns": 60.802960454241045,
+      "min_duration_ns": 16581.0,
+      "max_duration_ns": 16702.0,
+      "timestamp": "2026-08-18T01:58:41.791098+05:30"
+    },
+    {
+      "test_name": "test_sub_bw",
+      "operation_name": "sub_bw",
+      "runs": [
+        37288.0,
+        37007.0,
+        38160.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 37485.0,
+      "std_deviation_ns": 601.2146039477085,
+      "min_duration_ns": 37007.0,
+      "max_duration_ns": 38160.0,
+      "timestamp": "2026-08-18T03:10:26.905344+05:30"
+    },
+    {
+      "test_name": "test_subalpha",
+      "operation_name": "subalpha",
+      "runs": [
+        17035.0,
+        16943.0,
+        16730.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 16902.666666666668,
+      "std_deviation_ns": 156.44913976539894,
+      "min_duration_ns": 16730.0,
+      "max_duration_ns": 17035.0,
+      "timestamp": "2026-08-18T02:48:53.943669+05:30"
+    },
+    {
+      "test_name": "test_subalpha_bw",
+      "operation_name": "subalpha_bw",
+      "runs": [
+        37142.0,
+        36656.0,
+        36653.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 36817.0,
+      "std_deviation_ns": 281.4622532418868,
+      "min_duration_ns": 36653.0,
+      "max_duration_ns": 37142.0,
+      "timestamp": "2026-08-18T04:03:45.140697+05:30"
+    },
+    {
+      "test_name": "test_subtract",
+      "operation_name": "subtract",
+      "runs": [
+        17008.0,
+        16636.0,
+        17170.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 16938.0,
+      "std_deviation_ns": 273.7955441565841,
+      "min_duration_ns": 16636.0,
+      "max_duration_ns": 17170.0,
+      "timestamp": "2026-08-18T01:51:53.308611+05:30"
+    },
+    {
+      "test_name": "test_subtract_",
+      "operation_name": "subtract_",
+      "runs": [
+        16523.0,
+        16787.0,
+        16484.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 16598.0,
+      "std_deviation_ns": 164.83628241379384,
+      "min_duration_ns": 16484.0,
+      "max_duration_ns": 16787.0,
+      "timestamp": "2026-08-18T02:52:29.468959+05:30"
+    },
+    {
+      "test_name": "test_sum",
+      "operation_name": "sum",
+      "runs": [
+        55221.0,
+        56436.0
+      ],
+      "successful_runs": 2,
+      "average_duration_ns": 55828.5,
+      "std_deviation_ns": 859.1347391416552,
+      "min_duration_ns": 55221.0,
+      "max_duration_ns": 56436.0,
+      "timestamp": "2026-08-18T02:55:16.122141+05:30"
+    },
+    {
+      "test_name": "test_swiglu",
+      "operation_name": "swiglu",
+      "runs": [
+        27615.0,
+        27899.0,
+        27373.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 27629.0,
+      "std_deviation_ns": 263.2793193549391,
+      "min_duration_ns": 27373.0,
+      "max_duration_ns": 27899.0,
+      "timestamp": "2026-08-18T01:49:41.094093+05:30"
+    },
+    {
+      "test_name": "test_swish",
+      "operation_name": "swish",
+      "runs": [
+        12891.0,
+        12973.0,
+        13567.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 13143.666666666666,
+      "std_deviation_ns": 368.9028779141379,
+      "min_duration_ns": 12891.0,
+      "max_duration_ns": 13567.0,
+      "timestamp": "2026-08-18T02:35:14.545218+05:30"
+    },
+    {
+      "test_name": "test_tan",
+      "operation_name": "tan",
+      "runs": [
+        12682.0,
+        13606.0,
+        13303.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 13197.0,
+      "std_deviation_ns": 471.03184605714296,
+      "min_duration_ns": 12682.0,
+      "max_duration_ns": 13606.0,
+      "timestamp": "2026-08-18T01:40:00.838663+05:30"
+    },
+    {
+      "test_name": "test_tan_bw",
+      "operation_name": "tan_bw",
+      "runs": [
+        56325.0,
+        55629.0,
+        54728.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 55560.666666666664,
+      "std_deviation_ns": 800.6899108477222,
+      "min_duration_ns": 54728.0,
+      "max_duration_ns": 56325.0,
+      "timestamp": "2026-08-18T02:14:43.906063+05:30"
+    },
+    {
+      "test_name": "test_tanh",
+      "operation_name": "tanh",
+      "runs": [
+        12486.0,
+        12230.0,
+        12376.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 12364.0,
+      "std_deviation_ns": 128.42118205342916,
+      "min_duration_ns": 12230.0,
+      "max_duration_ns": 12486.0,
+      "timestamp": "2026-08-18T02:35:13.936763+05:30"
+    },
+    {
+      "test_name": "test_tanh_bw",
+      "operation_name": "tanh_bw",
+      "runs": [
+        30142.0,
+        30248.0,
+        30176.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 30188.666666666668,
+      "std_deviation_ns": 54.12331598611945,
+      "min_duration_ns": 30142.0,
+      "max_duration_ns": 30248.0,
+      "timestamp": "2026-08-18T03:09:20.582055+05:30"
+    },
+    {
+      "test_name": "test_tanhshrink",
+      "operation_name": "tanhshrink",
+      "runs": [
+        11897.0,
+        13313.0,
+        11899.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 12369.666666666666,
+      "std_deviation_ns": 816.9512429351787,
+      "min_duration_ns": 11897.0,
+      "max_duration_ns": 13313.0,
+      "timestamp": "2026-08-18T01:45:28.072070+05:30"
+    },
+    {
+      "test_name": "test_tanhshrink_bw",
+      "operation_name": "tanhshrink_bw",
+      "runs": [
+        42180.0,
+        40994.0,
+        41473.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 41549.0,
+      "std_deviation_ns": 596.6414333584285,
+      "min_duration_ns": 40994.0,
+      "max_duration_ns": 42180.0,
+      "timestamp": "2026-08-18T03:59:01.736368+05:30"
+    },
+    {
+      "test_name": "test_threshold",
+      "operation_name": "threshold",
+      "runs": [
+        12021.0,
+        12111.0,
+        12051.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 12061.0,
+      "std_deviation_ns": 45.8257569495584,
+      "min_duration_ns": 12021.0,
+      "max_duration_ns": 12111.0,
+      "timestamp": "2026-08-18T03:30:17.478197+05:30"
+    },
+    {
+      "test_name": "test_tril",
+      "operation_name": "tril",
+      "runs": [
+        17109.0,
+        16988.0,
+        17069.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 17055.333333333332,
+      "std_deviation_ns": 61.64684366075309,
+      "min_duration_ns": 16988.0,
+      "max_duration_ns": 17109.0,
+      "timestamp": "2026-08-18T02:38:56.848856+05:30"
+    },
+    {
+      "test_name": "test_triu",
+      "operation_name": "triu",
+      "runs": [
+        17526.0,
+        17469.0,
+        17278.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 17424.333333333332,
+      "std_deviation_ns": 129.8935461573566,
+      "min_duration_ns": 17278.0,
+      "max_duration_ns": 17526.0,
+      "timestamp": "2026-08-18T01:48:12.414796+05:30"
+    },
+    {
+      "test_name": "test_trunc",
+      "operation_name": "trunc",
+      "runs": [
+        11593.0,
+        11838.0,
+        11723.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 11718.0,
+      "std_deviation_ns": 122.57650672131263,
+      "min_duration_ns": 11593.0,
+      "max_duration_ns": 11838.0,
+      "timestamp": "2026-08-18T01:42:43.939817+05:30"
+    },
+    {
+      "test_name": "test_trunc_bw",
+      "operation_name": "trunc_bw",
+      "runs": [
+        12021.0,
+        12223.0,
+        11591.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 11945.0,
+      "std_deviation_ns": 322.78165994988007,
+      "min_duration_ns": 11591.0,
+      "max_duration_ns": 12223.0,
+      "timestamp": "2026-08-18T03:06:43.414696+05:30"
+    },
+    {
+      "test_name": "test_var",
+      "operation_name": "var",
+      "runs": [
+        5997659.0,
+        5997479.0,
+        5997392.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 5997510.0,
+      "std_deviation_ns": 136.17268448554577,
+      "min_duration_ns": 5997392.0,
+      "max_duration_ns": 5997659.0,
+      "timestamp": "2026-08-18T02:04:11.287642+05:30"
+    },
+    {
+      "test_name": "test_var_hw",
+      "operation_name": "var_hw",
+      "runs": [
+        88083.0,
+        87809.0
+      ],
+      "successful_runs": 2,
+      "average_duration_ns": 87946.0,
+      "std_deviation_ns": 193.74725804511402,
+      "min_duration_ns": 87809.0,
+      "max_duration_ns": 88083.0,
+      "timestamp": "2026-08-18T02:45:16.321780+05:30"
+    },
+    {
+      "test_name": "test_where",
+      "operation_name": "where",
+      "runs": [
+        22696.0,
+        22522.0,
+        22559.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 22592.333333333332,
+      "std_deviation_ns": 91.66424239218549,
+      "min_duration_ns": 22522.0,
+      "max_duration_ns": 22696.0,
+      "timestamp": "2026-08-18T02:02:25.591669+05:30"
+    },
+    {
+      "test_name": "test_where_bw",
+      "operation_name": "where_bw",
+      "runs": [
+        33704.0,
+        33574.0,
+        33667.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 33648.333333333336,
+      "std_deviation_ns": 66.98009654616313,
+      "min_duration_ns": 33574.0,
+      "max_duration_ns": 33704.0,
+      "timestamp": "2026-08-18T03:15:02.398136+05:30"
+    },
+    {
+      "test_name": "test_xlogy",
+      "operation_name": "xlogy",
+      "runs": [
+        18234.0,
+        18037.0,
+        18766.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 18345.666666666668,
+      "std_deviation_ns": 377.110505466678,
+      "min_duration_ns": 18037.0,
+      "max_duration_ns": 18766.0,
+      "timestamp": "2026-08-18T01:57:19.813397+05:30"
+    },
+    {
+      "test_name": "test_xlogy_bw",
+      "operation_name": "xlogy_bw",
+      "runs": [
+        283466.0,
+        283992.0,
+        283421.0
+      ],
+      "successful_runs": 3,
+      "average_duration_ns": 283626.3333333333,
+      "std_deviation_ns": 317.47493339369856,
+      "min_duration_ns": 283421.0,
+      "max_duration_ns": 283992.0,
+      "timestamp": "2026-08-18T02:19:59.475340+05:30"
+    }
+  ]
+}
