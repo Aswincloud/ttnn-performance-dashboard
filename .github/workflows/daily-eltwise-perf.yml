@@ -364,6 +364,7 @@ jobs:
           ERRS=0                                  # consecutive failed polls
           MAX_ERRS=20                             # ~30 min of solid API failures
           ERRLOG=$(mktemp)                        # captured stderr of the last poll
+          RETRIES_LEFT=1                          # re-run failed tt-metal jobs at most once
           while :; do
             # A single flaky `gh run view` (GitHub API 500 / Connect-Timeout) must
             # NOT abort the whole run — it used to under set -e, ending the poll
@@ -378,7 +379,56 @@ jobs:
               ERRS=0
               STATUS="${S%%|*}"; CONCL="${S##*|}"
               echo "$(date -u +%T) status=$STATUS conclusion=$CONCL"
-              [ "$STATUS" = "completed" ] && break
+              if [ "$STATUS" = "completed" ]; then
+                [ "$CONCL" = "success" ] && break
+                # The run is all-or-nothing, so ONE flaky cell (a HW blip, a
+                # runner reclaim) throws away a full day of otherwise-good data.
+                # Re-run just the failed jobs once. Safe because re-running only
+                # the failed jobs PRESERVES the successful cells' artifacts
+                # (verified on run 32662117793: 19 attempt-1 shard artifacts
+                # survived the retry), so the run still yields every shard.
+                #
+                # Only retry a PARTIAL failure — some cells passed AND some
+                # failed. A build-phase break leaves zero passing cells and will
+                # not fix itself, so that still fails fast with the real reason
+                # instead of burning ~12 min on a doomed rebuild.
+                CELLS=$(gh run view "$RUN_ID" -R "$TT_REPO" --json jobs \
+                          -q '[.jobs[]|select(.name|test("test-dispatch"))]
+                              | "\([.[]|select(.conclusion=="success")]|length) \([.[]|select(.conclusion!="success")]|length)"' \
+                          2>/dev/null || echo "0 0")
+                OK_CELLS="${CELLS%% *}"; BAD_CELLS="${CELLS##* }"
+                case "${OK_CELLS}${BAD_CELLS}" in *[!0-9]*) OK_CELLS=0; BAD_CELLS=0 ;; esac
+                echo "tt-metal run concluded '$CONCL' — cells: ${OK_CELLS} ok / ${BAD_CELLS} failed"
+                if [ "$RETRIES_LEFT" -gt 0 ] && [ "$OK_CELLS" -gt 0 ] && [ "$BAD_CELLS" -gt 0 ]; then
+                  RETRIES_LEFT=$(( RETRIES_LEFT - 1 ))
+                  ATTEMPT_BEFORE=$(gh api "repos/${TT_REPO}/actions/runs/${RUN_ID}" -q .run_attempt 2>/dev/null || echo 1)
+                  echo "::notice::Partial failure (${BAD_CELLS} of $(( OK_CELLS + BAD_CELLS )) cells) — re-running failed jobs once."
+                  if ! gh run rerun "$RUN_ID" -R "$TT_REPO" --failed 2>"$ERRLOG"; then
+                    echo "FAIL_KIND=tt-run-failed" >> "$GITHUB_ENV"
+                    echo "FAIL_DETAIL=partial failure (${BAD_CELLS} cells) and the retry could not be started: $(tr '\n' ' ' <"$ERRLOG" | cut -c1-200)" >> "$GITHUB_ENV"
+                    echo "::error::Could not re-run the tt-metal run's failed jobs."
+                    exit 1
+                  fi
+                  # The API keeps reporting completed/<old conclusion> for a few
+                  # seconds after a rerun is accepted; resuming the poll straight
+                  # away would read that stale value and declare failure. Wait for
+                  # the attempt counter to tick over first.
+                  NOW_ATTEMPT="$ATTEMPT_BEFORE"
+                  for _ in $(seq 1 20); do
+                    sleep 15
+                    NOW_ATTEMPT=$(gh api "repos/${TT_REPO}/actions/runs/${RUN_ID}" -q .run_attempt 2>/dev/null || echo "$ATTEMPT_BEFORE")
+                    [ "$NOW_ATTEMPT" -gt "$ATTEMPT_BEFORE" ] && break
+                  done
+                  echo "Retry started (attempt ${NOW_ATTEMPT}) — resuming poll."
+                  continue
+                fi
+                RETRY_NOTE=""
+                [ "$RETRIES_LEFT" -eq 0 ] && RETRY_NOTE=" (failed jobs were already re-run once)"
+                echo "FAIL_KIND=tt-run-failed" >> "$GITHUB_ENV"
+                echo "FAIL_DETAIL=tt-metal run concluded '$CONCL'${RETRY_NOTE} — ${OK_CELLS} ok / ${BAD_CELLS} failed cells (https://github.com/${TT_REPO}/actions/runs/${RUN_ID})" >> "$GITHUB_ENV"
+                echo "::error::tt-metal run concluded '$CONCL' (all-or-nothing: no data landed)${RETRY_NOTE}."
+                exit 1
+              fi
             else
               ERRS=$(( ERRS + 1 ))
               ERRMSG=$(tr '\n' ' ' <"$ERRLOG" | sed 's/  */ /g'; :)
@@ -397,12 +447,6 @@ jobs:
             fi
             sleep 90
           done
-          if [ "$CONCL" != "success" ]; then
-            echo "FAIL_KIND=tt-run-failed" >> "$GITHUB_ENV"
-            echo "FAIL_DETAIL=tt-metal run concluded '$CONCL' (https://github.com/${TT_REPO}/actions/runs/${RUN_ID})" >> "$GITHUB_ENV"
-            echo "::error::tt-metal run concluded '$CONCL' (all-or-nothing: no data landed)."
-            exit 1
-          fi
 
       # 4. Download the 20 per-(board, shape) SHARD artifacts and merge each
       #    combo's shards locally. tt-metal only produces raw shards now — the
