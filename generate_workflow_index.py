@@ -2,17 +2,17 @@
 """
 Workflow data index + per-combo "latest" generator.
 
-The daily perf pipeline lands results for 4 combos — 2 boards (N150, P100a) x
-2 shapes (small = 32x32, large = 1024x1024) — under
+The daily perf pipeline lands results for 4 combos — 2 dtypes (bf16, fp32) x
+2 shapes (32x32, 256x256), all measured on N150 — under
 
-    data/workflow/<hw>/<shape>/<YYYY-MM-DD>_..._final.json
+    data/workflow/<dtype>/<shape>/<YYYY-MM-DD>_..._final.json
 
 This script scans those files and writes, for the dashboard to consume:
 
   * data/workflow/index.json   — one entry per combo: its newest-first file list
                                   (with the legacy N150/32x32 history merged in for
-                                  n150_small) plus the path to its "latest" snapshot.
-  * data/latest/latest_<hw>_<shape>.json  — a flat snapshot (same shape as the
+                                  bf16_32x32) plus the path to its "latest" snapshot.
+  * data/latest/latest_<dtype>_<shape>.json — a flat snapshot (same shape as the
                                   legacy data/latest/latest_results.json) of each
                                   combo's newest complete run.
 
@@ -28,13 +28,16 @@ import json
 from datetime import datetime
 from pathlib import Path
 
-# (hw, shape) combos, in the order they appear in the output. hw maps to a
-# viommu board, shape to the perf tensor size the tt-metal matrix ran.
+# (dtype, shape) combos, in the order they appear in the output. Everything
+# runs on N150 now: the second axis was the board (N150/P100a) until the sweep
+# was re-cut to trade Blackhole and the 1024x1024 shape for a dtype axis.
+# These must match the tt-metal matrix's dtype/shape values and the directory
+# names the daily workflow commits into (data/workflow/<dtype>/<shape>/).
 COMBOS = [
-    ("n150", "small"),
-    ("n150", "large"),
-    ("p100a", "small"),
-    ("p100a", "large"),
+    ("bf16", "32x32"),
+    ("bf16", "256x256"),
+    ("fp32", "32x32"),
+    ("fp32", "256x256"),
 ]
 
 DATA_DIR = Path("data")
@@ -170,8 +173,8 @@ def _write_latest(hw, shape, results_data):
 
 def _legacy_latest_fallback():
     """The legacy data/latest/latest_results.json contents, or None. Used so the
-    default combo (n150_small) has a populated snapshot on day one, before any
-    nested workflow n150/small file has landed."""
+    default combo (bf16_32x32) has a populated snapshot on day one, before any
+    nested workflow bf16/32x32 file has landed."""
     if not LEGACY_LATEST.exists():
         return None
     try:
@@ -191,17 +194,19 @@ def main():
         scanned = _scan_combo_dir(hw, shape)
         wf_entries = [_metadata_entry(p, m, "workflow") for p, m, _ in scanned]
 
-        # n150_small is the only merged combo: workflow n150/small on top of the
-        # long legacy N150/32x32 history. The other three are workflow-only.
-        if combo_key == "n150_small":
+        # bf16_32x32 is the only merged combo: its workflow files sit on top of
+        # the long legacy N150/32x32 history, which was measured at bfloat16 on
+        # a 32x32 tile — i.e. the same configuration, so the series is
+        # continuous. The other three are workflow-only.
+        if combo_key == "bf16_32x32":
             entries = _dedup_sort(wf_entries + legacy_entries)
         else:
             entries = _dedup_sort(wf_entries)
 
         results_data = _pick_latest(scanned)
         # Day-one fallback: keep the default view populated even before a nested
-        # workflow n150/small run exists.
-        if results_data is None and combo_key == "n150_small":
+        # workflow bf16/32x32 run exists.
+        if results_data is None and combo_key == "bf16_32x32":
             results_data = _legacy_latest_fallback()
 
         latest_path = None
@@ -217,7 +222,7 @@ def main():
         print(
             f"  {combo_key}: {len(entries)} files "
             f"({n_wf} workflow"
-            + (f" + {len(entries) - n_wf} legacy" if combo_key == "n150_small" else "")
+            + (f" + {len(entries) - n_wf} legacy" if combo_key == "bf16_32x32" else "")
             + f"), latest={'yes' if latest_path else 'none'}",
             flush=True,
         )

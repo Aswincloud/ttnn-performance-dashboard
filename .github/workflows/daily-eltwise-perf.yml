@@ -2,10 +2,10 @@ name: Daily eltwise perf (tt-metal)
 
 # Drives a Tenstorrent eltwise perf run end to end, unattended:
 #   rebase our tt-metal branch on upstream main -> dispatch ONE test-dispatch
-#   run that fans out to 2 boards x 2 shapes x 5 shards off a single build
+#   run that fans out to 2 dtypes x 2 shapes x 5 shards (all N150) off one build
 #   -> poll it to completion -> download the 20 raw shard artifacts and merge
 #   each combo's 5 shards locally (tt-metal uploads raw shards; we do the merge)
-#   -> land the 4 combined JSONs under data/workflow/{n150,p100a}/{small,large}/
+#   -> land the 4 combined JSONs under data/workflow/{bf16,fp32}/{32x32,256x256}/
 #   via a single auto-merging PR.
 #
 # The tt-metal calls need push/workflow access to tenstorrent/tt-metal, which
@@ -51,11 +51,15 @@ env:
   TT_REPO: tenstorrent/tt-metal
   TT_BRANCH: Aswinmcw/test_eltwise_perf
   RAW_BASE: https://raw.githubusercontent.com/Aswincloud/ttnn-performance-dashboard/main
-  # The tt-metal matrix is board x shape x 5 shards; each cell yields a shard
-  # artifact eltwise-perf-results-<HW>-<SHAPE>-shard-<i>. We download all 20 and
-  # merge per (board, shape) into data/workflow/<hw lowercased>/<shape>/.
-  BOARDS: "N150 P100a"
-  SHAPES: "small large"
+  # The tt-metal matrix is dtype x shape x 5 shards, all on N150; each cell
+  # yields a shard artifact eltwise-perf-results-<DTYPE>-<SHAPE>-shard-<i>. We
+  # download all 20 and merge per (dtype, shape) into
+  # data/workflow/<dtype>/<shape>/. These axis VALUES must match the tt-metal
+  # matrix's `dtype:`/`shape:` values exactly -- they are spliced straight into
+  # the artifact glob below, so a mismatch yields "no shards found" (a loud
+  # artifact-missing failure), never wrong data.
+  DTYPES: "bf16 fp32"
+  SHAPES: "32x32 256x256"
 
 jobs:
   run:
@@ -105,7 +109,7 @@ jobs:
         run: |
           set -euo pipefail
           # No idempotency skip: result filenames are timestamped and land in
-          # per-board subdirs, so a same-day re-run never collides.
+          # per-combo subdirs, so a same-day re-run never collides.
           # IST, not UTC: the cron is 1:00 AM IST (19:30 UTC of the prior day),
           # so a UTC date here would label the file/branch/PR the previous day —
           # mismatching the IST measurement_date the perf script now stamps. Use
@@ -127,9 +131,9 @@ jobs:
           DATE: ${{ steps.guard.outputs.date }}
         run: |
           set -euo pipefail
-          # Primary combo n150/small is written every successful run, so its
+          # Primary combo bf16/32x32 is written every successful run, so its
           # presence for DATE is a faithful proxy for "the day was ingested".
-          if ls "data/workflow/n150/small/${DATE}_"*.json >/dev/null 2>&1; then
+          if ls "data/workflow/bf16/32x32/${DATE}_"*.json >/dev/null 2>&1; then
             echo "present=true" >> "$GITHUB_OUTPUT"
             echo "✅ ${DATE} data already present — safety-net has nothing to do."
           else
@@ -228,7 +232,7 @@ jobs:
           echo "✅ Rebased ${TT_BRANCH} on origin/main and pushed."
 
       # 2. Dispatch the sharded perf workflow on tt-metal + correlate the run.
-      #    ONE run fans out to 2 boards x 2 shapes x 5 shards off a single build.
+      #    ONE run fans out to 2 dtypes x 2 shapes x 5 shards (N150) off one build.
       - name: Dispatch tt-metal perf run
         id: dispatch
         if: steps.plan.outputs.dispatch == 'true'
@@ -463,20 +467,20 @@ jobs:
         run: |
           set -euo pipefail
           RUN_ID="${{ steps.resolve.outputs.run_id }}"
-          for HW in $BOARDS; do
+          for DT in $DTYPES; do
             for SHAPE in $SHAPES; do
-              DEST="_artifact/${HW}/${SHAPE}"
+              DEST="_artifact/${DT}/${SHAPE}"
               mkdir -p "$DEST/shards"
               # One call grabs all 5 shard artifacts for this combo; each extracts
               # into its own subdir under shards/, so glob recursively.
               gh run download "$RUN_ID" -R "$TT_REPO" \
-                -p "eltwise-perf-results-${HW}-${SHAPE}-shard-*" -D "$DEST/shards"
+                -p "eltwise-perf-results-${DT}-${SHAPE}-shard-*" -D "$DEST/shards"
               # Count shards up front (paths relative to the workspace root).
               NSHARD=$(find "$DEST/shards" -name 'shard-*.json' | wc -l)
               if [ "$NSHARD" -lt 5 ]; then
                 echo "FAIL_KIND=artifact-missing" >> "$GITHUB_ENV"
-                echo "FAIL_DETAIL=${HW}/${SHAPE}: found ${NSHARD} shard JSON(s), expected 5" >> "$GITHUB_ENV"
-                echo "::error::${HW}/${SHAPE}: found ${NSHARD} shard JSON(s), expected 5."
+                echo "FAIL_DETAIL=${DT}/${SHAPE}: found ${NSHARD} shard JSON(s), expected 5" >> "$GITHUB_ENV"
+                echo "::error::${DT}/${SHAPE}: found ${NSHARD} shard JSON(s), expected 5."
                 exit 1
               fi
               # Merge from inside the combo dir so (a) the shard paths passed to
@@ -490,13 +494,42 @@ jobs:
               SRC=$(ls "$DEST"/eltwise_perf_results_*_final.json 2>/dev/null | head -1 || true)
               if [ -z "$SRC" ]; then
                 echo "FAIL_KIND=merge-failed" >> "$GITHUB_ENV"
-                echo "FAIL_DETAIL=${HW}/${SHAPE}: merge produced no *_final.json" >> "$GITHUB_ENV"
-                echo "::error::${HW}/${SHAPE}: merge produced no eltwise_perf_results_*_final.json."
+                echo "FAIL_DETAIL=${DT}/${SHAPE}: merge produced no *_final.json" >> "$GITHUB_ENV"
+                echo "::error::${DT}/${SHAPE}: merge produced no eltwise_perf_results_*_final.json."
                 exit 1
+              fi
+              # Provenance gate. The combo a file lands in is decided purely by
+              # the tt-metal artifact name, while the dtype/shape actually
+              # measured is decided by the matrix env reaching a test harness
+              # that is curl'd from main at run time. Those two halves are
+              # versioned independently, so a stale harness or a typo'd matrix
+              # `include:` could file bf16 numbers under fp32/ — permanently and
+              # invisibly, since the dashboard shows only the directory. Compare
+              # what the run SAYS it measured against where we are about to put
+              # it, and refuse the day rather than commit a lie.
+              # Absent keys are tolerated: shards produced before provenance
+              # stamping landed on main have no perf_* fields.
+              GOT=$(python3 -c "import json,sys; m=json.load(open(sys.argv[1]))['metadata']; print(f\"{m.get('perf_dtype','?')}|{m.get('perf_shape','?')}\")" "$SRC")
+              GOT_DT="${GOT%%|*}"; GOT_SHAPE="${GOT##*|}"
+              WANT_SHAPE="1,1,${SHAPE%x*},${SHAPE#*x}"
+              if [ "$GOT_DT" != "?" ]; then
+                case "$GOT_DT" in
+                  bf16|bfloat16) NORM_DT=bf16 ;;
+                  fp32|float32|f32) NORM_DT=fp32 ;;
+                  *) NORM_DT="$GOT_DT" ;;
+                esac
+                if [ "$NORM_DT" != "$DT" ] || [ "${GOT_SHAPE//[[:space:]]/}" != "$WANT_SHAPE" ]; then
+                  echo "FAIL_KIND=combo-provenance-mismatch" >> "$GITHUB_ENV"
+                  echo "FAIL_DETAIL=${DT}/${SHAPE}: run measured dtype='${GOT_DT}' shape='${GOT_SHAPE}' (expected ${DT} / ${WANT_SHAPE})" >> "$GITHUB_ENV"
+                  echo "::error::${DT}/${SHAPE}: measured dtype='${GOT_DT}' shape='${GOT_SHAPE}', expected '${DT}' / '${WANT_SHAPE}'. Refusing to commit mislabeled data."
+                  exit 1
+                fi
+              else
+                echo "::notice::${DT}/${SHAPE}: no perf_* provenance in metadata (harness predates stamping) — skipping the check."
               fi
               # Use NSHARD (parent scope) — the SHARDS array is assigned inside the
               # ( … ) subshell above, so it's unbound here and would trip `set -u`.
-              echo "📦 ${HW}/${SHAPE}: merged ${NSHARD} shards -> $SRC ($(wc -c <"$SRC") bytes)"
+              echo "📦 ${DT}/${SHAPE}: merged ${NSHARD} shards (${GOT_DT}/${GOT_SHAPE}) -> $SRC ($(wc -c <"$SRC") bytes)"
             done
           done
 
@@ -530,7 +563,7 @@ jobs:
           # primary combo n150/small is always present; use it as the date source.
           DATE="$GUARD_DATE"
           if [ "$MODE" != "normal" ]; then
-            PRIMARY=$(ls _artifact/N150/small/eltwise_perf_results_*.json | head -1)
+            PRIMARY=$(ls _artifact/bf16/32x32/eltwise_perf_results_*.json | head -1)
             DATE=$(python3 -c "import json,sys; print(json.load(open(sys.argv[1]))['metadata']['measurement_date'][:10])" "$PRIMARY")
             echo "🗓️  recover/safety-net date from measurement_date: $DATE (guard was $GUARD_DATE)"
           fi
@@ -554,12 +587,11 @@ jobs:
           git checkout -b "$BRANCH"
 
           # Drop each (board, shape) JSON into data/workflow/<hw>/<shape>/.
-          for HW in $BOARDS; do
-            SUBDIR=$(printf '%s' "$HW" | tr '[:upper:]' '[:lower:]')
+          for DT in $DTYPES; do
             for SHAPE in $SHAPES; do
-              SRC=$(ls _artifact/${HW}/${SHAPE}/eltwise_perf_results_*.json | head -1)
-              mkdir -p "data/workflow/${SUBDIR}/${SHAPE}"
-              DEST="data/workflow/${SUBDIR}/${SHAPE}/${DATE}_$(basename "$SRC")"
+              SRC=$(ls _artifact/${DT}/${SHAPE}/eltwise_perf_results_*.json | head -1)
+              mkdir -p "data/workflow/${DT}/${SHAPE}"
+              DEST="data/workflow/${DT}/${SHAPE}/${DATE}_$(basename "$SRC")"
               cp "$SRC" "$DEST"
               git add "$DEST"
             done
@@ -573,7 +605,7 @@ jobs:
           # explicitly and only if present (a combo with no run yet has none).
           python3 generate_workflow_index.py
           git add data/workflow/index.json
-          for LATEST in n150_small n150_large p100a_small p100a_large; do
+          for LATEST in bf16_32x32 bf16_256x256 fp32_32x32 fp32_256x256; do
             [ -f "data/latest/latest_${LATEST}.json" ] && git add "data/latest/latest_${LATEST}.json"
           done
           # Do NOT touch data/daily/, data/index.json, or the legacy
@@ -584,7 +616,7 @@ jobs:
             echo "Nothing to commit (identical files already present); skipping PR."
             exit 0
           fi
-          git commit -m "data(workflow): eltwise perf results ${DATE} (2 boards x 2 shapes)"
+          git commit -m "data(workflow): eltwise perf results ${DATE} (2 dtypes x 2 shapes)"
           git push "https://x-access-token:${GH_TOKEN}@github.com/${OUR_REPO}.git" "$BRANCH"
 
           # Note the ingest mode in the body so a recovered/backfilled day is
@@ -592,8 +624,8 @@ jobs:
           ORIGIN="Automated daily"
           [ "$MODE" != "normal" ] && ORIGIN="Recovered (${MODE})"
           PR_URL=$(gh pr create -R "$OUR_REPO" --base main --head "$BRANCH" \
-            --title "data(workflow): eltwise perf results ${DATE} (2 boards x 2 shapes)" \
-            --body "${ORIGIN} tt-metal eltwise perf run — one build, 2 boards x 2 shapes (32x32, 1024x1024) x 5 shards. Data-only, isolated under \`data/workflow/{n150,p100a}/{small,large}/\`; does not touch \`data/index.json\`.")
+            --title "data(workflow): eltwise perf results ${DATE} (2 dtypes x 2 shapes)" \
+            --body "${ORIGIN} tt-metal eltwise perf run — one build, N150, 2 dtypes (bfloat16, float32) x 2 shapes (32x32, 256x256) x 5 shards. Data-only, isolated under \`data/workflow/{bf16,fp32}/{32x32,256x256}/\`; does not touch \`data/index.json\`.")
           echo "Opened $PR_URL"
 
           # The membership-gated auto-approve workflow won't fire for a bot
@@ -697,7 +729,8 @@ jobs:
             poll-api-error)     REASON="GitHub API kept failing while polling the tt-metal run (outage / bad token)." ;;
             poll-timeout)       REASON="tt-metal run did not complete within 5.5h." ;;
             tt-run-failed)      REASON="The tt-metal run itself failed (all-or-nothing: no data landed)." ;;
-            artifact-missing)   REASON="A board/shape combo was missing shard artifacts (expected 5)." ;;
+            artifact-missing)   REASON="A dtype/shape combo was missing shard artifacts (expected 5)." ;;
+            combo-provenance-mismatch) REASON="A run measured a different dtype/shape than the combo it would land in — refused to commit mislabeled data." ;;
             merge-failed)       REASON="Shard merge produced no results JSON." ;;
             resolve-run-not-found)       REASON="Recover: no successful tt-metal run to ingest (and none supplied)." ;;
             recover-run-not-successful)  REASON="Recover: the supplied tt-metal run is not completed/successful." ;;
