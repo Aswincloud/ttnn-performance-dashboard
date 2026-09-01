@@ -16,15 +16,24 @@ function formatDateKey(isoString) {
   return isoString.slice(0, 10);
 }
 
-// Human-readable device / shape labels per combo key. Falls back to the N150 /
-// 32x32 defaults when a value is missing so the banner never renders blank.
-const DEVICE_LABEL = { n150: 'Wormhole N150', p100a: 'Blackhole P100a' };
-const SHAPE_LABEL = { small: '[1, 1, 32, 32]', large: '[1, 1, 1024, 1024]' };
+// Every combo runs on N150 now, so the device is a constant rather than a map.
+// Shape and dtype are read from the combo key `<dtype>_<shape>`, which is the
+// same key the index and the data directories use.
+//
+// NOTE: take the dtype/shape from the LAST underscore-separated segments rather
+// than by fixed position — an unknown key used to fall back silently to
+// "N150 / [1,1,32,32]", so a key format change rendered a confidently WRONG
+// banner with no error. Anything unrecognised now renders the raw segment.
+const DEVICE_LABEL = 'Wormhole N150';
+const SHAPE_LABEL = { '32x32': '[1, 1, 32, 32]', '256x256': '[1, 1, 256, 256]' };
+const DTYPE_LABEL = { bf16: 'BFLOAT16', fp32: 'FLOAT32' };
 
-const TestConfigBanner = ({ summaryStats, hw = 'n150', shape = 'small', comboCount = 1 }) => {
+const TestConfigBanner = ({ summaryStats, combo = 'bf16_32x32', comboCount = 1 }) => {
   const [copied, setCopied] = useState(false);
-  const deviceLabel = DEVICE_LABEL[hw] || DEVICE_LABEL.n150;
-  const shapeLabel = SHAPE_LABEL[shape] || SHAPE_LABEL.small;
+  const [dtypeKey, shapeKey] = String(combo).split('_');
+  const deviceLabel = DEVICE_LABEL;
+  const shapeLabel = SHAPE_LABEL[shapeKey] || shapeKey;
+  const dtypeLabel = DTYPE_LABEL[dtypeKey] || String(dtypeKey).toUpperCase();
   // In multi-combo mode the banner reflects the PRIMARY combo; a hint tells the
   // reader the table below is showing several combos side by side.
   const multi = comboCount > 1;
@@ -78,7 +87,7 @@ const TestConfigBanner = ({ summaryStats, hw = 'n150', shape = 'small', comboCou
             <Zap className="h-4 w-4 text-gray-400 dark:text-gray-500 shrink-0" />
             <div className="min-w-0">
               <p className="text-xs text-gray-500 dark:text-gray-400">Data Type</p>
-              <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 font-mono truncate">BFLOAT16</p>
+              <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 font-mono truncate">{dtypeLabel}</p>
             </div>
           </div>
 
@@ -150,8 +159,8 @@ const TestConfigBanner = ({ summaryStats, hw = 'n150', shape = 'small', comboCou
   );
 };
 
-const OverviewCards = ({ summaryStats, hw, shape, comboCount = 1 }) => {
-  return <TestConfigBanner summaryStats={summaryStats} hw={hw} shape={shape} comboCount={comboCount} />;
+const OverviewCards = ({ summaryStats, combo, comboCount = 1 }) => {
+  return <TestConfigBanner summaryStats={summaryStats} combo={combo} comboCount={comboCount} />;
 };
 
 export default OverviewCards; 

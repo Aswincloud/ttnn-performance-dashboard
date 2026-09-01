@@ -4,9 +4,9 @@ const INITIAL_DAILY_FILES = 20;
 
 // The default combo — the only one guaranteed to have data on first deploy (via
 // the legacy fallback below), so the app always boots to a populated view.
-export const DEFAULT_COMBO = 'n150_small';
+export const DEFAULT_COMBO = 'bf16_32x32';
 
-// An empty-but-valid result: a combo the pipeline hasn't produced yet (e.g. P100a
+// An empty-but-valid result: a combo the pipeline hasn't produced yet (e.g. an fp32
 // before its first run). `latest: null` (NOT an empty-shaped object) is deliberate
 // — calculateSummaryStats divides by result counts and would render NaN/Infinity
 // on an empty latest, whereas it null-guards `latest: null` cleanly.
@@ -40,7 +40,7 @@ async function loadDailyFiles(base, files, limit) {
   return loaded.filter((d) => d !== null);
 }
 
-// The pre-workflow behavior, kept verbatim as the n150_small fallback: read the
+// The pre-workflow behavior, kept verbatim as the bf16_32x32 fallback: read the
 // legacy index + latest_results.json. Used when data/workflow/index.json doesn't
 // exist yet (first deploy, before the generator has ever run) or lacks the combo.
 async function loadLegacy(base, limit) {

@@ -11,15 +11,17 @@ import {
   calculateSummaryStats,
 } from './utils/dataLoader';
 
-// The four (hardware × shape) combos, in a FIXED order. This order drives the
+// The four (dtype × shape) combos, in a FIXED order. This order drives the
 // checkbox order and — since selected combos keep this order — the sub-row order
 // under each op in the table, so the layout is stable regardless of click order.
-const COMBOS = ['n150_small', 'n150_large', 'p100a_small', 'p100a_large'];
+// Every combo is measured on N150; the first axis was the board until the sweep
+// traded Blackhole and the 1024² shape for a dtype axis.
+const COMBOS = ['bf16_32x32', 'bf16_256x256', 'fp32_32x32', 'fp32_256x256'];
 const COMBO_LABEL = {
-  n150_small: 'N150 · 32²',
-  n150_large: 'N150 · 1024²',
-  p100a_small: 'P100a · 32²',
-  p100a_large: 'P100a · 1024²',
+  bf16_32x32: 'bf16 · 32²',
+  bf16_256x256: 'bf16 · 256²',
+  fp32_32x32: 'fp32 · 32²',
+  fp32_256x256: 'fp32 · 256²',
 };
 
 // A labelled group of combo checkboxes: pick any subset of the 4 combos to show
@@ -127,7 +129,7 @@ function App() {
   // one combo with deep history. Each selected combo becomes a sub-row per op in
   // the table (data source: data/workflow/<hw>/<shape>/, see dataLoader keys).
   const [selectedCombos, setSelectedCombos] = usePersistedCombos(
-    'ttnn-dash:v1:combos', COMBOS, ['n150_small']
+    'ttnn-dash:v1:combos', COMBOS, ['bf16_32x32']
   );
   // Primary = first selected (fixed COMBOS order); drives the overview banner and
   // the sort/CSV/callout key. `comboKey` is a stable string dep for the load effect.
@@ -188,7 +190,7 @@ function App() {
   // Load all remaining older days — fan out across the selected combos. Each combo
   // keeps its own file list + counters in data.byCombo, so we slice the unloaded
   // tail per combo, tag every fetched day with its __combo, and bump both the
-  // per-combo and the summed counters. (Only n150_small has real depth today.)
+  // per-combo and the summed counters. (Only bf16_32x32 has real depth today.)
   const loadAllData = async () => {
     if (!data || loadingAll || !data.byCombo) return;
 
@@ -468,8 +470,7 @@ function App() {
               "N combos" hint tells the reader the table is showing more. */}
           <OverviewCards
             summaryStats={summaryStats}
-            hw={primaryCombo.split('_')[0]}
-            shape={primaryCombo.split('_')[1]}
+            combo={primaryCombo}
             comboCount={selectedCombos.length}
           />
         </section>

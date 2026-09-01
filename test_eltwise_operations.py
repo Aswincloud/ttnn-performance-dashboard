@@ -34,8 +34,32 @@ def _shape_from_env() -> Tuple[int, ...]:
     return shape
 
 
+def _dtype_from_env() -> "ttnn.DataType":
+    """Element dtype the whole sweep runs on, from the PERF_DTYPE env var
+    (the tt-metal matrix sets it per cell, exactly like PERF_SHAPE above).
+    Defaults to bfloat16, which is what every run before the dtype axis used,
+    so an unset env reproduces the historical numbers.
+
+    Unknown values RAISE rather than falling back: create_test_tensor() maps an
+    unrecognised dtype to bfloat16, so a typo would otherwise be silently
+    measured and committed as if it were the requested dtype."""
+    raw = os.environ.get("PERF_DTYPE", "bfloat16").strip().lower()
+    known = {
+        "bfloat16": ttnn.bfloat16,
+        "bf16": ttnn.bfloat16,
+        "float32": ttnn.float32,
+        "fp32": ttnn.float32,
+        "f32": ttnn.float32,
+    }
+    if raw not in known:
+        raise ValueError(
+            f"PERF_DTYPE must be one of {sorted(known)}; got {raw!r}"
+        )
+    return known[raw]
+
+
 DEFAULT_SHAPE = _shape_from_env()
-DEFAULT_DTYPE = ttnn.bfloat16
+DEFAULT_DTYPE = _dtype_from_env()
 DEFAULT_VALUES = "range"
 
 
