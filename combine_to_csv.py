@@ -27,9 +27,9 @@ import sys
 
 from perf_measurement_script import merge_result_files
 
-# Same dtype/shape grid the daily pipeline uses (all on N150).
-DTYPES = ["bf16", "fp32"]
-SHAPES = ["32x32", "256x256"]
+# Same combo list the daily pipeline uses. Key segments map onto the artifact
+# infix ('-' joined) and the output name; no board segment means N150.
+COMBOS = ["bf16_32x32", "bf16_256x256", "fp32_32x32", "fp32_256x256", "p100a_bf16_32x32"]
 
 # CSV columns match perf_measurement_script.save_results() (the 'runs' array is
 # dropped — it's per-repeat raw timings, not tabular).
@@ -57,26 +57,25 @@ def main() -> int:
     os.makedirs(out_dir, exist_ok=True)
 
     made = 0
-    for hw in DTYPES:
-        for shape in SHAPES:
-            shards = sorted(glob.glob(
-                os.path.join(art_dir,
-                             f"eltwise-perf-results-{hw}-{shape}-shard-*",
-                             "shard-*.json")))
-            combo = f"{hw.lower()}_{shape}"
-            if not shards:
-                print(f"⚠️  {combo}: no shard artifacts found under {art_dir}/ — skipping")
-                continue
-            if len(shards) != 5:
-                print(f"⚠️  {combo}: expected 5 shards, found {len(shards)} "
-                      f"(merging what's present)")
+    for combo in COMBOS:
+        infix = combo.replace("_", "-")
+        shards = sorted(glob.glob(
+            os.path.join(art_dir,
+                         f"eltwise-perf-results-{infix}-shard-*",
+                         "shard-*.json")))
+        if not shards:
+            print(f"⚠️  {combo}: no shard artifacts found under {art_dir}/ — skipping")
+            continue
+        if len(shards) != 5:
+            print(f"⚠️  {combo}: expected 5 shards, found {len(shards)} "
+                  f"(merging what's present)")
 
-            merged_json = os.path.join(out_dir, f"{combo}.json")
-            merge_result_files(shards, merged_json)
-            csv_path = os.path.join(out_dir, f"{combo}.csv")
-            n = json_to_csv(merged_json, csv_path)
-            print(f"✅ {combo}: {len(shards)} shards -> {csv_path} ({n} ops)")
-            made += 1
+        merged_json = os.path.join(out_dir, f"{combo}.json")
+        merge_result_files(shards, merged_json)
+        csv_path = os.path.join(out_dir, f"{combo}.csv")
+        n = json_to_csv(merged_json, csv_path)
+        print(f"✅ {combo}: {len(shards)} shards -> {csv_path} ({n} ops)")
+        made += 1
 
     if made == 0:
         print(f"❌ No combos produced. Is '{art_dir}/' the `gh run download` output?",

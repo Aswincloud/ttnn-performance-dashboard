@@ -12,17 +12,19 @@ import {
   calculateSummaryStats,
 } from './utils/dataLoader';
 
-// The four (dtype × shape) combos, in a FIXED order. This order drives the
+// The five combos, in a FIXED order. This order drives the
 // checkbox order and — since selected combos keep this order — the sub-row order
 // under each op in the table, so the layout is stable regardless of click order.
-// Every combo is measured on N150; the first axis was the board until the sweep
-// traded Blackhole and the 1024² shape for a dtype axis.
-const COMBOS = ['bf16_32x32', 'bf16_256x256', 'fp32_32x32', 'fp32_256x256'];
+// Key = <board?>_<dtype>_<shape>; no board segment means N150 (the original
+// board, kept implicit so the four existing combos never had to move). The
+// label always names the board so the asymmetry never reaches the user.
+const COMBOS = ['bf16_32x32', 'bf16_256x256', 'fp32_32x32', 'fp32_256x256', 'p100a_bf16_32x32'];
 const COMBO_LABEL = {
-  bf16_32x32: 'bf16 · 32²',
-  bf16_256x256: 'bf16 · 256²',
-  fp32_32x32: 'fp32 · 32²',
-  fp32_256x256: 'fp32 · 256²',
+  bf16_32x32: 'N150 · bf16 · 32²',
+  bf16_256x256: 'N150 · bf16 · 256²',
+  fp32_32x32: 'N150 · fp32 · 32²',
+  fp32_256x256: 'N150 · fp32 · 256²',
+  p100a_bf16_32x32: 'P100a · bf16 · 32²',
 };
 
 // A labelled group of combo checkboxes: pick any subset of the 4 combos to show

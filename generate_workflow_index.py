@@ -2,10 +2,12 @@
 """
 Workflow data index + per-combo "latest" generator.
 
-The daily perf pipeline lands results for 4 combos — 2 dtypes (bf16, fp32) x
-2 shapes (32x32, 256x256), all measured on N150 — under
+The daily perf pipeline lands results for 5 combos — N150 at 2 dtypes (bf16,
+fp32) x 2 shapes (32x32, 256x256), plus P100a (Blackhole) at bf16 x 32x32 —
+under
 
-    data/workflow/<dtype>/<shape>/<YYYY-MM-DD>_..._final.json
+    data/workflow/<dtype>/<shape>/<YYYY-MM-DD>_..._final.json         (N150, board implicit)
+    data/workflow/<board>/<dtype>/<shape>/<YYYY-MM-DD>_..._final.json (other boards)
 
 This script scans those files and writes, for the dashboard to consume:
 
@@ -33,11 +35,16 @@ from pathlib import Path
 # was re-cut to trade Blackhole and the 1024x1024 shape for a dtype axis.
 # These must match the tt-metal matrix's dtype/shape values and the directory
 # names the daily workflow commits into (data/workflow/<dtype>/<shape>/).
+# Each tuple's segments are joined by "/" for the directory and "_" for the
+# index key / latest filename. The last two are always (dtype, shape); a
+# leading segment names the board, and no board segment means N150 (kept
+# implicit so the original four combos never had to move).
 COMBOS = [
     ("bf16", "32x32"),
     ("bf16", "256x256"),
     ("fp32", "32x32"),
     ("fp32", "256x256"),
+    ("p100a", "bf16", "32x32"),
 ]
 
 DATA_DIR = Path("data")
@@ -87,13 +94,13 @@ def _metadata_entry(path, meta, source):
     }
 
 
-def _scan_combo_dir(hw, shape):
-    """Load every results JSON under data/workflow/<hw>/<shape>/.
+def _scan_combo_dir(*segments):
+    """Load every results JSON under data/workflow/<segments joined by />/.
 
     Returns a list of (path, metadata, results_data). A missing directory yields
     an empty list (Path.glob over a nonexistent dir is empty). A single corrupt /
     unreadable file is skipped with a warning rather than aborting the whole run."""
-    combo_dir = WORKFLOW_DIR / hw / shape
+    combo_dir = WORKFLOW_DIR.joinpath(*segments)
     scanned = []
     for path in sorted(combo_dir.glob("*.json")):
         try:
@@ -161,11 +168,11 @@ def _pick_latest(scanned):
     return newest[2]  # results_data
 
 
-def _write_latest(hw, shape, results_data):
-    """Write data/latest/latest_<hw>_<shape>.json (same shape as the legacy
+def _write_latest(combo_key, results_data):
+    """Write data/latest/latest_<combo_key>.json (same shape as the legacy
     latest_results.json). Returns the POSIX path string for the index."""
     LATEST_DIR.mkdir(parents=True, exist_ok=True)
-    out = LATEST_DIR / f"latest_{hw}_{shape}.json"
+    out = LATEST_DIR / f"latest_{combo_key}.json"
     with open(out, "w") as fh:
         json.dump(results_data, fh, indent=2)
     return out.as_posix()
@@ -189,9 +196,9 @@ def main():
     legacy_entries = _load_legacy_entries()
     combos = {}
 
-    for hw, shape in COMBOS:
-        combo_key = f"{hw}_{shape}"
-        scanned = _scan_combo_dir(hw, shape)
+    for segments in COMBOS:
+        combo_key = "_".join(segments)
+        scanned = _scan_combo_dir(*segments)
         wf_entries = [_metadata_entry(p, m, "workflow") for p, m, _ in scanned]
 
         # bf16_32x32 is the only merged combo: its workflow files sit on top of
@@ -211,7 +218,7 @@ def main():
 
         latest_path = None
         if results_data is not None:
-            latest_path = _write_latest(hw, shape, results_data)
+            latest_path = _write_latest(combo_key, results_data)
 
         combos[combo_key] = {
             "latest": latest_path,
