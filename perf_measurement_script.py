@@ -332,8 +332,11 @@ class PerfMeasurement:
                     # a typo'd matrix `include:`) would file bf16 numbers under
                     # fp32/ with nothing in the data to reveal it. Recorded raw
                     # from the env so they describe the run, not our defaults.
+                    # perf_arch (from tt-metal's ARCH_NAME) pins the BOARD the
+                    # same way: a P100a cell says 'blackhole', N150 'wormhole_b0'.
                     'perf_shape': os.environ.get('PERF_SHAPE', '1,1,32,32'),
                     'perf_dtype': os.environ.get('PERF_DTYPE', 'bfloat16'),
+                    'perf_arch': os.environ.get('ARCH_NAME'),
                 },
                 'results': self.results
             }, f, indent=2)
@@ -564,7 +567,7 @@ def merge_result_files(input_paths: List[str], output_path: str) -> str:
     # silently blend e.g. bf16 and fp32 timings into a single file. Absent keys
     # are tolerated (shards produced before provenance stamping existed); only
     # an actual conflict is fatal.
-    for key in ('perf_shape', 'perf_dtype'):
+    for key in ('perf_shape', 'perf_dtype', 'perf_arch'):
         seen = {s.get('metadata', {}).get(key) for s in shards}
         seen.discard(None)
         if len(seen) > 1:
@@ -599,6 +602,7 @@ def merge_result_files(input_paths: List[str], output_path: str) -> str:
             'shard_count': len(shards),
             'perf_shape': base_meta.get('perf_shape'),
             'perf_dtype': base_meta.get('perf_dtype'),
+            'perf_arch': base_meta.get('perf_arch'),
         },
         'results': results,
     }

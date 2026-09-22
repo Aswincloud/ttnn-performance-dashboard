@@ -16,22 +16,27 @@ function formatDateKey(isoString) {
   return isoString.slice(0, 10);
 }
 
-// Every combo runs on N150 now, so the device is a constant rather than a map.
-// Shape and dtype are read from the combo key `<dtype>_<shape>`, which is the
-// same key the index and the data directories use.
+// Board, dtype and shape are read from the combo key `<board?>_<dtype>_<shape>`
+// — the same key the index and the data directories use. The LAST two segments
+// are always dtype and shape; anything before them names the board, and no
+// board segment means N150 (the original board, kept implicit so the four
+// existing combos never had to move).
 //
-// NOTE: take the dtype/shape from the LAST underscore-separated segments rather
-// than by fixed position — an unknown key used to fall back silently to
-// "N150 / [1,1,32,32]", so a key format change rendered a confidently WRONG
-// banner with no error. Anything unrecognised now renders the raw segment.
-const DEVICE_LABEL = 'Wormhole N150';
+// NOTE: parse from the END, never by fixed position — an unknown key used to
+// fall back silently to "N150 / [1,1,32,32]", so a key format change rendered
+// a confidently WRONG banner with no error. Anything unrecognised now renders
+// the raw segment, so a mistake is visible instead of plausible.
+const DEVICE_LABEL = { n150: 'Wormhole N150', p100a: 'Blackhole P100a' };
 const SHAPE_LABEL = { '32x32': '[1, 1, 32, 32]', '256x256': '[1, 1, 256, 256]' };
 const DTYPE_LABEL = { bf16: 'BFLOAT16', fp32: 'FLOAT32' };
 
 const TestConfigBanner = ({ summaryStats, combo = 'bf16_32x32', comboCount = 1 }) => {
   const [copied, setCopied] = useState(false);
-  const [dtypeKey, shapeKey] = String(combo).split('_');
-  const deviceLabel = DEVICE_LABEL;
+  const parts = String(combo).split('_');
+  const shapeKey = parts[parts.length - 1];
+  const dtypeKey = parts[parts.length - 2];
+  const boardKey = parts.length > 2 ? parts.slice(0, -2).join('_') : 'n150';
+  const deviceLabel = DEVICE_LABEL[boardKey] || boardKey;
   const shapeLabel = SHAPE_LABEL[shapeKey] || shapeKey;
   const dtypeLabel = DTYPE_LABEL[dtypeKey] || String(dtypeKey).toUpperCase();
   // In multi-combo mode the banner reflects the PRIMARY combo; a hint tells the
