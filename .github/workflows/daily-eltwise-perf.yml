@@ -248,11 +248,33 @@ jobs:
           # dispatching, so we can identify the exact new run we create rather
           # than trusting "newest after a timestamp" (which could latch onto a
           # concurrent manual dispatch or a rerun on the same branch).
+          # List our branch's dispatch runs as "id createdAt". A failed listing
+          # must NOT read as "no runs": on 2026-10-06 the pre-dispatch snapshot
+          # errored, the old `|| true` turned that into an empty BEFORE set, and
+          # every one of 37 historical runs then looked "new" -> dispatch-ambiguous.
+          # So retry, and fail loudly if the API never answers.
           list_runs() {
-            gh run list -R "$TT_REPO" -w test-dispatch.yaml -e workflow_dispatch \
-              -b "$TT_BRANCH" -L 100 --json databaseId -q '.[].databaseId' 2>/dev/null || true
+            local out
+            for _ in 1 2 3 4 5; do
+              if out=$(gh run list -R "$TT_REPO" -w test-dispatch.yaml -e workflow_dispatch \
+                         -b "$TT_BRANCH" -L 100 --json databaseId,createdAt \
+                         -q '.[] | "\(.databaseId) \(.createdAt)"' 2>&1); then
+                printf '%s\n' "$out"; return 0
+              fi
+              echo "list_runs: gh run list failed, retrying: $out" >&2; sleep 10
+            done
+            return 1
           }
-          BEFORE_IDS=$(list_runs | sort -u)
+          if ! BEFORE=$(list_runs); then
+            echo "FAIL_KIND=dispatch-not-found" >> "$GITHUB_ENV"
+            echo "FAIL_DETAIL=could not snapshot existing tt-metal runs before dispatch (GitHub API)" >> "$GITHUB_ENV"
+            echo "::error::Could not list existing tt-metal runs before dispatching; refusing to dispatch blind."
+            exit 1
+          fi
+          BEFORE_IDS=$(printf '%s\n' "$BEFORE" | awk 'NF{print $1}' | sort -u)
+          # Second, independent guard: a run we create cannot predate this
+          # moment, so only runs created at/after it are candidates at all.
+          DISPATCH_T0=$(date -u -d '-60 seconds' +%Y-%m-%dT%H:%M:%SZ)
           # $SHARD / $SHARD_TOTAL are expanded by tt-metal's shard matrix at
           # runtime, so they are single-quoted here (no expansion on our runner).
           CMD='set -euo pipefail
@@ -278,7 +300,9 @@ jobs:
           # safely, so fail loudly rather than commit someone else's data.
           RUN_ID=""
           for i in $(seq 1 18); do
-            NEW_IDS=$(comm -13 <(printf '%s\n' "$BEFORE_IDS") <(list_runs | sort -u) | grep -v '^$' || true)
+            AFTER=$(list_runs) || { sleep 10; continue; }
+            RECENT=$(printf '%s\n' "$AFTER" | awk -v t0="$DISPATCH_T0" 'NF && $2 >= t0 {print $1}' | sort -u)
+            NEW_IDS=$(comm -13 <(printf '%s\n' "$BEFORE_IDS") <(printf '%s\n' "$RECENT") | grep -v '^$' || true)
             COUNT=$(printf '%s\n' "$NEW_IDS" | grep -c . || true)
             if [ "$COUNT" -ge 2 ]; then
               echo "FAIL_KIND=dispatch-ambiguous" >> "$GITHUB_ENV"
@@ -327,10 +351,27 @@ jobs:
               # Newest successful test-dispatch run on our branch. --status success
               # means auto-pick can't grab a failed/in-progress run; the explicit
               # id path is validated below regardless.
+              # Sort by createdAt explicitly. Taking `.[0]` of the listing trusted
+              # the API's order, and twice (10-06 03:11, 10-07 02:34) it handed
+              # back a run from days/weeks earlier -- 10-07 got a 2026-09-13 run
+              # that predated the P100a combo entirely.
               RID=$(gh run list -R "$TT_REPO" -w test-dispatch.yaml -e workflow_dispatch \
-                      -b "$TT_BRANCH" --status success -L 20 \
-                      --json databaseId -q '.[0].databaseId' 2>/dev/null || true)
+                      -b "$TT_BRANCH" --status success -L 50 \
+                      --json databaseId,createdAt \
+                      -q 'sort_by(.createdAt) | reverse | .[0].databaseId' 2>/dev/null || true)
               echo "Auto-resolved newest successful run: ${RID:-<none>}"
+              # The safety-net exists to rescue TODAY's run. Anything older than
+              # ~30h is a previous day; fail with the real reason now rather than
+              # downloading it and dying on a missing artifact later.
+              if [ "$MODE" = "safety-net" ] && [ -n "$RID" ] && [ "$RID" != "null" ]; then
+                CREATED=$(gh run view "$RID" -R "$TT_REPO" --json createdAt -q .createdAt 2>/dev/null || echo "")
+                if [ -n "$CREATED" ] && [ "$(date -u -d "$CREATED" +%s)" -lt "$(date -u -d '-30 hours' +%s)" ]; then
+                  echo "FAIL_KIND=safety-net-no-run-today" >> "$GITHUB_ENV"
+                  echo "FAIL_DETAIL=newest successful tt-metal run $RID was created $CREATED, older than 30h" >> "$GITHUB_ENV"
+                  echo "::error::Newest successful tt-metal run ($RID, created $CREATED) is not from today; nothing for the safety-net to ingest."
+                  exit 1
+                fi
+              fi
             fi
             if [ -z "$RID" ] || [ "$RID" = "null" ]; then
               echo "FAIL_KIND=resolve-run-not-found" >> "$GITHUB_ENV"
@@ -481,8 +522,12 @@ jobs:
             mkdir -p "$DEST/shards"
             # One call grabs all 5 shard artifacts for this combo; each extracts
             # into its own subdir under shards/, so glob recursively.
+            # `|| true`: when no artifact matches, gh exits 1 and set -e killed
+            # the step with no FAIL_KIND (10-07). Let the shard count below
+            # report it as artifact-missing with the combo name instead.
             gh run download "$RUN_ID" -R "$TT_REPO" \
-              -p "eltwise-perf-results-${INFIX}-shard-*" -D "$DEST/shards"
+              -p "eltwise-perf-results-${INFIX}-shard-*" -D "$DEST/shards" \
+              || echo "::warning::${COMBO}: gh run download found no matching artifact"
             # Count shards up front (paths relative to the workspace root).
             NSHARD=$(find "$DEST/shards" -name 'shard-*.json' | wc -l)
             if [ "$NSHARD" -lt 5 ]; then
