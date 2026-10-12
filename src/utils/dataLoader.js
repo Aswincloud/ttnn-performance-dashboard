@@ -29,6 +29,7 @@ async function loadDailyFiles(base, files, limit) {
     recent.map(async (file) => {
       try {
         const response = await fetch(`${base}${file.path}`);
+        if (!response.ok) throw new Error(`${response.status} loading ${file.path}`);
         const data = await response.json();
         return { ...data, filename: file.filename, date: file.measurement_date };
       } catch (error) {
@@ -45,8 +46,10 @@ async function loadDailyFiles(base, files, limit) {
 // exist yet (first deploy, before the generator has ever run) or lacks the combo.
 async function loadLegacy(base, limit) {
   const indexResponse = await fetch(`${base}data/index.json`);
+  if (!indexResponse.ok) throw new Error(`${indexResponse.status} loading data/index.json`);
   const indexData = await indexResponse.json();
   const latestResponse = await fetch(`${base}data/latest/latest_results.json`);
+  if (!latestResponse.ok) throw new Error(`${latestResponse.status} loading latest results`);
   const latestData = await latestResponse.json();
   const validDailyData = await loadDailyFiles(base, indexData.files, limit);
   return {
@@ -180,6 +183,7 @@ export function calculateSummaryStats(data) {
   const results = (data.latest.results || []).filter(r => r.operation_name !== 'argmax');
   
   const totalOperations = results.length;
+  if (totalOperations === 0) return null;
   const avgDuration = results.reduce((sum, r) => sum + r.average_duration_ns, 0) / totalOperations / 1000000;
   const fastestOperation = results.reduce((min, r) => 
     r.average_duration_ns < min.average_duration_ns ? r : min, results[0]);
@@ -190,7 +194,9 @@ export function calculateSummaryStats(data) {
     totalTests: metadata.total_tests,
     successfulTests: metadata.successful_tests,
     failedTests: metadata.failed_tests,
-    successRate: ((metadata.successful_tests / metadata.total_tests) * 100).toFixed(1),
+    successRate: metadata.total_tests > 0
+      ? ((metadata.successful_tests / metadata.total_tests) * 100).toFixed(1)
+      : 'N/A',
     totalOperations,
     avgDuration: avgDuration.toFixed(3),
     fastestOperation: fastestOperation?.operation_name || 'N/A',
