@@ -14,7 +14,7 @@ LOG_FILE="$SCRIPT_DIR/perf_log.txt"
 ERROR_LOG="$SCRIPT_DIR/perf_error.txt"
 PYTHON_ENV="$SCRIPT_DIR/python_env"
 NOTIFICATION_EMAIL="aswin@aswincloud.com"
-RESEND_API_KEY="${RESEND_API_KEY:-re_DUMMY_replace_with_real_key}"
+RESEND_API_KEY="${RESEND_API_KEY:-}"
 
 # Clear logs older than 3 days
 for f in "$LOG_FILE" "$ERROR_LOG"; do
