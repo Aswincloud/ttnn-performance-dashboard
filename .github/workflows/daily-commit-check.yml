@@ -15,8 +15,13 @@ jobs:
   check-recent-commits:
     runs-on: ubuntu-latest
     steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
+        with:
+          egress-policy: audit
+
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 50 # Fetch recent history (sufficient for 24-hour check)
 
@@ -42,7 +47,7 @@ jobs:
       - name: Create issue if no commits
         id: create_issue
         if: steps.check_commits.outputs.no_commits == 'true'
-        uses: actions/github-script@v9
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
             const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
@@ -85,7 +90,7 @@ jobs:
 
       - name: Add comment tagging owner
         if: steps.check_commits.outputs.no_commits == 'true' && steps.create_issue.outputs.result != 'null'
-        uses: actions/github-script@v9
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
             const issueNumber = parseInt('${{ steps.create_issue.outputs.result }}');

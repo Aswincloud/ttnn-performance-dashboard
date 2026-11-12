@@ -72,8 +72,13 @@ jobs:
                            # poll deadline itself is 5.5h (see DEADLINE below)
     steps:
       # 0. Checkout our repo (commit base) + compute the run date.
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
+        with:
+          egress-policy: audit
+
       - name: Checkout dashboard repo
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           # Don't persist GITHUB_TOKEN as a git http.extraheader: it would
@@ -713,7 +718,7 @@ jobs:
       #    have succeeded and the day is recoverable.
       - name: File issue on failure
         if: failure() || cancelled()
-        uses: actions/github-script@v9
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
             // A cancel has no FAIL_KIND (no step set one) -> label it 'cancelled'.
