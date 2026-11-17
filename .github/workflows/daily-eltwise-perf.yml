@@ -214,8 +214,23 @@ jobs:
             fi
             # Only ingest what the dispatch box could have started: OUR branch's
             # test-dispatch.yaml. Anything else is refused, not polled.
-            META=$(gh api "repos/${TT_REPO}/actions/runs/${RID}" \
-                     -q '.path + "|" + .head_branch + "|" + .event' 2>/dev/null || echo "||")
+            # Retry API blips; a run that can't be fetched is an API/auth error,
+            # reported as such, not mislabelled "not our run".
+            META=""; ERR=""
+            for attempt in 1 2 3 4 5; do
+              if META=$(gh api "repos/${TT_REPO}/actions/runs/${RID}" \
+                          -q '(.path // "") + "|" + (.head_branch // "") + "|" + (.event // "")' 2>/tmp/resolve.err); then
+                break
+              fi
+              ERR=$(tr '\n' ' ' </tmp/resolve.err | cut -c1-300); META=""
+              echo "gh api runs/${RID} failed (attempt ${attempt}/5): ${ERR}"; sleep 15
+            done
+            if [ -z "$META" ]; then
+              echo "FAIL_KIND=poll-api-error" >> "$GITHUB_ENV"
+              echo "FAIL_DETAIL=could not fetch tt-metal run ${RID} after 5 attempts: ${ERR}" >> "$GITHUB_ENV"
+              echo "::error::could not fetch tt-metal run ${RID}: ${ERR}"
+              exit 1
+            fi
             IFS='|' read -r R_PATH R_BRANCH R_EVENT <<<"$META"
             echo "run $RID: path=$R_PATH branch=$R_BRANCH event=$R_EVENT"
             if [ "$R_PATH" != ".github/workflows/test-dispatch.yaml" ] || [ "$R_BRANCH" != "$TT_BRANCH" ] || [ "$R_EVENT" != "workflow_dispatch" ]; then
@@ -509,18 +524,21 @@ jobs:
           git config user.name "aswincloud-bot[bot]"
           git config user.email "aswincloud-bot[bot]@users.noreply.github.com"
 
-          # DATE: in monitor mode this is today-in-IST (the guard step). In
-          # recover/safety-net the run may be ingested a day later, so "today" is
+          # DATE: a run may be ingested a day after it was measured (recover,
+          # safety-net, or a next-day --rerun in monitor), so "today" can be
           # wrong — derive the business date from the merged file's own IST
           # measurement_date (metadata.measurement_date, e.g. 2026-07-16T04:55…
           # +05:30) and slice the first 10 chars (never Date-parse it). The
           # primary combo n150/small is always present; use it as the date source.
+          # Every mode: a monitored run may be a --rerun finishing the next day,
+          # so the invocation date can be wrong for it too. GUARD_DATE stays only
+          # as a fallback (and for the safety-net's own gap check upstream).
           DATE="$GUARD_DATE"
-          if [ "$MODE" != "monitor" ]; then
-            PRIMARY=$(ls _artifact/bf16/32x32/eltwise_perf_results_*.json | head -1)
+          PRIMARY=$(ls _artifact/bf16/32x32/eltwise_perf_results_*.json 2>/dev/null | head -1 || true)
+          if [ -n "$PRIMARY" ]; then
             DATE=$(python3 -c "import json,sys; print(json.load(open(sys.argv[1]))['metadata']['measurement_date'][:10])" "$PRIMARY")
-            echo "🗓️  recover/safety-net date from measurement_date: $DATE (guard was $GUARD_DATE)"
           fi
+          echo "🗓️  run date from measurement_date: $DATE (invocation date $GUARD_DATE, mode=$MODE)"
 
           # Safety-net-only staleness guard: the safety-net fires because TODAY's
           # data is missing, and Resolve auto-picks the newest *successful* run.
