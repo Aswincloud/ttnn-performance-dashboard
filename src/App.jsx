@@ -498,15 +498,20 @@ function App() {
             <div className="flex flex-col items-start gap-2 lg:items-end">
               <ComboCheckboxes selected={selectedCombos} onChange={setSelectedCombos} />
               {MAINTENANCE_NOTICE && (
-                <p
-                  role="note"
-                  title={MAINTENANCE_NOTICE.detail}
-                  className="inline-flex w-fit items-center gap-1.5 rounded px-2 py-0.5 text-xs font-medium bg-amber-50 text-amber-800 ring-1 ring-amber-200 dark:bg-amber-500/10 dark:text-amber-300 dark:ring-amber-500/30"
-                >
-                  <span aria-hidden="true">⚠️</span>
-                  <span>{MAINTENANCE_NOTICE.text}</span>
-                  <span className="sr-only"> {MAINTENANCE_NOTICE.detail}</span>
-                </p>
+                // Native <details>: focusable and toggled by Enter/Space or a tap,
+                // so the paused-since date is reachable without hover. Only the
+                // short summary is visible by default; the detail is capped at
+                // max-w-xs so opening it never widens the column past the buttons.
+                <details className="group w-fit text-xs text-amber-800 dark:text-amber-300">
+                  <summary className="inline-flex cursor-pointer list-none items-center gap-1.5 rounded px-2 py-0.5 font-medium bg-amber-50 ring-1 ring-amber-200 dark:bg-amber-500/10 dark:ring-amber-500/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 [&::-webkit-details-marker]:hidden">
+                    <span aria-hidden="true">⚠️</span>
+                    <span>{MAINTENANCE_NOTICE.text}</span>
+                    <span aria-hidden="true" className="transition-transform group-open:rotate-180">
+                      ▾
+                    </span>
+                  </summary>
+                  <p className="mt-1 max-w-xs px-2">{MAINTENANCE_NOTICE.detail}</p>
+                </details>
               )}
             </div>
           </div>
