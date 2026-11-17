@@ -2,8 +2,8 @@
 """
 Workflow data index + per-combo "latest" generator.
 
-The daily perf pipeline lands results for 5 combos — N150 at 2 dtypes (bf16,
-fp32) x 2 shapes (32x32, 256x256), plus P100a (Blackhole) at bf16 x 32x32 —
+The daily perf pipeline lands results for 8 combos — N150 and P100a
+(Blackhole), each at 2 dtypes (bf16, fp32) x 2 shapes (32x32, 256x256) —
 under
 
     data/workflow/<dtype>/<shape>/<YYYY-MM-DD>_..._final.json         (N150, board implicit)
@@ -30,9 +30,8 @@ import json
 from datetime import datetime
 from pathlib import Path
 
-# (dtype, shape) combos, in the order they appear in the output. Everything
-# runs on N150 now: the second axis was the board (N150/P100a) until the sweep
-# was re-cut to trade Blackhole and the 1024x1024 shape for a dtype axis.
+# Combos, in the order they appear in the output: N150 and P100a, each at
+# 2 dtypes x 2 shapes.
 # These must match the tt-metal matrix's dtype/shape values and the directory
 # names the daily workflow commits into (data/workflow/<dtype>/<shape>/).
 # Each tuple's segments are joined by "/" for the directory and "_" for the
@@ -45,6 +44,9 @@ COMBOS = [
     ("fp32", "32x32"),
     ("fp32", "256x256"),
     ("p100a", "bf16", "32x32"),
+    ("p100a", "bf16", "256x256"),
+    ("p100a", "fp32", "32x32"),
+    ("p100a", "fp32", "256x256"),
 ]
 
 DATA_DIR = Path("data")

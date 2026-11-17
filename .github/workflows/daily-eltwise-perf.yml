@@ -2,13 +2,13 @@ name: Daily eltwise perf (tt-metal)
 
 # Ingests a Tenstorrent eltwise perf run end to end:
 #   [dispatch box, not here] rebase our tt-metal branch on upstream main ->
-#   dispatch ONE test-dispatch run that fans out to 5 combos x SHARD_TOTAL
-#   shards off one build (N150 at 2 dtypes x 2 shapes, plus P100a (Blackhole)
-#   at bf16 x 32x32) -> start THIS workflow with mode=monitor run_id=<run>
+#   dispatch ONE test-dispatch run that fans out to 8 combos x SHARD_TOTAL
+#   shards off one build (N150 and P100a (Blackhole), each at 2 dtypes x
+#   2 shapes) -> start THIS workflow with mode=monitor run_id=<run>
 #   [here] -> poll it to completion -> download the raw shard artifacts and merge
 #   each combo's shards locally (tt-metal uploads raw shards; we do the merge)
-#   -> land the 5 combined JSONs under data/workflow/{bf16,fp32}/{32x32,256x256}/
-#   and data/workflow/p100a/bf16/32x32/
+#   -> land the 8 combined JSONs under data/workflow/{bf16,fp32}/{32x32,256x256}/
+#   and data/workflow/p100a/{bf16,fp32}/{32x32,256x256}/
 #   via a single auto-merging PR.
 #
 # Credentials: the only privileged tt-metal calls (rebase push + dispatch, and
@@ -65,7 +65,7 @@ env:
   #   p100a_bf16_32x32  -> eltwise-perf-results-p100a-bf16-32x32-shard-* -> data/workflow/p100a/bf16/32x32/
   # These must match the tt-metal matrix exactly: a mismatch yields "no
   # shards found" (a loud artifact-missing failure), never wrong data.
-  COMBOS: "bf16_32x32 bf16_256x256 fp32_32x32 fp32_256x256 p100a_bf16_32x32"
+  COMBOS: "bf16_32x32 bf16_256x256 fp32_32x32 fp32_256x256 p100a_bf16_32x32 p100a_bf16_256x256 p100a_fp32_32x32 p100a_fp32_256x256"
   # Shards per combo. Must match the `shard:` list in the tt-metal branch's
   # test-dispatch.yaml matrix. 1 since --in-process: one runner opens the
   # device once and finishes the whole suite in about a minute, so sharding
@@ -572,7 +572,7 @@ jobs:
             echo "Nothing to commit (identical files already present); skipping PR."
             exit 0
           fi
-          git commit -m "data(workflow): eltwise perf results ${DATE} (N150 2x2 + P100a bf16 32x32)"
+          git commit -m "data(workflow): eltwise perf results ${DATE} (N150 + P100a, 2 dtypes x 2 shapes)"
           git push "https://x-access-token:${GH_TOKEN}@github.com/${OUR_REPO}.git" "$BRANCH"
 
           # Note the ingest mode in the body so a recovered/backfilled day is
@@ -580,8 +580,8 @@ jobs:
           ORIGIN="Automated daily"
           [ "$MODE" != "monitor" ] && ORIGIN="Recovered (${MODE})"
           PR_URL=$(gh pr create -R "$OUR_REPO" --base main --head "$BRANCH" \
-            --title "data(workflow): eltwise perf results ${DATE} (N150 2x2 + P100a bf16 32x32)" \
-            --body "${ORIGIN} tt-metal eltwise perf run — one build; N150 at 2 dtypes (bfloat16, float32) x 2 shapes (32x32, 256x256) plus P100a (Blackhole) at bfloat16 x 32x32; 5 shards per combo. Data-only, isolated under \`data/workflow/{bf16,fp32}/{32x32,256x256}/\` and \`data/workflow/p100a/bf16/32x32/\`; does not touch \`data/index.json\`.")
+            --title "data(workflow): eltwise perf results ${DATE} (N150 + P100a, 2 dtypes x 2 shapes)" \
+            --body "${ORIGIN} tt-metal eltwise perf run — one build; N150 and P100a (Blackhole), each at 2 dtypes (bfloat16, float32) x 2 shapes (32x32, 256x256); ${SHARD_TOTAL} shard(s) per combo. Data-only, isolated under \`data/workflow/{bf16,fp32}/{32x32,256x256}/\` and \`data/workflow/p100a/{bf16,fp32}/{32x32,256x256}/\`; does not touch \`data/index.json\`.")
           echo "Opened $PR_URL"
 
           # The membership-gated auto-approve workflow won't fire for a bot

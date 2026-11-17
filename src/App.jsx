@@ -12,22 +12,26 @@ import {
   calculateSummaryStats,
 } from './utils/dataLoader';
 
-// The five combos, in a FIXED order. This order drives the
+// The eight combos, in a FIXED order. This order drives the
 // checkbox order and — since selected combos keep this order — the sub-row order
 // under each op in the table, so the layout is stable regardless of click order.
 // Key = <board?>_<dtype>_<shape>; no board segment means N150 (the original
 // board, kept implicit so the four existing combos never had to move). The
 // label always names the board so the asymmetry never reaches the user.
-const COMBOS = ['bf16_32x32', 'bf16_256x256', 'fp32_32x32', 'fp32_256x256', 'p100a_bf16_32x32'];
+const COMBOS = ['bf16_32x32', 'bf16_256x256', 'fp32_32x32', 'fp32_256x256',
+  'p100a_bf16_32x32', 'p100a_bf16_256x256', 'p100a_fp32_32x32', 'p100a_fp32_256x256'];
 const COMBO_LABEL = {
   bf16_32x32: 'N150 · bf16 · 32²',
   bf16_256x256: 'N150 · bf16 · 256²',
   fp32_32x32: 'N150 · fp32 · 32²',
   fp32_256x256: 'N150 · fp32 · 256²',
   p100a_bf16_32x32: 'P100a · bf16 · 32²',
+  p100a_bf16_256x256: 'P100a · bf16 · 256²',
+  p100a_fp32_32x32: 'P100a · fp32 · 32²',
+  p100a_fp32_256x256: 'P100a · fp32 · 256²',
 };
 
-// A labelled group of combo checkboxes: pick any subset of the 4 combos to show
+// A labelled group of combo checkboxes: pick any subset of the combos to show
 // side-by-side (one sub-row per combo, per op). The last-checked box can't be
 // unchecked — the table always has at least one combo to render.
 function ComboCheckboxes({ selected, onChange }) {
@@ -485,7 +489,7 @@ function App() {
               <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">Detailed Performance Analysis</h2>
               <p className="text-gray-600 dark:text-gray-400">Day-by-day performance comparison across all operations</p>
             </div>
-            {/* Combo selector: check any subset of the 4 combos. Each selected
+            {/* Combo selector: check any subset of the combos. Each selected
                 combo becomes a sub-row per op in the table below. */}
             <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
               <ComboCheckboxes selected={selectedCombos} onChange={setSelectedCombos} />
