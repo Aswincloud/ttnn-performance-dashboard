@@ -23,12 +23,11 @@ on:
     # The MAIN run is no longer scheduled here: the dispatch box starts it at
     # 01:00 IST with workflow_dispatch mode=monitor (it holds the only credential
     # that can dispatch on tt-metal).
-    - cron: "30 23 * * *"   # 23:30 UTC — SAFETY-NET. ~4h after the main run, by
-    # which the tt-metal run (queue + ~3h exec) has finished. If the main run got
-    # cancelled/killed before ingesting (as on 2026-07-16, when the hosted runner
-    # was SIGTERM'd mid-poll but the tt-metal run itself succeeded), this pass
-    # detects the missing day and ingests the newest successful tt-metal run
-    # instead of re-dispatching. No-op (silent) when today's data already landed.
+    - cron: "30 23 * * *"   # 23:30 UTC = 05:00 IST — FRESHNESS CHECK (read-only).
+    # The box dispatches at 01:00 IST and the run normally lands within ~1h.
+    # This pass ingests nothing: it checks that EVERY combo has a result
+    # measured in the last 24h and fails (issue + Slack) naming the stale ones.
+    # To ingest a finished run by hand, use workflow_dispatch mode=recover.
   workflow_dispatch:
     inputs:
       mode:
@@ -101,9 +100,8 @@ jobs:
       #       monitor    — poll the run the dispatch box started, then ingest (the daily run).
       #       recover    — manual `mode=recover`: skip rebase/dispatch/poll and
       #                    ingest an already-completed tt-metal run.
-      #       safety-net — the 23:30 UTC cron: same as recover, but first checks
-      #                    whether today's data is already present and no-ops if so.
-      #     The two crons are told apart by github.event.schedule.
+      #       freshness  — the 23:30 UTC cron: read-only check that every combo
+      #                    has a result from the last 24h; ingests nothing.
       - name: Detect mode
         id: mode
         env:
@@ -112,8 +110,8 @@ jobs:
           INPUT_MODE: ${{ github.event.inputs.mode }}
         run: |
           set -euo pipefail
-          if [ "$EVENT" = "schedule" ] && [ "$SCHEDULE" = "30 23 * * *" ]; then
-            MODE=safety-net
+          if [ "$EVENT" = "schedule" ]; then
+            MODE=freshness
           elif [ "$EVENT" = "workflow_dispatch" ] && [ "${INPUT_MODE:-monitor}" = "recover" ]; then
             MODE=recover
           else
@@ -132,57 +130,73 @@ jobs:
           # so a UTC date here would label the file/branch/PR the previous day —
           # mismatching the IST measurement_date the perf script now stamps. Use
           # Asia/Kolkata so the filename prefix agrees with the in-file date.
-          # NOTE: in recover/safety-net the authoritative date is re-derived at
-          # commit time from the merged file's metadata.measurement_date (a run
-          # recovered the next morning must NOT be dated "today"); this value is
-          # the monitor-mode date and the safety-net gap-check's "today (IST)".
+          # NOTE: the authoritative date is re-derived at commit time from the
+          # merged file's metadata.measurement_date (a run ingested the next
+          # morning must NOT be dated "today"); this value is only a fallback.
           echo "date=$(TZ='Asia/Kolkata' date +%F)" >> "$GITHUB_OUTPUT"
 
-      # 0b. Safety-net only: if today's data already landed, stop here (success,
-      #     silent). Checks the primary combo's dated file on the checked-out
-      #     main. Any other mode falls through. Emits present=true|false so the
-      #     later heavy steps can be skipped wholesale when nothing's missing.
-      - name: Safety-net gap check
-        id: gap
-        if: steps.mode.outputs.mode == 'safety-net'
-        env:
-          DATE: ${{ steps.guard.outputs.date }}
+      # 0b. Freshness mode only (the 05:00 IST cron). Read-only: every combo in
+      #     COMBOS must have a result whose measurement_date is within the last
+      #     24h, per data/workflow/index.json on main. A stale combo fails the
+      #     job, so the issue + Slack steps below fire with the list.
+      - name: Freshness check (all combos, last 24h)
+        id: freshness
+        if: steps.mode.outputs.mode == 'freshness'
         run: |
           set -euo pipefail
-          # Primary combo bf16/32x32 is written every successful run, so its
-          # presence for DATE is a faithful proxy for "the day was ingested".
-          if ls "data/workflow/bf16/32x32/${DATE}_"*.json >/dev/null 2>&1; then
-            echo "present=true" >> "$GITHUB_OUTPUT"
-            echo "✅ ${DATE} data already present — safety-net has nothing to do."
-          else
-            echo "present=false" >> "$GITHUB_OUTPUT"
-            echo "⚠️ ${DATE} data missing — safety-net will ingest the newest successful tt-metal run."
-          fi
+          python3 - <<'PY'
+          import json, os, datetime as dt
+          IST = dt.timezone(dt.timedelta(hours=5, minutes=30))
+          now = dt.datetime.now(dt.timezone.utc)
+          combos = json.load(open("data/workflow/index.json"))["combos"]
+          stale = []
+          for combo in os.environ["COMBOS"].split():
+              newest = None
+              for f in combos.get(combo, {}).get("files", []):
+                  md = f.get("measurement_date")
+                  if not md:
+                      continue
+                  t = dt.datetime.fromisoformat(md)
+                  if t.tzinfo is None:          # older local files carry no offset; they are IST
+                      t = t.replace(tzinfo=IST)
+                  newest = t if newest is None or t > newest else newest
+              age_h = (now - newest).total_seconds() / 3600 if newest else None
+              when = newest.astimezone(IST).strftime("%Y-%m-%d %H:%M IST") if newest else "none"
+              ok = age_h is not None and age_h <= 24
+              print(f"{'OK   ' if ok else 'STALE'} {combo:18s} newest {when}" + (f" ({age_h:.1f}h ago)" if age_h is not None else ""))
+              if not ok:
+                  stale.append(f"{combo} (newest {when})")
+          if stale:
+              with open(os.environ["GITHUB_ENV"], "a") as env:
+                  env.write("FAIL_KIND=stale-data\n")
+                  env.write("FAIL_DETAIL=no result measured in the last 24h for: " + "; ".join(stale) + "\n")
+              print("::error::No perf result in the last 24h for: " + ", ".join(x.split(" ")[0] for x in stale))
+              raise SystemExit(1)
+          print("All combos have a result from the last 24h.")
+          PY
 
       # 0c. Collapse mode + gap-check into two booleans so every later step gates
       #     on a single equality instead of a repeated 3-clause expression:
       #       poll     — poll the tt-metal run to completion (monitor only).
       #       ingest   — do resolve + download + merge + commit (monitor & recover
-      #                  always; safety-net only when today's data is missing).
+      #                  only; freshness ingests nothing).
       - name: Plan run
         id: plan
         env:
           MODE: ${{ steps.mode.outputs.mode }}
-          GAP_PRESENT: ${{ steps.gap.outputs.present }}
         run: |
           set -euo pipefail
-          # POLL only in monitor: recover/safety-net act on an already-completed run.
+          # POLL only in monitor: recover acts on an already-completed run;
+          # freshness is a read-only check (its own step above) and does neither.
           case "$MODE" in
             monitor) POLL=true;  INGEST=true ;;
             recover) POLL=false; INGEST=true ;;
-            safety-net)
-              POLL=false
-              if [ "$GAP_PRESENT" = "false" ]; then INGEST=true; else INGEST=false; fi ;;
+            freshness) POLL=false; INGEST=false ;;
             *) echo "::error::unknown mode '$MODE'"; exit 1 ;;
           esac
           echo "poll=$POLL"     >> "$GITHUB_OUTPUT"
           echo "ingest=$INGEST" >> "$GITHUB_OUTPUT"
-          echo "🧭 plan: poll=$POLL ingest=$INGEST (mode=$MODE gap_present='${GAP_PRESENT:-}')"
+          echo "🧭 plan: poll=$POLL ingest=$INGEST (mode=$MODE)"
 
       # 2b. Resolve the tt-metal run id every ingest mode will act on, so the
       #     Poll/Download/Slack steps never depend on the (skipped) Dispatch step.
@@ -191,8 +205,7 @@ jobs:
       #                    test-dispatch run; Poll then gates on its success.
       #       recover    — the run_id input if given, else the newest SUCCESSFUL
       #                    test-dispatch run on our branch.
-      #       safety-net — always the newest successful run.
-      #     Because recover/safety-net SKIP the Poll step (and thus its
+      #     Because recover SKIPS the Poll step (and thus its
       #     CONCL==success gate), this step re-validates that the resolved run is
       #     completed/successful — an operator-supplied run_id is untrusted.
       - name: Resolve tt-metal run
@@ -255,25 +268,13 @@ jobs:
                       --json databaseId,createdAt \
                       -q 'sort_by(.createdAt) | reverse | .[0].databaseId' 2>/dev/null || true)
               echo "Auto-resolved newest successful run: ${RID:-<none>}"
-              # The safety-net exists to rescue TODAY's run. Anything older than
-              # ~30h is a previous day; fail with the real reason now rather than
-              # downloading it and dying on a missing artifact later.
-              if [ "$MODE" = "safety-net" ] && [ -n "$RID" ] && [ "$RID" != "null" ]; then
-                CREATED=$(gh run view "$RID" -R "$TT_REPO" --json createdAt -q .createdAt 2>/dev/null || echo "")
-                if [ -n "$CREATED" ] && [ "$(date -u -d "$CREATED" +%s)" -lt "$(date -u -d '-30 hours' +%s)" ]; then
-                  echo "FAIL_KIND=safety-net-no-run-today" >> "$GITHUB_ENV"
-                  echo "FAIL_DETAIL=newest successful tt-metal run $RID was created $CREATED, older than 30h" >> "$GITHUB_ENV"
-                  echo "::error::Newest successful tt-metal run ($RID, created $CREATED) is not from today; nothing for the safety-net to ingest."
-                  exit 1
-                fi
-              fi
             fi
             if [ -z "$RID" ] || [ "$RID" = "null" ]; then
               echo "FAIL_KIND=resolve-run-not-found" >> "$GITHUB_ENV"
               echo "::error::Could not resolve a tt-metal run to ingest (no successful run on ${TT_BRANCH}, and none supplied)."
               exit 1
             fi
-            # Re-validate: recover/safety-net skip Poll's success gate, so confirm
+            # Re-validate: recover skips Poll's success gate, so confirm
             # the run actually completed successfully before we trust its shards.
             SC=$(gh run view "$RID" -R "$TT_REPO" --json status,conclusion \
                    -q '.status + "|" + (.conclusion // "")' 2>/dev/null || echo "|")
@@ -290,7 +291,7 @@ jobs:
           echo "📌 ingest target: https://github.com/${TT_REPO}/actions/runs/${RID}"
 
       # 3. Poll the tt-metal run (build + test cells) to completion. Monitor
-      #    mode only — recover/safety-net resolve an already-completed run.
+      #    mode only — recover resolves an already-completed run.
       - name: Poll tt-metal run
         if: steps.plan.outputs.poll == 'true'
         env:
@@ -524,35 +525,20 @@ jobs:
           git config user.email "aswincloud-bot[bot]@users.noreply.github.com"
 
           # DATE: a run may be ingested a day after it was measured (recover,
-          # safety-net, or a next-day --rerun in monitor), so "today" can be
+          # or a next-day --rerun in monitor), so "today" can be
           # wrong — derive the business date from the merged file's own IST
           # measurement_date (metadata.measurement_date, e.g. 2026-07-16T04:55…
           # +05:30) and slice the first 10 chars (never Date-parse it). The
           # primary combo n150/small is always present; use it as the date source.
           # Every mode: a monitored run may be a --rerun finishing the next day,
           # so the invocation date can be wrong for it too. GUARD_DATE stays only
-          # as a fallback (and for the safety-net's own gap check upstream).
+          # as a fallback.
           DATE="$GUARD_DATE"
           PRIMARY=$(ls _artifact/bf16/32x32/eltwise_perf_results_*.json 2>/dev/null | head -1 || true)
           if [ -n "$PRIMARY" ]; then
             DATE=$(python3 -c "import json,sys; print(json.load(open(sys.argv[1]))['metadata']['measurement_date'][:10])" "$PRIMARY")
           fi
           echo "🗓️  run date from measurement_date: $DATE (invocation date $GUARD_DATE, mode=$MODE)"
-
-          # Safety-net-only staleness guard: the safety-net fires because TODAY's
-          # data is missing, and Resolve auto-picks the newest *successful* run.
-          # If today's tt-metal run ALSO failed, that newest-success is a PRIOR
-          # day whose file already exists → the commit below would be a no-op and
-          # exit 0 SILENTLY, leaving today genuinely missing with no alert. Detect
-          # that (derived DATE != the safety-net's today) and fail loudly so the
-          # cancel/failure notify fires. (Manual `recover` is exempt: backfilling
-          # an older run by id is a legitimate operation there.)
-          if [ "$MODE" = "safety-net" ] && [ "$DATE" != "$GUARD_DATE" ]; then
-            echo "FAIL_KIND=safety-net-no-run-today" >> "$GITHUB_ENV"
-            echo "FAIL_DETAIL=newest successful run is ${DATE}, not today (${GUARD_DATE}); today's run likely failed — nothing to recover automatically" >> "$GITHUB_ENV"
-            echo "::error::Safety-net: no successful tt-metal run for ${GUARD_DATE} (newest is ${DATE}). Today's run failed — needs a manual dispatch/recover."
-            exit 1
-          fi
 
           BRANCH="workflow/perf-${DATE}-${{ github.run_id }}"
           git checkout -b "$BRANCH"
@@ -640,7 +626,7 @@ jobs:
               // Rebase/dispatch failures are reported by the dispatch box
               // (~/bin/perf-ci-dispatch.sh -> Slack), not by this workflow.
               const detail = kind === 'cancelled'
-                ? 'The run was **cancelled** (hosted-runner shutdown or manual). The dispatched tt-metal run may have finished successfully — re-run this workflow with **mode=recover** to ingest it (or wait for the 23:30 UTC safety-net).'
+                ? 'The run was **cancelled** (hosted-runner shutdown or manual). The dispatched tt-metal run may have finished successfully — re-run this workflow with **mode=recover** to ingest it.'
                 : `Stage: **${kind}**.`;
               await github.rest.issues.create({
                 owner: context.repo.owner, repo: context.repo.repo,
@@ -696,9 +682,9 @@ jobs:
             merge-failed)       REASON="Shard merge produced no results JSON." ;;
             resolve-run-not-found)       REASON="No tt-metal run to ingest: monitor got a missing/foreign run_id, or recover found no successful run." ;;
             recover-run-not-successful)  REASON="Recover: the supplied tt-metal run is not completed/successful." ;;
-            safety-net-no-run-today)     REASON="Safety-net: no successful tt-metal run today. Dispatch from the box (perf-ci-dispatch.sh --force) or recover a run." ;;
+            stale-data)         REASON="Freshness check: some combos have no result from the last 24h. Check the box log (~/perf-ci-dispatch.log) and the last monitor run." ;;
             cancelled)          REASON="Run was cancelled (hosted-runner shutdown or manual)."
-                                CANCEL_HINT="The dispatched tt-metal run may have finished OK — re-run with *mode=recover* to ingest it, or wait for the 23:30 UTC safety-net." ;;
+                                CANCEL_HINT="The dispatched tt-metal run may have finished OK — re-run with *mode=recover* to ingest it." ;;
             pipeline-failure|*) REASON="Pipeline failed at an unlabelled stage." ;;
           esac
           RUN_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
