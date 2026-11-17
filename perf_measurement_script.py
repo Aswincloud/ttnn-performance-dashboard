@@ -531,6 +531,96 @@ class PerfMeasurement:
             print(f"   python3 push_to_github.py {json_file_path}")
             return False
 
+KERNEL_DURATION_KEY = "DEVICE KERNEL DURATION [ns]"
+
+# Must be set before ttnn is imported (pytest imports it while collecting).
+IN_PROCESS_PROFILER_ENV = {
+    "TT_METAL_DEVICE_PROFILER": "1",
+    "TT_METAL_PROFILER_MID_RUN_DUMP": "1",
+    "TT_METAL_PROFILER_CPP_POST_PROCESS": "1",
+    "TT_METAL_PROFILER_DISABLE_DUMP_TO_FILES": "1",
+}
+
+
+class InProcessPerfPlugin:
+    """pytest plugin: runs each test body `warmup + runs` times on the one open
+    device and records the summed device kernel duration of every program the
+    body launched (the same quantity ttperf sums from its ops CSV)."""
+
+    def __init__(self, warmup: int, runs: int):
+        self.warmup = warmup
+        self.runs = runs
+        self.samples: Dict[str, List[float]] = {}
+        self.errors: Dict[str, str] = {}
+
+    @staticmethod
+    def _read_kernel_ns(device) -> float:
+        import ttnn
+
+        ttnn.synchronize_device(device)
+        ttnn.ReadDeviceProfiler(device)
+        total = 0
+        for programs in ttnn.get_latest_programs_perf_data().values():
+            for program in programs:
+                result = program.program_analyses_results.get(KERNEL_DURATION_KEY)
+                if result is not None:
+                    total += result.duration
+        return float(total)
+
+    def pytest_pyfunc_call(self, pyfuncitem):
+        funcargs = pyfuncitem.funcargs
+        device = funcargs.get("device")
+        if device is None:
+            return None
+        testargs = {arg: funcargs[arg] for arg in pyfuncitem._fixtureinfo.argnames}
+        name = pyfuncitem.originalname
+
+        self._read_kernel_ns(device)
+        samples = []
+        for i in range(self.warmup + self.runs):
+            pyfuncitem.obj(**testargs)
+            ns = self._read_kernel_ns(device)
+            if i >= self.warmup:
+                samples.append(ns)
+        if all(s > 0 for s in samples):
+            self.samples[name] = samples
+        else:
+            self.errors[name] = "no device kernel duration captured"
+        return True
+
+
+def run_in_process(test_names: List[str], warmup: int, runs: int):
+    """Run `test_names` in ONE pytest session (one device open) and return
+    (results, failed_test_names) in the schema save_results() writes."""
+    for key, value in IN_PROCESS_PROFILER_ENV.items():
+        os.environ.setdefault(key, value)
+    import pytest
+
+    plugin = InProcessPerfPlugin(warmup=warmup, runs=runs)
+    node_ids = [f"test_eltwise_operations.py::TestEltwiseOperations::{t}" for t in test_names]
+    pytest.main(["-q", "-p", "no:cacheprovider", "-o", "addopts=", *node_ids], plugins=[plugin])
+
+    results = []
+    for test_name in test_names:
+        durations = plugin.samples.get(test_name)
+        if not durations:
+            continue
+        results.append({
+            'test_name': test_name,
+            'operation_name': test_name.replace('test_', ''),
+            'runs': durations,
+            'successful_runs': len(durations),
+            'average_duration_ns': statistics.mean(durations),
+            'std_deviation_ns': statistics.stdev(durations) if len(durations) > 1 else 0,
+            'min_duration_ns': min(durations),
+            'max_duration_ns': max(durations),
+            'timestamp': _now().isoformat(),
+        })
+    measured = {r['test_name'] for r in results}
+    failed = [t for t in test_names if t not in measured]
+    return results, failed
+
+
 def merge_result_files(input_paths: List[str], output_path: str) -> str:
     """Combine several shard result JSONs into one final JSON.
 
@@ -631,6 +721,16 @@ def main():
                        help='Merge the given shard result JSONs into one final JSON '
                             '(written as eltwise_perf_results_<ts>_final.json) and exit.')
 
+    parser.add_argument('--in-process', action='store_true',
+                       help='Run all selected tests in one pytest session (device opened once) '
+                            'using the in-process device profiler instead of one ttperf call per run.')
+    parser.add_argument('--warmup', type=int, default=1,
+                       help='--in-process only: untimed warm-up iterations per test (default 1).')
+    parser.add_argument('--runs', type=int, default=3,
+                       help='--in-process only: timed iterations per test (default 3).')
+    parser.add_argument('--tests', nargs='+', metavar='TEST',
+                       help='Only run these test names (e.g. test_exp test_add).')
+
     args = parser.parse_args()
 
     # --merge is a standalone post-processing mode: no device, no tt-metal needed.
@@ -671,6 +771,26 @@ def main():
 
     perf = PerfMeasurement(rerun_mode=args.rerun, auto_upload=args.upload,
                            shard_index=shard_index, shard_total=shard_total)
+    if args.tests:
+        selected = set(args.tests)
+        perf.get_all_test_names = lambda: [t for t in PerfMeasurement.get_all_test_names(perf) if t in selected]
+
+    if args.in_process:
+        tests = perf.get_tests_to_run()
+        if not tests:
+            print("❌ No tests found!")
+            return
+        print(f"🚀 In-process mode: {len(tests)} tests, {args.warmup} warm-up + {args.runs} timed runs each")
+        results, failed = run_in_process(tests, warmup=args.warmup, runs=args.runs)
+        perf.results = results
+        perf.failed_tests = failed
+        perf.save_results(final=True)
+        print(f"⏱️ Total time: {_now() - perf.start_time}")
+        print(f"📈 Successful: {len(results)}  ❌ Failed: {len(failed)}")
+        if failed:
+            print(f"🔍 Failed tests: {', '.join(failed)}")
+        return
+
     perf.run_all_measurements()
 
 if __name__ == "__main__":
