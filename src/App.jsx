@@ -27,14 +27,6 @@ const COMBO_LABEL = {
   p100a_bf16_32x32: 'P100a · bf16 · 32²',
 };
 
-// Temporary notice shown under the Compare checkboxes while tt-metal CI is in
-// maintenance and only the local N150 runner is uploading. Set to null to hide.
-// Keep `text` shorter than the checkbox row so it never widens that column.
-const MAINTENANCE_NOTICE = {
-  text: 'CI maintenance: only N150 · bf16 · 32² updates daily',
-  detail: 'Other combos are paused at their last CI run (Nov 8) until tt-metal CI is back.',
-};
-
 // A labelled group of combo checkboxes: pick any subset of the 4 combos to show
 // side-by-side (one sub-row per combo, per op). The last-checked box can't be
 // unchecked — the table always has at least one combo to render.
@@ -495,24 +487,8 @@ function App() {
             </div>
             {/* Combo selector: check any subset of the 4 combos. Each selected
                 combo becomes a sub-row per op in the table below. */}
-            <div className="flex flex-col items-start gap-2 lg:items-end">
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
               <ComboCheckboxes selected={selectedCombos} onChange={setSelectedCombos} />
-              {MAINTENANCE_NOTICE && (
-                // Native <details>: focusable and toggled by Enter/Space or a tap,
-                // so the paused-since date is reachable without hover. Only the
-                // short summary is visible by default; the detail is capped at
-                // max-w-xs so opening it never widens the column past the buttons.
-                <details className="group w-fit text-xs text-amber-800 dark:text-amber-300">
-                  <summary className="inline-flex cursor-pointer list-none items-center gap-1.5 rounded px-2 py-0.5 font-medium bg-amber-50 ring-1 ring-amber-200 dark:bg-amber-500/10 dark:ring-amber-500/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 [&::-webkit-details-marker]:hidden">
-                    <span aria-hidden="true">⚠️</span>
-                    <span>{MAINTENANCE_NOTICE.text}</span>
-                    <span aria-hidden="true" className="transition-transform group-open:rotate-180">
-                      ▾
-                    </span>
-                  </summary>
-                  <p className="mt-1 max-w-xs px-2">{MAINTENANCE_NOTICE.detail}</p>
-                </details>
-              )}
             </div>
           </div>
                      <div className="glass-card">
