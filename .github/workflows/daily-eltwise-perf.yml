@@ -2,10 +2,10 @@ name: Daily eltwise perf (tt-metal)
 
 # Drives a Tenstorrent eltwise perf run end to end, unattended:
 #   rebase our tt-metal branch on upstream main -> dispatch ONE test-dispatch
-#   run that fans out to 5 combos x 5 shards off one build: N150 at 2 dtypes x
-#   2 shapes, plus P100a (Blackhole) at bf16 x 32x32
-#   -> poll it to completion -> download the 20 raw shard artifacts and merge
-#   each combo's 5 shards locally (tt-metal uploads raw shards; we do the merge)
+#   run that fans out to 5 combos x SHARD_TOTAL shards off one build: N150 at
+#   2 dtypes x 2 shapes, plus P100a (Blackhole) at bf16 x 32x32
+#   -> poll it to completion -> download the raw shard artifacts and merge
+#   each combo's shards locally (tt-metal uploads raw shards; we do the merge)
 #   -> land the 5 combined JSONs under data/workflow/{bf16,fp32}/{32x32,256x256}/
 #   and data/workflow/p100a/bf16/32x32/
 #   via a single auto-merging PR.
@@ -64,6 +64,12 @@ env:
   # These must match the tt-metal matrix exactly: a mismatch yields "no
   # shards found" (a loud artifact-missing failure), never wrong data.
   COMBOS: "bf16_32x32 bf16_256x256 fp32_32x32 fp32_256x256 p100a_bf16_32x32"
+  # Shards per combo. Must match the `shard:` list in the tt-metal branch's
+  # test-dispatch.yaml matrix. 1 since --in-process: one runner opens the
+  # device once and finishes the whole suite in about a minute, so sharding
+  # only multiplies runner/setup cost. The download step requires AT LEAST
+  # this many, so an older 5-shard run still merges fine.
+  SHARD_TOTAL: "1"
 
 jobs:
   run:
@@ -241,7 +247,7 @@ jobs:
           echo "✅ Rebased ${TT_BRANCH} on origin/main and pushed."
 
       # 2. Dispatch the sharded perf workflow on tt-metal + correlate the run.
-      #    ONE run fans out to 25 cells (4 N150 combos + 1 P100a combo, x 5 shards) off one build.
+      #    ONE run fans out to 5 combos x SHARD_TOTAL cells off one build.
       - name: Dispatch tt-metal perf run
         id: dispatch
         if: steps.plan.outputs.dispatch == 'true'
@@ -282,11 +288,13 @@ jobs:
           DISPATCH_T0=$(date -u -d '-60 seconds' +%Y-%m-%dT%H:%M:%SZ)
           # $SHARD / $SHARD_TOTAL are expanded by tt-metal's shard matrix at
           # runtime, so they are single-quoted here (no expansion on our runner).
+          # --in-process: one pytest session per cell, device opened once,
+          # kernel durations read via the in-process device profiler (needs
+          # the tracy=true build passed below). ttperf is no longer used.
           CMD='set -euo pipefail
-          uv pip install ttperf
           curl -fsSL '"${RAW_BASE}"'/test_eltwise_operations.py -o /work/test_eltwise_operations.py
           curl -fsSL '"${RAW_BASE}"'/perf_measurement_script.py -o /work/perf_measurement_script.py
-          cd /work && python perf_measurement_script.py --shard "$SHARD/$SHARD_TOTAL"'
+          cd /work && python perf_measurement_script.py --in-process --shard "$SHARD/$SHARD_TOTAL"'
 
           # The board list (N150/P100a) and their viommu labels + arch are
           # fixed in the tt-metal branch's matrix, so arch/runner-label inputs
@@ -399,7 +407,7 @@ jobs:
           echo "run_id=$RID" >> "$GITHUB_OUTPUT"
           echo "📌 ingest target: https://github.com/${TT_REPO}/actions/runs/${RID}"
 
-      # 3. Poll the tt-metal run (build + 20 shard cells) to completion. Skipped
+      # 3. Poll the tt-metal run (build + test cells) to completion. Skipped
       #    in recover/safety-net — the resolved run has already completed.
       - name: Poll tt-metal run
         if: steps.plan.outputs.dispatch == 'true'
@@ -502,7 +510,7 @@ jobs:
             sleep 90
           done
 
-      # 4. Download the 20 per-(board, shape) SHARD artifacts and merge each
+      # 4. Download the per-(board, shape) SHARD artifacts and merge each
       #    combo's shards locally. tt-metal only produces raw shards now — the
       #    merge lives HERE, using the perf_measurement_script.py already checked
       #    out in this repo (no raw.githubusercontent curl -> no 429 that a
@@ -525,7 +533,7 @@ jobs:
             BOARD="${REST%_*}"; [ "$BOARD" = "$REST" ] && BOARD=n150
             DEST="_artifact/${DIR}"
             mkdir -p "$DEST/shards"
-            # One call grabs all 5 shard artifacts for this combo; each extracts
+            # One call grabs all shard artifacts for this combo; each extracts
             # into its own subdir under shards/, so glob recursively.
             # `|| true`: when no artifact matches, gh exits 1 and set -e killed
             # the step with no FAIL_KIND (10-07). Let the shard count below
@@ -535,10 +543,10 @@ jobs:
               || echo "::warning::${COMBO}: gh run download found no matching artifact"
             # Count shards up front (paths relative to the workspace root).
             NSHARD=$(find "$DEST/shards" -name 'shard-*.json' | wc -l)
-            if [ "$NSHARD" -lt 5 ]; then
+            if [ "$NSHARD" -lt "$SHARD_TOTAL" ]; then
               echo "FAIL_KIND=artifact-missing" >> "$GITHUB_ENV"
-              echo "FAIL_DETAIL=${COMBO}: found ${NSHARD} shard JSON(s), expected 5" >> "$GITHUB_ENV"
-              echo "::error::${COMBO}: found ${NSHARD} shard JSON(s), expected 5."
+              echo "FAIL_DETAIL=${COMBO}: found ${NSHARD} shard JSON(s), expected ${SHARD_TOTAL}" >> "$GITHUB_ENV"
+              echo "::error::${COMBO}: found ${NSHARD} shard JSON(s), expected ${SHARD_TOTAL}."
               exit 1
             fi
             # Merge from inside the combo dir so (a) the shard paths passed to
@@ -800,7 +808,7 @@ jobs:
             poll-api-error)     REASON="GitHub API kept failing while polling the tt-metal run (outage / bad token)." ;;
             poll-timeout)       REASON="tt-metal run did not complete within 5.5h." ;;
             tt-run-failed)      REASON="The tt-metal run itself failed (all-or-nothing: no data landed)." ;;
-            artifact-missing)   REASON="A combo was missing shard artifacts (expected 5)." ;;
+            artifact-missing)   REASON="A combo was missing shard artifacts (expected ${SHARD_TOTAL})." ;;
             combo-provenance-mismatch) REASON="A run measured a different dtype/shape/arch than the combo it would land in — refused to commit mislabeled data." ;;
             merge-failed)       REASON="Shard merge produced no results JSON." ;;
             resolve-run-not-found)       REASON="Recover: no successful tt-metal run to ingest (and none supplied)." ;;
