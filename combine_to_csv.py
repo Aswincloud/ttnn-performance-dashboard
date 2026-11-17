@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
 """Combine tt-metal test-dispatch shard artifacts into per-combo JSON + CSV.
 
-A test-dispatch run uploads 20 artifacts:
-    eltwise-perf-results-<HW>-<SHAPE>-shard-<i>   (HW in N150/P100a,
-                                                    SHAPE in small/large, i in 1..5)
-each holding one `shard-<i>.json`. This groups them into the 4 board×shape
-combos, merges each combo's 5 shards with the SAME reconciliation the pipeline
+A test-dispatch run uploads one artifact per combo x shard:
+    eltwise-perf-results-[<board>-]<dtype>-<shape>-shard-<i>   (no board = N150)
+each holding one `shard-<i>.json`. This groups them into the COMBOS below,
+merges each combo's shards with the SAME reconciliation the pipeline
 uses (perf_measurement_script.merge_result_files — dedup by test_name, a success
 anywhere beats a failure, deterministic order), then writes both a merged JSON
 and a CSV per combo. Device-free: pure post-processing, no ttperf / no HW.
@@ -14,7 +13,7 @@ Usage:
     # 1. download the run's artifacts (any authenticated gh works: tt-metal is public)
     gh run download <run_id> -R tenstorrent/tt-metal -D artifacts
 
-    # 2. produce n150_small.{json,csv}, n150_large.*, p100a_small.*, p100a_large.*
+    # 2. produce <combo>.{json,csv} for every combo in COMBOS
     python3 combine_to_csv.py                # reads ./artifacts, writes ./
     python3 combine_to_csv.py <artifacts_dir> <out_dir>
 """
@@ -29,7 +28,11 @@ from perf_measurement_script import merge_result_files
 
 # Same combo list the daily pipeline uses. Key segments map onto the artifact
 # infix ('-' joined) and the output name; no board segment means N150.
-COMBOS = ["bf16_32x32", "bf16_256x256", "fp32_32x32", "fp32_256x256", "p100a_bf16_32x32"]
+COMBOS = ["bf16_32x32", "bf16_256x256", "fp32_32x32", "fp32_256x256",
+          "p100a_bf16_32x32", "p100a_bf16_256x256", "p100a_fp32_32x32", "p100a_fp32_256x256"]
+
+# Shards per combo; mirrors SHARD_TOTAL in daily-eltwise-perf.yml.
+SHARD_TOTAL = 1
 
 # CSV columns match perf_measurement_script.save_results() (the 'runs' array is
 # dropped — it's per-repeat raw timings, not tabular).
@@ -66,8 +69,8 @@ def main() -> int:
         if not shards:
             print(f"⚠️  {combo}: no shard artifacts found under {art_dir}/ — skipping")
             continue
-        if len(shards) != 5:
-            print(f"⚠️  {combo}: expected 5 shards, found {len(shards)} "
+        if len(shards) < SHARD_TOTAL:
+            print(f"⚠️  {combo}: expected {SHARD_TOTAL} shard(s), found {len(shards)} "
                   f"(merging what's present)")
 
         merged_json = os.path.join(out_dir, f"{combo}.json")
