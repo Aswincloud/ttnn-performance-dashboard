@@ -350,7 +350,11 @@ class PerfMeasurement:
                     'std_deviation_ns', 'min_duration_ns', 'max_duration_ns',
                     'successful_runs', 'timestamp'
                 ]
-                writer = csv.DictWriter(f, fieldnames=fieldnames)
+                # extrasaction='ignore': optional per-test keys (e.g. the
+                # in-process `correctness_check_failures` flag) live in the JSON
+                # only. Without it DictWriter raises ValueError and the whole
+                # run exits 1 after measuring everything (2026-11-17 CI run).
+                writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction='ignore')
                 writer.writeheader()
                 
                 for result in self.results:
