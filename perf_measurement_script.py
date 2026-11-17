@@ -552,6 +552,9 @@ class InProcessPerfPlugin:
         self.runs = runs
         self.samples: Dict[str, List[float]] = {}
         self.errors: Dict[str, str] = {}
+        # test name -> messages of iterations whose op RAN on the device but whose
+        # correctness check (PCC etc.) then raised. Timed, but flagged.
+        self.check_failures: Dict[str, List[str]] = {}
 
     @staticmethod
     def _read_kernel_ns(device) -> float:
@@ -577,11 +580,27 @@ class InProcessPerfPlugin:
 
         self._read_kernel_ns(device)
         samples = []
+        check_failures = []
         for i in range(self.warmup + self.runs):
-            pyfuncitem.obj(**testargs)
-            ns = self._read_kernel_ns(device)
+            try:
+                pyfuncitem.obj(**testargs)
+            except Exception as exc:  # pytest.skip/fail are BaseException: not caught
+                # Match ttperf: it never checked pytest's exit code, so an op that
+                # ran and then failed its correctness assertion was still timed.
+                # Keep that timing (and flag it) so random-input flakes in e.g.
+                # test_sum/test_prod don't drop days from the series. If nothing
+                # ran on the device (the op itself threw, like test_elu), it's a
+                # real failure: re-raise and let pytest report it.
+                ns = self._read_kernel_ns(device)
+                if ns <= 0:
+                    raise
+                check_failures.append(f"{type(exc).__name__}: {str(exc)[:200]}")
+            else:
+                ns = self._read_kernel_ns(device)
             if i >= self.warmup:
                 samples.append(ns)
+        if check_failures:
+            self.check_failures[name] = check_failures
         if all(s > 0 for s in samples):
             self.samples[name] = samples
         else:
@@ -616,6 +635,15 @@ def run_in_process(test_names: List[str], warmup: int, runs: int):
             'max_duration_ns': max(durations),
             'timestamp': _now().isoformat(),
         })
+        # Optional field: present only when some iterations' correctness check
+        # failed after the op ran. Loaders ignore unknown per-test keys.
+        if test_name in plugin.check_failures:
+            results[-1]['correctness_check_failures'] = len(plugin.check_failures[test_name])
+    if plugin.check_failures:
+        print(f"⚠️ Timed despite a failed correctness check: "
+              + ", ".join(f"{t} ({len(m)}x)" for t, m in sorted(plugin.check_failures.items())))
+        for t, msgs in sorted(plugin.check_failures.items()):
+            print(f"   {t}: {msgs[0]}")
     measured = {r['test_name'] for r in results}
     failed = [t for t in test_names if t not in measured]
     return results, failed
