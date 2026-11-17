@@ -43,14 +43,17 @@ function ComboCheckboxes({ selected, onChange }) {
     onChange(next);
   };
   return (
-    <div className="flex items-center gap-2 flex-wrap">
-      <span id="combo-group-label" className="text-xs font-medium text-gray-500 dark:text-gray-400 shrink-0">
+    <div className="flex flex-col gap-1.5">
+      <span id="combo-group-label" className="text-xs font-medium text-gray-500 dark:text-gray-400">
         Compare
       </span>
+      {/* 4 columns = one row per board (COMBOS is board-major, 4 per board),
+          so the same dtype/shape lines up vertically across boards. Narrow
+          screens fall back to 2 columns. */}
       <div
         role="group"
         aria-labelledby="combo-group-label"
-        className="inline-flex flex-wrap gap-1"
+        className="grid grid-cols-2 sm:grid-cols-4 gap-1"
       >
         {COMBOS.map((combo) => {
           const on = selected.includes(combo);
@@ -58,7 +61,7 @@ function ComboCheckboxes({ selected, onChange }) {
           return (
             <label
               key={combo}
-              className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 text-sm font-medium rounded-md ring-1 transition-colors select-none ${
+              className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 text-sm whitespace-nowrap font-medium rounded-md ring-1 transition-colors select-none ${
                 lockedOn ? 'cursor-default' : 'cursor-pointer'
               } ${
                 on
