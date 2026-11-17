@@ -1,25 +1,28 @@
 name: Daily eltwise perf (tt-metal)
 
-# Drives a Tenstorrent eltwise perf run end to end, unattended:
-#   rebase our tt-metal branch on upstream main -> dispatch ONE test-dispatch
-#   run that fans out to 5 combos x SHARD_TOTAL shards off one build: N150 at
-#   2 dtypes x 2 shapes, plus P100a (Blackhole) at bf16 x 32x32
-#   -> poll it to completion -> download the raw shard artifacts and merge
+# Ingests a Tenstorrent eltwise perf run end to end:
+#   [dispatch box, not here] rebase our tt-metal branch on upstream main ->
+#   dispatch ONE test-dispatch run that fans out to 5 combos x SHARD_TOTAL
+#   shards off one build (N150 at 2 dtypes x 2 shapes, plus P100a (Blackhole)
+#   at bf16 x 32x32) -> start THIS workflow with mode=monitor run_id=<run>
+#   [here] -> poll it to completion -> download the raw shard artifacts and merge
 #   each combo's shards locally (tt-metal uploads raw shards; we do the merge)
 #   -> land the 5 combined JSONs under data/workflow/{bf16,fp32}/{32x32,256x256}/
 #   and data/workflow/p100a/bf16/32x32/
 #   via a single auto-merging PR.
 #
-# The tt-metal calls need push/workflow access to tenstorrent/tt-metal, which
-# this repo's GITHUB_TOKEN/App does not have, so they use the TT_METAL_PAT
-# secret (Aswinmcw's classic PAT, repo+workflow scopes).
+# Credentials: the only privileged tt-metal calls (rebase push + dispatch, and
+# re-running failed jobs) happen on the dispatch box with its owner's gh login,
+# which never leaves that machine (~/bin/perf-ci-dispatch.sh). PATs are banned
+# for tenstorrent repos since ITSEC-295, and no tenstorrent credential is stored
+# here. Everything this workflow does on tt-metal is a READ of a public repo
+# (run status, jobs, artifact zips), so it uses this repo's own github.token.
 
 on:
   schedule:
-    - cron: "30 19 * * *"   # 19:30 UTC = 01:00 IST daily (both boards) — MAIN run.
-    # Runs the prior UTC day, but the perf script stamps measurement_date in IST
-    # and the guard step below dates the file in IST, so the dashboard shows the
-    # correct IST run day (not the previous UTC day).
+    # The MAIN run is no longer scheduled here: the dispatch box starts it at
+    # 01:00 IST with workflow_dispatch mode=monitor (it holds the only credential
+    # that can dispatch on tt-metal).
     - cron: "30 23 * * *"   # 23:30 UTC — SAFETY-NET. ~4h after the main run, by
     # which the tt-metal run (queue + ~3h exec) has finished. If the main run got
     # cancelled/killed before ingesting (as on 2026-07-16, when the hosted runner
@@ -29,12 +32,12 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: "normal = rebase+dispatch+poll+ingest; recover = skip all that and just ingest an already-completed tt-metal run"
+        description: "monitor = poll the given (just-dispatched) tt-metal run, then ingest it; recover = just ingest an already-completed run"
         type: choice
-        options: [normal, recover]
-        default: normal
+        options: [monitor, recover]
+        default: monitor
       run_id:
-        description: "recover only: tt-metal test-dispatch run id to ingest (blank = newest successful run on the branch)"
+        description: "tt-metal test-dispatch run id. Required for monitor; for recover, blank = newest successful run on the branch"
         required: false
         default: ""
 
@@ -46,6 +49,7 @@ concurrency:
 
 permissions:
   contents: read
+  actions: read            # explicit; tt-metal reads are public-repo reads anyway
   issues: write            # GITHUB_TOKEN files/dedupes failure & conflict issues
 
 env:
@@ -95,7 +99,7 @@ jobs:
 
       # 0a. Classify this invocation into one of three modes, consumed by the
       #     `if:` on every later step:
-      #       normal     — rebase + dispatch + poll + ingest (the daily run).
+      #       monitor    — poll the run the dispatch box started, then ingest (the daily run).
       #       recover    — manual `mode=recover`: skip rebase/dispatch/poll and
       #                    ingest an already-completed tt-metal run.
       #       safety-net — the 23:30 UTC cron: same as recover, but first checks
@@ -111,10 +115,10 @@ jobs:
           set -euo pipefail
           if [ "$EVENT" = "schedule" ] && [ "$SCHEDULE" = "30 23 * * *" ]; then
             MODE=safety-net
-          elif [ "$EVENT" = "workflow_dispatch" ] && [ "${INPUT_MODE:-normal}" = "recover" ]; then
+          elif [ "$EVENT" = "workflow_dispatch" ] && [ "${INPUT_MODE:-monitor}" = "recover" ]; then
             MODE=recover
           else
-            MODE=normal
+            MODE=monitor
           fi
           echo "mode=$MODE" >> "$GITHUB_OUTPUT"
           echo "🧭 mode=$MODE (event=$EVENT schedule='${SCHEDULE:-}' input='${INPUT_MODE:-}')"
@@ -132,7 +136,7 @@ jobs:
           # NOTE: in recover/safety-net the authoritative date is re-derived at
           # commit time from the merged file's metadata.measurement_date (a run
           # recovered the next morning must NOT be dated "today"); this value is
-          # the normal-mode date and the safety-net gap-check's "today (IST)".
+          # the monitor-mode date and the safety-net gap-check's "today (IST)".
           echo "date=$(TZ='Asia/Kolkata' date +%F)" >> "$GITHUB_OUTPUT"
 
       # 0b. Safety-net only: if today's data already landed, stop here (success,
@@ -158,8 +162,8 @@ jobs:
 
       # 0c. Collapse mode + gap-check into two booleans so every later step gates
       #     on a single equality instead of a repeated 3-clause expression:
-      #       dispatch — do the rebase + dispatch + poll (normal only).
-      #       ingest   — do resolve + download + merge + commit (normal & recover
+      #       poll     — poll the tt-metal run to completion (monitor only).
+      #       ingest   — do resolve + download + merge + commit (monitor & recover
       #                  always; safety-net only when today's data is missing).
       - name: Plan run
         id: plan
@@ -168,175 +172,24 @@ jobs:
           GAP_PRESENT: ${{ steps.gap.outputs.present }}
         run: |
           set -euo pipefail
+          # POLL only in monitor: recover/safety-net act on an already-completed run.
           case "$MODE" in
-            normal)  DISPATCH=true;  INGEST=true ;;
-            recover) DISPATCH=false; INGEST=true ;;
+            monitor) POLL=true;  INGEST=true ;;
+            recover) POLL=false; INGEST=true ;;
             safety-net)
-              DISPATCH=false
+              POLL=false
               if [ "$GAP_PRESENT" = "false" ]; then INGEST=true; else INGEST=false; fi ;;
-            *) DISPATCH=true; INGEST=true ;;
+            *) echo "::error::unknown mode '$MODE'"; exit 1 ;;
           esac
-          echo "dispatch=$DISPATCH" >> "$GITHUB_OUTPUT"
-          echo "ingest=$INGEST"     >> "$GITHUB_OUTPUT"
-          echo "🧭 plan: dispatch=$DISPATCH ingest=$INGEST (mode=$MODE gap_present='${GAP_PRESENT:-}')"
-
-      # 1. Rebase the tt-metal branch onto upstream main so its build tooling
-      #    (build-artifact.yaml etc.) stays current. Conflict => file an issue,
-      #    do NOT dispatch.
-      - name: Rebase tt-metal branch on main
-        if: steps.plan.outputs.dispatch == 'true'
-        env:
-          GH_TOKEN: ${{ secrets.TT_METAL_PAT }}
-        run: |
-          set -euo pipefail
-          git config --global user.name "Aswinmcw"
-          git config --global user.email "aswin@aswincloud.com"
-          AUTH="https://x-access-token:${GH_TOKEN}@github.com/${TT_REPO}.git"
-          # FULL clone — deliberately NOT --filter=blob:none. A blobless partial
-          # clone defers blob downloads, so `git rebase` has to lazily fetch
-          # objects mid-operation over the network. On 2026-08-17/18 that fetch
-          # failed in BOTH daily pipelines with
-          #     fatal: remote error: upload-pack: not our ref <blob sha>
-          # (the blobs exist and the REST API serves them; upload-pack refused
-          # them on the promisor fetch), taking the runs down for two days. A
-          # full clone of tt-metal is ~1.5 GB — well under a minute on a hosted
-          # runner, against a 5.5h budget — and makes the rebase a purely LOCAL
-          # operation that cannot fail this way.
-          git clone --no-checkout "$AUTH" ttm
-          cd ttm
-          # Record the branch's current remote SHA up front as the exact lease
-          # expectation. In a fresh clone the remote-tracking ref state is
-          # unreliable for a bare --force-with-lease (it rejects with
-          # "stale info" after the local rebase), so we pin the lease to this SHA.
-          REMOTE_SHA=$(git ls-remote "$AUTH" "refs/heads/${TT_BRANCH}" | cut -f1)
-          echo "Branch remote SHA before rebase: ${REMOTE_SHA:-<none>}"
-          git fetch --no-tags origin main "${TT_BRANCH}"
-          git checkout -B "${TT_BRANCH}" "${REMOTE_SHA}"
-          # Tell a REAL content conflict apart from a transport/other failure.
-          # Previously any non-zero `git rebase` exit was labelled
-          # rebase-conflict, so the 08-17/18 fetch outage above alerted us with
-          # "resolve the conflict manually" for a conflict that did not exist —
-          # the misdiagnosis cost more than the outage. Unmerged paths exist
-          # only for a genuine conflict, so use them as the discriminator.
-          if ! REBASE_OUT=$(git rebase origin/main 2>&1); then
-            echo "$REBASE_OUT"
-            CONFLICTS=$(git diff --name-only --diff-filter=U | tr '\n' ' ')
-            if [ -n "${CONFLICTS// /}" ]; then
-              KIND=rebase-conflict
-              MSG="tt-metal branch rebase hit a real content conflict with origin/main (files: ${CONFLICTS})"
-            else
-              KIND=rebase-failed
-              MSG="git rebase failed with NO conflicting files — transport/clone error, not a merge conflict"
-            fi
-            git rebase --abort || true
-            # $GITHUB_ENV is line-oriented: flatten git's output to one line.
-            TAIL=$(printf '%s' "$REBASE_OUT" | tail -3 | tr '\n' ' ')
-            echo "FAIL_KIND=$KIND" >> "$GITHUB_ENV"
-            echo "FAIL_DETAIL=${MSG}. git said: ${TAIL}" >> "$GITHUB_ENV"
-            echo "::error::${MSG}; not dispatching."
-            exit 1
-          fi
-          # Lease pinned to the SHA we read: still aborts if someone else pushed
-          # in between (their push would change the ref off REMOTE_SHA), but works
-          # reliably in a fresh clone. No-op rebase pushes the same SHA harmlessly.
-          if ! git push --force-with-lease="${TT_BRANCH}:${REMOTE_SHA}" "$AUTH" "HEAD:${TT_BRANCH}"; then
-            echo "FAIL_KIND=rebase-push-failed" >> "$GITHUB_ENV"
-            echo "::error::Rebase succeeded but push was rejected (branch moved underneath us?)."
-            exit 1
-          fi
-          echo "✅ Rebased ${TT_BRANCH} on origin/main and pushed."
-
-      # 2. Dispatch the sharded perf workflow on tt-metal + correlate the run.
-      #    ONE run fans out to 5 combos x SHARD_TOTAL cells off one build.
-      - name: Dispatch tt-metal perf run
-        id: dispatch
-        if: steps.plan.outputs.dispatch == 'true'
-        env:
-          GH_TOKEN: ${{ secrets.TT_METAL_PAT }}
-        run: |
-          set -euo pipefail
-          # Snapshot the existing test-dispatch runs on our branch BEFORE
-          # dispatching, so we can identify the exact new run we create rather
-          # than trusting "newest after a timestamp" (which could latch onto a
-          # concurrent manual dispatch or a rerun on the same branch).
-          # List our branch's dispatch runs as "id createdAt". A failed listing
-          # must NOT read as "no runs": on 2026-10-06 the pre-dispatch snapshot
-          # errored, the old `|| true` turned that into an empty BEFORE set, and
-          # every one of 37 historical runs then looked "new" -> dispatch-ambiguous.
-          # So retry, and fail loudly if the API never answers.
-          list_runs() {
-            local out
-            for _ in 1 2 3 4 5; do
-              if out=$(gh run list -R "$TT_REPO" -w test-dispatch.yaml -e workflow_dispatch \
-                         -b "$TT_BRANCH" -L 100 --json databaseId,createdAt \
-                         -q '.[] | "\(.databaseId) \(.createdAt)"' 2>&1); then
-                printf '%s\n' "$out"; return 0
-              fi
-              echo "list_runs: gh run list failed, retrying: $out" >&2; sleep 10
-            done
-            return 1
-          }
-          if ! BEFORE=$(list_runs); then
-            echo "FAIL_KIND=dispatch-not-found" >> "$GITHUB_ENV"
-            echo "FAIL_DETAIL=could not snapshot existing tt-metal runs before dispatch (GitHub API)" >> "$GITHUB_ENV"
-            echo "::error::Could not list existing tt-metal runs before dispatching; refusing to dispatch blind."
-            exit 1
-          fi
-          BEFORE_IDS=$(printf '%s\n' "$BEFORE" | awk 'NF{print $1}' | sort -u)
-          # Second, independent guard: a run we create cannot predate this
-          # moment, so only runs created at/after it are candidates at all.
-          DISPATCH_T0=$(date -u -d '-60 seconds' +%Y-%m-%dT%H:%M:%SZ)
-          # $SHARD / $SHARD_TOTAL are expanded by tt-metal's shard matrix at
-          # runtime, so they are single-quoted here (no expansion on our runner).
-          # --in-process: one pytest session per cell, device opened once,
-          # kernel durations read via the in-process device profiler (needs
-          # the tracy=true build passed below). ttperf is no longer used.
-          CMD='set -euo pipefail
-          curl -fsSL '"${RAW_BASE}"'/test_eltwise_operations.py -o /work/test_eltwise_operations.py
-          curl -fsSL '"${RAW_BASE}"'/perf_measurement_script.py -o /work/perf_measurement_script.py
-          cd /work && python perf_measurement_script.py --in-process --shard "$SHARD/$SHARD_TOTAL"'
-
-          # The board list (N150/P100a) and their viommu labels + arch are
-          # fixed in the tt-metal branch's matrix, so arch/runner-label inputs
-          # are ignored — but the schema still marks them required, so pass
-          # placeholders. tracy=true is needed for ttperf's profiler.
-          # Leave 'description' and 'commit' at their defaults (do NOT set them).
-          gh workflow run test-dispatch.yaml -R "$TT_REPO" --ref "$TT_BRANCH" \
-            -f arch=wormhole_b0 \
-            -f 'runner-label=["tt-ubuntu-2204-N150-viommu-stable"]' \
-            -f tracy=true \
-            -f command="$CMD"
-
-          # gh workflow run returns no id. Poll for run IDs that are NEW since
-          # our pre-dispatch snapshot (set difference). Exactly one new run is
-          # expected; if two or more appear we can't attribute the artifacts
-          # safely, so fail loudly rather than commit someone else's data.
-          RUN_ID=""
-          for i in $(seq 1 18); do
-            AFTER=$(list_runs) || { sleep 10; continue; }
-            RECENT=$(printf '%s\n' "$AFTER" | awk -v t0="$DISPATCH_T0" 'NF && $2 >= t0 {print $1}' | sort -u)
-            NEW_IDS=$(comm -13 <(printf '%s\n' "$BEFORE_IDS") <(printf '%s\n' "$RECENT") | grep -v '^$' || true)
-            COUNT=$(printf '%s\n' "$NEW_IDS" | grep -c . || true)
-            if [ "$COUNT" -ge 2 ]; then
-              echo "FAIL_KIND=dispatch-ambiguous" >> "$GITHUB_ENV"
-              echo "FAIL_DETAIL=multiple new runs on ${TT_BRANCH}: $(printf '%s ' $NEW_IDS)" >> "$GITHUB_ENV"
-              echo "::error::Multiple new test-dispatch runs appeared on ${TT_BRANCH}; cannot attribute ours: $(printf '%s ' $NEW_IDS)"
-              exit 1
-            fi
-            if [ "$COUNT" -eq 1 ]; then RUN_ID="$NEW_IDS"; break; fi
-            sleep 10
-          done
-          if [ -z "$RUN_ID" ] || [ "$RUN_ID" = "null" ]; then
-            echo "FAIL_KIND=dispatch-not-found" >> "$GITHUB_ENV"
-            echo "::error::Dispatched but could not locate the tt-metal run."
-            exit 1
-          fi
-          echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
-          echo "🚀 tt-metal run: https://github.com/${TT_REPO}/actions/runs/${RUN_ID}"
+          echo "poll=$POLL"     >> "$GITHUB_OUTPUT"
+          echo "ingest=$INGEST" >> "$GITHUB_OUTPUT"
+          echo "🧭 plan: poll=$POLL ingest=$INGEST (mode=$MODE gap_present='${GAP_PRESENT:-}')"
 
       # 2b. Resolve the tt-metal run id every ingest mode will act on, so the
       #     Poll/Download/Slack steps never depend on the (skipped) Dispatch step.
-      #       normal     — pass through the just-dispatched run.
+      #       monitor    — the run_id input (required): the run the dispatch
+      #                    box just started. Checked to be OUR branch's
+      #                    test-dispatch run; Poll then gates on its success.
       #       recover    — the run_id input if given, else the newest SUCCESSFUL
       #                    test-dispatch run on our branch.
       #       safety-net — always the newest successful run.
@@ -347,15 +200,30 @@ jobs:
         id: resolve
         if: steps.plan.outputs.ingest == 'true'
         env:
-          GH_TOKEN: ${{ secrets.TT_METAL_PAT }}
+          GH_TOKEN: ${{ github.token }}
           MODE: ${{ steps.mode.outputs.mode }}
           INPUT_RUN_ID: ${{ github.event.inputs.run_id }}
-          DISPATCH_RUN_ID: ${{ steps.dispatch.outputs.run_id }}
         run: |
           set -euo pipefail
-          if [ "$MODE" = "normal" ]; then
-            # Trust the dispatch+poll path; no re-validation (Poll already gated).
-            RID="$DISPATCH_RUN_ID"
+          if [ "$MODE" = "monitor" ]; then
+            RID="${INPUT_RUN_ID:-}"
+            if ! [[ "$RID" =~ ^[0-9]+$ ]]; then
+              echo "FAIL_KIND=resolve-run-not-found" >> "$GITHUB_ENV"
+              echo "::error::monitor mode needs a numeric run_id input (got '${RID}')."
+              exit 1
+            fi
+            # Only ingest what the dispatch box could have started: OUR branch's
+            # test-dispatch.yaml. Anything else is refused, not polled.
+            META=$(gh api "repos/${TT_REPO}/actions/runs/${RID}" \
+                     -q '.path + "|" + .head_branch + "|" + .event' 2>/dev/null || echo "||")
+            IFS='|' read -r R_PATH R_BRANCH R_EVENT <<<"$META"
+            echo "run $RID: path=$R_PATH branch=$R_BRANCH event=$R_EVENT"
+            if [ "$R_PATH" != ".github/workflows/test-dispatch.yaml" ] || [ "$R_BRANCH" != "$TT_BRANCH" ] || [ "$R_EVENT" != "workflow_dispatch" ]; then
+              echo "FAIL_KIND=resolve-run-not-found" >> "$GITHUB_ENV"
+              echo "FAIL_DETAIL=run $RID is not a test-dispatch.yaml workflow_dispatch run on ${TT_BRANCH} (path=$R_PATH branch=$R_BRANCH event=$R_EVENT)" >> "$GITHUB_ENV"
+              echo "::error::run $RID is not our branch's test-dispatch run; refusing to monitor it."
+              exit 1
+            fi
           else
             RID="${INPUT_RUN_ID:-}"
             if [ -n "$RID" ]; then
@@ -407,12 +275,12 @@ jobs:
           echo "run_id=$RID" >> "$GITHUB_OUTPUT"
           echo "📌 ingest target: https://github.com/${TT_REPO}/actions/runs/${RID}"
 
-      # 3. Poll the tt-metal run (build + test cells) to completion. Skipped
-      #    in recover/safety-net — the resolved run has already completed.
+      # 3. Poll the tt-metal run (build + test cells) to completion. Monitor
+      #    mode only — recover/safety-net resolve an already-completed run.
       - name: Poll tt-metal run
-        if: steps.plan.outputs.dispatch == 'true'
+        if: steps.plan.outputs.poll == 'true'
         env:
-          GH_TOKEN: ${{ secrets.TT_METAL_PAT }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           RUN_ID="${{ steps.resolve.outputs.run_id }}"
@@ -426,7 +294,11 @@ jobs:
           ERRS=0                                  # consecutive failed polls
           MAX_ERRS=20                             # ~30 min of solid API failures
           ERRLOG=$(mktemp)                        # captured stderr of the last poll
-          RETRIES_LEFT=1                          # re-run failed tt-metal jobs at most once
+          # Re-running failed jobs is a WRITE on tt-metal; github.token can only
+          # read it. So no automatic retry here: a partial failure fails with a
+          # pointer to the dispatch box, which re-runs it with its gh login
+          # (perf-ci-dispatch.sh --rerun <id>) and starts monitor mode again.
+          RETRIES_LEFT=0
           while :; do
             # A single flaky `gh run view` (GitHub API 500 / Connect-Timeout) must
             # NOT abort the whole run — it used to under set -e, ending the poll
@@ -485,7 +357,9 @@ jobs:
                   continue
                 fi
                 RETRY_NOTE=""
-                [ "$RETRIES_LEFT" -eq 0 ] && RETRY_NOTE=" (failed jobs were already re-run once)"
+                if [ "$OK_CELLS" -gt 0 ] && [ "$BAD_CELLS" -gt 0 ]; then
+                  RETRY_NOTE=" — partial failure: on the dispatch box run ~/bin/perf-ci-dispatch.sh --rerun ${RUN_ID}"
+                fi
                 echo "FAIL_KIND=tt-run-failed" >> "$GITHUB_ENV"
                 echo "FAIL_DETAIL=tt-metal run concluded '$CONCL'${RETRY_NOTE} — ${OK_CELLS} ok / ${BAD_CELLS} failed cells (https://github.com/${TT_REPO}/actions/runs/${RUN_ID})" >> "$GITHUB_ENV"
                 echo "::error::tt-metal run concluded '$CONCL' (all-or-nothing: no data landed)${RETRY_NOTE}."
@@ -521,7 +395,7 @@ jobs:
         id: download
         if: steps.plan.outputs.ingest == 'true'
         env:
-          GH_TOKEN: ${{ secrets.TT_METAL_PAT }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           RUN_ID="${{ steps.resolve.outputs.run_id }}"
@@ -628,21 +502,21 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.app.outputs.token }}          # bot authors the PR
           APPROVE_TOKEN: ${{ secrets.WRITE_ACCESS_PAT }}     # different identity approves
-          GUARD_DATE: ${{ steps.guard.outputs.date }}       # normal-mode date (today IST)
+          GUARD_DATE: ${{ steps.guard.outputs.date }}       # monitor-mode date (today IST)
           MODE: ${{ steps.mode.outputs.mode }}
         run: |
           set -euo pipefail
           git config user.name "aswincloud-bot[bot]"
           git config user.email "aswincloud-bot[bot]@users.noreply.github.com"
 
-          # DATE: in normal mode this is today-in-IST (the guard step). In
+          # DATE: in monitor mode this is today-in-IST (the guard step). In
           # recover/safety-net the run may be ingested a day later, so "today" is
           # wrong — derive the business date from the merged file's own IST
           # measurement_date (metadata.measurement_date, e.g. 2026-07-16T04:55…
           # +05:30) and slice the first 10 chars (never Date-parse it). The
           # primary combo n150/small is always present; use it as the date source.
           DATE="$GUARD_DATE"
-          if [ "$MODE" != "normal" ]; then
+          if [ "$MODE" != "monitor" ]; then
             PRIMARY=$(ls _artifact/bf16/32x32/eltwise_perf_results_*.json | head -1)
             DATE=$(python3 -c "import json,sys; print(json.load(open(sys.argv[1]))['metadata']['measurement_date'][:10])" "$PRIMARY")
             echo "🗓️  recover/safety-net date from measurement_date: $DATE (guard was $GUARD_DATE)"
@@ -701,7 +575,7 @@ jobs:
           # Note the ingest mode in the body so a recovered/backfilled day is
           # distinguishable from a fresh daily run in the PR history.
           ORIGIN="Automated daily"
-          [ "$MODE" != "normal" ] && ORIGIN="Recovered (${MODE})"
+          [ "$MODE" != "monitor" ] && ORIGIN="Recovered (${MODE})"
           PR_URL=$(gh pr create -R "$OUR_REPO" --base main --head "$BRANCH" \
             --title "data(workflow): eltwise perf results ${DATE} (N150 2x2 + P100a bf16 32x32)" \
             --body "${ORIGIN} tt-metal eltwise perf run — one build; N150 at 2 dtypes (bfloat16, float32) x 2 shapes (32x32, 256x256) plus P100a (Blackhole) at bfloat16 x 32x32; 5 shards per combo. Data-only, isolated under \`data/workflow/{bf16,fp32}/{32x32,256x256}/\` and \`data/workflow/p100a/bf16/32x32/\`; does not touch \`data/index.json\`.")
@@ -781,9 +655,8 @@ jobs:
           FAIL_KIND: ${{ env.FAIL_KIND }}
           FAIL_DETAIL: ${{ env.FAIL_DETAIL }}
           JOB_STATUS: ${{ job.status }}
-          # Prefer the resolved run; fall back to the dispatched one (resolve is
-          # skipped on an early cancel, but dispatch may still have produced an id).
-          TT_RUN_ID: ${{ steps.resolve.outputs.run_id || steps.dispatch.outputs.run_id }}
+          # The resolved run (empty if we failed before resolving it).
+          TT_RUN_ID: ${{ steps.resolve.outputs.run_id || github.event.inputs.run_id }}
           RUN_DATE: ${{ steps.guard.outputs.date }}
         run: |
           set -euo pipefail
