@@ -29,8 +29,11 @@ const COMBO_LABEL = {
 
 // Temporary notice shown under the Compare checkboxes while tt-metal CI is in
 // maintenance and only the local N150 runner is uploading. Set to null to hide.
-const MAINTENANCE_NOTICE =
-  'Due to ongoing CI maintenance, only N150 · bf16 · 32² data is being uploaded daily. Other combos are paused at their last run (Nov 8).';
+// Keep `text` shorter than the checkbox row so it never widens that column.
+const MAINTENANCE_NOTICE = {
+  text: 'CI maintenance: only N150 · bf16 · 32² updates daily',
+  detail: 'Other combos are paused at their last CI run (Nov 8) until tt-metal CI is back.',
+};
 
 // A labelled group of combo checkboxes: pick any subset of the 4 combos to show
 // side-by-side (one sub-row per combo, per op). The last-checked box can't be
@@ -492,15 +495,17 @@ function App() {
             </div>
             {/* Combo selector: check any subset of the 4 combos. Each selected
                 combo becomes a sub-row per op in the table below. */}
-            <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+            <div className="flex flex-col items-start gap-2 lg:items-end">
               <ComboCheckboxes selected={selectedCombos} onChange={setSelectedCombos} />
               {MAINTENANCE_NOTICE && (
                 <p
                   role="note"
-                  className="basis-full inline-flex items-start gap-2 rounded-md px-3 py-2 text-xs font-medium bg-amber-50 text-amber-800 ring-1 ring-amber-200 dark:bg-amber-500/10 dark:text-amber-300 dark:ring-amber-500/30"
+                  title={MAINTENANCE_NOTICE.detail}
+                  className="inline-flex w-fit items-center gap-1.5 rounded px-2 py-0.5 text-xs font-medium bg-amber-50 text-amber-800 ring-1 ring-amber-200 dark:bg-amber-500/10 dark:text-amber-300 dark:ring-amber-500/30"
                 >
                   <span aria-hidden="true">⚠️</span>
-                  <span>{MAINTENANCE_NOTICE}</span>
+                  <span>{MAINTENANCE_NOTICE.text}</span>
+                  <span className="sr-only"> {MAINTENANCE_NOTICE.detail}</span>
                 </p>
               )}
             </div>
