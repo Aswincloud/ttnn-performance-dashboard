@@ -558,7 +558,7 @@ class TestEltwiseOperations:
     def test_elu(self, device):
         torch_input, ttnn_input = create_test_tensor(DEFAULT_SHAPE, DEFAULT_DTYPE, device)
         alpha = 1.0
-        ttnn_result = ttnn.elu(ttnn_input, alpha)
+        ttnn_result = ttnn.elu(ttnn_input, alpha=alpha)
         torch_result = torch.nn.functional.elu(torch_input, alpha=alpha)
         assert_tensors_close(ttnn_result, torch_result)
 
