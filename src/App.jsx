@@ -27,6 +27,11 @@ const COMBO_LABEL = {
   p100a_bf16_32x32: 'P100a · bf16 · 32²',
 };
 
+// Temporary notice shown under the Compare checkboxes while tt-metal CI is in
+// maintenance and only the local N150 runner is uploading. Set to null to hide.
+const MAINTENANCE_NOTICE =
+  'Due to ongoing CI maintenance, only N150 · bf16 · 32² data is being uploaded daily. Other combos are paused at their last run (Nov 8).';
+
 // A labelled group of combo checkboxes: pick any subset of the 4 combos to show
 // side-by-side (one sub-row per combo, per op). The last-checked box can't be
 // unchecked — the table always has at least one combo to render.
@@ -489,6 +494,15 @@ function App() {
                 combo becomes a sub-row per op in the table below. */}
             <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
               <ComboCheckboxes selected={selectedCombos} onChange={setSelectedCombos} />
+              {MAINTENANCE_NOTICE && (
+                <p
+                  role="note"
+                  className="basis-full inline-flex items-start gap-2 rounded-md px-3 py-2 text-xs font-medium bg-amber-50 text-amber-800 ring-1 ring-amber-200 dark:bg-amber-500/10 dark:text-amber-300 dark:ring-amber-500/30"
+                >
+                  <span aria-hidden="true">⚠️</span>
+                  <span>{MAINTENANCE_NOTICE}</span>
+                </p>
+              )}
             </div>
           </div>
                      <div className="glass-card">
