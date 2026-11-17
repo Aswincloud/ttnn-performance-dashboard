@@ -11,7 +11,7 @@ anywhere beats a failure, deterministic order), then writes both a merged JSON
 and a CSV per combo. Device-free: pure post-processing, no ttperf / no HW.
 
 Usage:
-    # 1. download the run's artifacts (needs gh + TT_METAL_PAT/gh auth on tt-metal)
+    # 1. download the run's artifacts (any authenticated gh works: tt-metal is public)
     gh run download <run_id> -R tenstorrent/tt-metal -D artifacts
 
     # 2. produce n150_small.{json,csv}, n150_large.*, p100a_small.*, p100a_large.*
