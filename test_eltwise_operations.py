@@ -1724,6 +1724,284 @@ class TestEltwiseOperations:
         assert_tensors_close(ttnn_result[0], torch_result[0])
         assert_tensors_close(ttnn_result[1], torch_result[1])
 
+    # =============================================================================
+    # ADDED 2026-11: ops present in tt-metal main's eltwise bindings but
+    # previously unmeasured. Torch references written out explicitly.
+    # =============================================================================
+
+    # ---- binary arithmetic ----
+
+    def test_div(self, device):
+        # ttnn.div is the rounding-mode-capable divide (divide is measured separately).
+        torch_a, ttnn_a = create_test_tensor(DEFAULT_SHAPE, DEFAULT_DTYPE, device)
+        torch_b, ttnn_b = create_test_tensor(DEFAULT_SHAPE, DEFAULT_DTYPE, device, "positive")
+        ttnn_result = ttnn.div(ttnn_a, ttnn_b)
+        assert_tensors_close(ttnn_result, torch.div(torch_a, torch_b))
+
+    def test_div_no_nan(self, device):
+        torch_a, ttnn_a = create_test_tensor(DEFAULT_SHAPE, DEFAULT_DTYPE, device)
+        torch_b, ttnn_b = create_test_tensor(DEFAULT_SHAPE, DEFAULT_DTYPE, device, "positive")
+        ttnn_result = ttnn.div_no_nan(ttnn_a, ttnn_b)
+        torch_result = torch.where(torch_b == 0, torch.zeros_like(torch_a), torch_a / torch_b)
+        assert_tensors_close(ttnn_result, torch_result)
+
+    def test_floor_div(self, device):
+        torch_a, ttnn_a = create_test_tensor(DEFAULT_SHAPE, DEFAULT_DTYPE, device)
+        torch_b, ttnn_b = create_test_tensor(DEFAULT_SHAPE, DEFAULT_DTYPE, device, "range", min_val=1, max_val=10)
+        ttnn_result = ttnn.floor_div(ttnn_a, ttnn_b)
+        assert_tensors_close(ttnn_result, torch.floor_divide(torch_a, torch_b))
+
+    def test_rsub(self, device):
+        run_binary_op_test(ttnn.rsub, lambda a, b: b - a, device)
+
+    def test_gcd(self, device):
+        torch_a, ttnn_a = create_test_tensor(DEFAULT_SHAPE, ttnn.int32, device, "range", min_val=-1000, max_val=1000)
+        torch_b, ttnn_b = create_test_tensor(DEFAULT_SHAPE, ttnn.int32, device, "range", min_val=-1000, max_val=1000)
+        ttnn_result = ttnn.gcd(ttnn_a, ttnn_b)
+        assert_tensors_close(ttnn_result, torch.gcd(torch_a, torch_b).float())
+
+    def test_lcm(self, device):
+        torch_a, ttnn_a = create_test_tensor(DEFAULT_SHAPE, ttnn.int32, device, "range", min_val=-100, max_val=100)
+        torch_b, ttnn_b = create_test_tensor(DEFAULT_SHAPE, ttnn.int32, device, "range", min_val=-100, max_val=100)
+        ttnn_result = ttnn.lcm(ttnn_a, ttnn_b)
+        assert_tensors_close(ttnn_result, torch.lcm(torch_a, torch_b).float())
+
+    def test_polyval(self, device):
+        torch_input, ttnn_input = create_test_tensor(DEFAULT_SHAPE, DEFAULT_DTYPE, device, "range", min_val=-2, max_val=2)
+        coeffs = [1.0, -2.0, 0.5, 3.0]
+        ttnn_result = ttnn.polyval(ttnn_input, coeffs)
+        torch_result = torch.zeros_like(torch_input)
+        for c in coeffs:  # Horner: highest-order coefficient first
+            torch_result = torch_result * torch_input + c
+        assert_tensors_close(ttnn_result, torch_result)
+
+    def test_outer(self, device):
+        n = DEFAULT_SHAPE[-1]
+        torch_a, ttnn_a = create_test_tensor((1, 1, n, 1), DEFAULT_DTYPE, device)
+        torch_b, ttnn_b = create_test_tensor((1, 1, 1, n), DEFAULT_DTYPE, device)
+        ttnn_result = ttnn.outer(ttnn_a, ttnn_b)
+        # outer of the flattened vectors -> (n, n)
+        torch_result = torch.outer(torch_a.flatten(), torch_b.flatten())
+        assert_tensors_close(ttnn_result, torch_result.reshape(tuple(ttnn_result.shape)))
+
+    # ---- shifts (int32, like the other bitwise ops) ----
+
+    def _shift_inputs(self, device):
+        torch_a, ttnn_a = create_test_tensor(DEFAULT_SHAPE, ttnn.int32, device, "range", min_val=-1000, max_val=1000)
+        torch_b, ttnn_b = create_test_tensor(DEFAULT_SHAPE, ttnn.int32, device, "range", min_val=0, max_val=8)
+        return torch_a, ttnn_a, torch_b, ttnn_b
+
+    def test_bitwise_left_shift(self, device):
+        a, ta, b, tb = self._shift_inputs(device)
+        assert_tensors_close(ttnn.bitwise_left_shift(ta, tb), torch.bitwise_left_shift(a, b).float())
+
+    def test_bitwise_right_shift(self, device):
+        a, ta, b, tb = self._shift_inputs(device)
+        assert_tensors_close(ttnn.bitwise_right_shift(ta, tb), torch.bitwise_right_shift(a, b).float())
+
+    def test_logical_left_shift(self, device):
+        a, ta, b, tb = self._shift_inputs(device)
+        assert_tensors_close(ttnn.logical_left_shift(ta, tb), torch.bitwise_left_shift(a, b).float())
+
+    def test_logical_right_shift(self, device):
+        a, ta, b, tb = self._shift_inputs(device)
+        # logical (zero-fill) shift: reinterpret as uint32. Negative inputs give
+        # huge positives that PCC can't judge, so compare exactly.
+        torch_result = ((a.to(torch.int64) & 0xFFFFFFFF) >> b.to(torch.int64)).to(torch.int32)
+        got = ttnn.to_torch(ttnn.logical_right_shift(ta, tb)).to(torch.int32)
+        assert torch.equal(got, torch_result)
+
+    # ---- GLU family / activations ----
+
+    def test_clamped_silu_glu(self, device):
+        torch_g, ttnn_g = create_test_tensor(DEFAULT_SHAPE, DEFAULT_DTYPE, device, "range", min_val=-10, max_val=10)
+        torch_u, ttnn_u = create_test_tensor(DEFAULT_SHAPE, DEFAULT_DTYPE, device, "range", min_val=-10, max_val=10)
+        limit = 7.0
+        ttnn_result = ttnn.clamped_silu_glu(ttnn_g, ttnn_u, limit)
+        g = torch.clamp(torch_g.float(), max=limit)
+        u = torch.clamp(torch_u.float(), min=-limit, max=limit)
+        torch_result = torch.nn.functional.silu(g) * u
+        assert_tensors_close(ttnn_result, torch_result)
+
+    def test_situ_glu(self, device):
+        torch_g, ttnn_g = create_test_tensor(DEFAULT_SHAPE, DEFAULT_DTYPE, device, "range", min_val=-10, max_val=10)
+        torch_u, ttnn_u = create_test_tensor(DEFAULT_SHAPE, DEFAULT_DTYPE, device, "range", min_val=-10, max_val=10)
+        beta1, beta2 = 5.0, 5.0
+        ttnn_result = ttnn.situ_glu(ttnn_g, ttnn_u, beta1, beta2)
+        g = beta1 * torch.tanh(torch_g.float() / beta1)
+        u = beta2 * torch.tanh(torch_u.float() / beta2)
+        torch_result = torch.nn.functional.silu(g) * u
+        assert_tensors_close(ttnn_result, torch_result)
+
+    def test_softcap(self, device):
+        torch_input, ttnn_input = create_test_tensor(DEFAULT_SHAPE, DEFAULT_DTYPE, device)
+        beta = 30.0
+        ttnn_result = ttnn.softcap(ttnn_input, beta)
+        assert_tensors_close(ttnn_result, beta * torch.tanh(torch_input / beta))
+
+    def test_snake_beta(self, device):
+        torch_x, ttnn_x = create_test_tensor(DEFAULT_SHAPE, DEFAULT_DTYPE, device, "range", min_val=-5, max_val=5)
+        torch_al, ttnn_al = create_test_tensor(DEFAULT_SHAPE, DEFAULT_DTYPE, device, "range", min_val=0.5, max_val=2)
+        torch_be, ttnn_be = create_test_tensor(DEFAULT_SHAPE, DEFAULT_DTYPE, device, "range", min_val=0.5, max_val=2)
+        ttnn_result = ttnn.snake_beta(ttnn_x, ttnn_al, ttnn_be)
+        golden = ttnn.get_golden_function(ttnn.snake_beta)
+        assert_tensors_close(ttnn_result, golden(torch_x, torch_al, torch_be))
+
+    # ---- unary misc ----
+
+    def test_normalize_hw(self, device):
+        torch_input, ttnn_input = create_test_tensor(DEFAULT_SHAPE, DEFAULT_DTYPE, device)
+        ttnn_result = ttnn.normalize_hw(ttnn_input)
+        x = torch_input.float()
+        mean = x.mean(dim=(-2, -1), keepdim=True)
+        std = x.std(dim=(-2, -1), keepdim=True)
+        assert_tensors_close(ttnn_result, (x - mean) / std)
+
+    def test_normalize_global(self, device):
+        torch_input, ttnn_input = create_test_tensor(DEFAULT_SHAPE, DEFAULT_DTYPE, device)
+        ttnn_result = ttnn.normalize_global(ttnn_input)
+        x = torch_input.float()
+        mean = x.mean(dim=(0, 1, 2, 3), keepdim=True)
+        std = x.std(dim=(0, 1, 2, 3), keepdim=True)
+        assert_tensors_close(ttnn_result, (x - mean) / std)
+
+    def test_bitcast(self, device):
+        # Same-width reinterpret; pair follows the sweep dtype.
+        torch_input, ttnn_input = create_test_tensor(DEFAULT_SHAPE, DEFAULT_DTYPE, device)
+        if DEFAULT_DTYPE == ttnn.float32:
+            out_dtype, torch_view = ttnn.uint32, torch.int32
+        else:
+            out_dtype, torch_view = ttnn.uint16, torch.int16
+        ttnn_result = ttnn.bitcast(ttnn_input, out_dtype)
+        got = ttnn.to_torch(ttnn_result).to(torch_view)
+        assert torch.equal(got.view(torch_input.dtype), torch_input)
+
+    # ---- quantization ----
+
+    def test_quantize(self, device):
+        torch_input, ttnn_input = create_test_tensor(DEFAULT_SHAPE, DEFAULT_DTYPE, device, "range", min_val=-10, max_val=10)
+        scale, zp = 0.1, 0
+        ttnn_result = ttnn.quantize(ttnn_input, scale, zp)
+        torch_result = torch.clamp(torch.round(torch_input.float() / scale) + zp, -128, 127)
+        assert_tensors_close(ttnn_result, torch_result)
+
+    def test_dequantize(self, device):
+        q = torch.randint(-128, 128, DEFAULT_SHAPE, dtype=torch.int32)
+        ttnn_q = ttnn.from_torch(q, layout=ttnn.TILE_LAYOUT, device=device)
+        scale, zp = 0.1, 0
+        ttnn_result = ttnn.dequantize(ttnn_q, scale, zp)
+        assert_tensors_close(ttnn_result, (q.float() - zp) * scale)
+
+    def test_requantize(self, device):
+        q = torch.randint(-128, 128, DEFAULT_SHAPE, dtype=torch.int32)
+        ttnn_q = ttnn.from_torch(q, layout=ttnn.TILE_LAYOUT, device=device)
+        in_s, in_zp, out_s, out_zp = 0.1, 0, 0.2, 0
+        ttnn_result = ttnn.requantize(ttnn_q, in_s, in_zp, out_s, out_zp)
+        torch_result = torch.clamp(torch.round((q.float() - in_zp) * in_s / out_s) + out_zp, -128, 127)
+        assert_tensors_close(ttnn_result, torch_result)
+
+    # ---- backward ----
+
+    def _bw_unary(self, ttnn_op, device, *args, values=None, min_val=None, max_val=None, **kw):
+        torch_grad, ttnn_grad = create_test_tensor(DEFAULT_SHAPE, DEFAULT_DTYPE, device, values or DEFAULT_VALUES, min_val=min_val, max_val=max_val)
+        torch_in, ttnn_in = create_test_tensor(DEFAULT_SHAPE, DEFAULT_DTYPE, device, values or DEFAULT_VALUES, min_val=min_val, max_val=max_val)
+        torch_in.requires_grad = True
+        ttnn_result = ttnn_op(ttnn_grad, ttnn_in, *args, **kw)
+        golden = ttnn.get_golden_function(ttnn_op)
+        torch_result = golden(torch_grad, torch_in, *args, **kw)
+        assert_tensors_close(ttnn_result[0], torch_result[0])
+
+    def _bw_unary_minmax(self, ttnn_op, device, lo=-10.0, hi=10.0):
+        torch_grad, ttnn_grad = create_test_tensor(DEFAULT_SHAPE, DEFAULT_DTYPE, device, DEFAULT_VALUES)
+        torch_in, ttnn_in = create_test_tensor(DEFAULT_SHAPE, DEFAULT_DTYPE, device, DEFAULT_VALUES)
+        torch_in.requires_grad = True
+        ttnn_result = ttnn_op(ttnn_grad, ttnn_in, min=lo, max=hi)
+        torch_result = ttnn.get_golden_function(ttnn_op)(torch_grad, torch_in, lo, hi)
+        assert_tensors_close(ttnn_result[0], torch_result[0])
+
+    def test_celu_bw(self, device):
+        self._bw_unary(ttnn.celu_bw, device, alpha=1.0)
+
+    def test_elu_bw(self, device):
+        self._bw_unary(ttnn.elu_bw, device, alpha=1.0)
+
+    def test_clamp_bw(self, device):
+        self._bw_unary_minmax(ttnn.clamp_bw, device)
+
+    def test_clip_bw(self, device):
+        self._bw_unary_minmax(ttnn.clip_bw, device)
+
+    def test_hardtanh_bw(self, device):
+        self._bw_unary(ttnn.hardtanh_bw, device, values="mixed")
+
+    def test_leaky_relu_bw(self, device):
+        self._bw_unary(ttnn.leaky_relu_bw, device, negative_slope=0.01)
+
+    def test_logiteps_bw(self, device):
+        self._bw_unary(ttnn.logiteps_bw, device, eps=0.01, values="range", min_val=0.05, max_val=0.95)
+
+    def test_polygamma_bw(self, device):
+        self._bw_unary(ttnn.polygamma_bw, device, 1, values="range", min_val=1, max_val=10)
+
+    def test_prod_bw(self, device):
+        shape = DEFAULT_SHAPE
+        torch_in, ttnn_in = create_test_tensor(shape, DEFAULT_DTYPE, device, "range", min_val=0.9, max_val=1.1)
+        gshape = (*shape[:-1], 1)
+        torch_grad, ttnn_grad = create_test_tensor(gshape, DEFAULT_DTYPE, device)
+        torch_in.requires_grad = True
+        ttnn_result = ttnn.prod_bw(ttnn_grad, ttnn_in, dim=3)
+        torch_result = ttnn.get_golden_function(ttnn.prod_bw)(torch_grad, torch_in, dim=3)
+        assert_tensors_close(ttnn_result[0], torch_result[0])
+
+    def test_rdiv_bw(self, device):
+        self._bw_unary(ttnn.rdiv_bw, device, 2.0, values="range", min_val=1, max_val=10)
+
+    def test_rpow_bw(self, device):
+        self._bw_unary(ttnn.rpow_bw, device, 2.0, values="range", min_val=-2, max_val=2)
+
+    def test_softplus_bw(self, device):
+        self._bw_unary(ttnn.softplus_bw, device, values="mixed")
+
+    def test_threshold_bw(self, device):
+        self._bw_unary(ttnn.threshold_bw, device, 1.0, 0.0)
+
+    def test_div_no_nan_bw(self, device):
+        self._bw_unary(ttnn.div_no_nan_bw, device, 2.0)
+
+    def test_assign_bw(self, device):
+        # Correct, but launches no device kernel; perf_measurement_script excludes it.
+        self._bw_unary(ttnn.assign_bw, device)
+
+    def test_concat_bw(self, device):
+        torch_a, ttnn_a = create_test_tensor(DEFAULT_SHAPE, DEFAULT_DTYPE, device)
+        torch_b, ttnn_b = create_test_tensor(DEFAULT_SHAPE, DEFAULT_DTYPE, device)
+        shape = list(DEFAULT_SHAPE); shape[-1] *= 2
+        torch_grad, ttnn_grad = create_test_tensor(tuple(shape), DEFAULT_DTYPE, device)
+        torch_a.requires_grad = True; torch_b.requires_grad = True
+        ttnn_result = ttnn.concat_bw(ttnn_grad, ttnn_a, ttnn_b, 3)
+        golden = ttnn.get_golden_function(ttnn.concat_bw)
+        torch_result = golden(torch_grad, torch_a, torch_b, 3)
+        assert_tensors_close(ttnn_result[0], torch_result[0])
+        assert_tensors_close(ttnn_result[1], torch_result[1])
+
+    def _complex(self, device):
+        torch_re, ttnn_re = create_test_tensor(DEFAULT_SHAPE, ttnn.float32, device)
+        torch_im, ttnn_im = create_test_tensor(DEFAULT_SHAPE, ttnn.float32, device)
+        return torch.complex(torch_re, torch_im), ttnn.complex_tensor(ttnn_re, ttnn_im)
+
+    def test_angle_bw(self, device):
+        torch_grad, ttnn_grad = create_test_tensor(DEFAULT_SHAPE, ttnn.float32, device)
+        torch_c, ttnn_c = self._complex(device)
+        torch_c.requires_grad = True
+        ttnn_result = ttnn.angle_bw(ttnn_grad, ttnn_c, memory_config=ttnn.DRAM_MEMORY_CONFIG)
+        golden = ttnn.get_golden_function(ttnn.angle_bw)
+        torch_result = golden(torch_grad, torch_c)
+        # golden packs [real | imag] along the last dim
+        gold_re, gold_im = torch.chunk(torch_result[0].float(), 2, dim=-1)
+        assert_with_pcc(ttnn.to_torch(ttnn_result[0].real).float(), gold_re, pcc=0.99)
+        assert_with_pcc(ttnn.to_torch(ttnn_result[0].imag).float(), gold_im, pcc=0.99)
+
+
 # =============================================================================
 # OPERATION INVENTORY AND STATISTICS
 # =============================================================================

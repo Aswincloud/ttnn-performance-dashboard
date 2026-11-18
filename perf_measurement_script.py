@@ -182,12 +182,16 @@ class PerfMeasurement:
             cmd = ["python", "-m", "pytest", "test_eltwise_operations.py", "--collect-only", "-q"]
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
             
-            # Tests to exclude (known failing tests)
+            # Tests that pass but launch NO device kernel, so there is nothing
+            # to time (verified on N150 with the in-process profiler,
+            # 2026-11-18): real/imag/complex_tensor just view or pack tensors,
+            # and assign_bw / frac_bw return the incoming gradient as is.
             excluded_tests = {
                 'test_complex_tensor',
-                'test_real', 
+                'test_real',
                 'test_imag',
-                'test_frac_bw'
+                'test_frac_bw',
+                'test_assign_bw',
             }
             
             test_names = []
@@ -200,9 +204,9 @@ class PerfMeasurement:
                         if test_name not in excluded_tests:
                             test_names.append(test_name)
                         else:
-                            print(f"⚠️ Excluding known failing test: {test_name}")
+                            print(f"⚠️ Excluding (no device kernel): {test_name}")
             
-            print(f"Found {len(test_names)} total tests available (excluded {len(excluded_tests)} known failing tests)")
+            print(f"Found {len(test_names)} total tests available (excluded {len(excluded_tests)} with no device kernel)")
             return test_names
             
         except Exception as e:
