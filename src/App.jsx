@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { RefreshCw, AlertCircle, Zap, TrendingUp, Book, Bug, GitPullRequest, Bell, Users, Sun, Moon, LayoutGrid, ExternalLink } from 'lucide-react';
+import { RefreshCw, AlertCircle, Zap, TrendingUp, Book, Bug, GitPullRequest, Bell, Users, Sun, Moon } from 'lucide-react';
 import GithubIcon from './components/icons/GithubIcon';
 import OverviewCards from './components/OverviewCards';
 import PerformanceTable from './components/PerformanceTable';
@@ -416,18 +416,6 @@ function App() {
               >
                 {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
               </button>
-              <a
-                href="https://ttnn-ops-coverage.aswincloud.com/"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="btn-secondary inline-flex items-center"
-                aria-label="Open the TTNN Ops Coverage Matrix (opens in a new tab)"
-                title="TTNN Ops Coverage Matrix — pass/fail by dtype × layout × memory"
-              >
-                <LayoutGrid className="h-4 w-4 sm:mr-2 text-indigo-500 dark:text-indigo-300" />
-                <span className="hidden sm:inline">Ops Coverage</span>
-                <ExternalLink className="hidden sm:inline h-3 w-3 ml-1.5 opacity-60" />
-              </a>
               {atHome && (
                 <button
                   onClick={() => setIsAdminOpen(true)}
